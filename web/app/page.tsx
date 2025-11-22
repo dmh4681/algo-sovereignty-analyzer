@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, BarChart3, Zap, Shield } from 'lucide-react'
+import { Search, BarChart3, Zap } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { SearchBar } from '@/components/SearchBar'
 
@@ -106,18 +106,31 @@ export default function HomePage() {
         </Card>
       </section>
 
-      {/* Hard Money Philosophy */}
+      {/* Hard Money Philosophy - Mining Theme */}
       <section>
-        <Card className="bg-orange-500/5 border-orange-500/20">
+        <Card className="bg-gradient-to-br from-orange-500/10 via-yellow-500/5 to-slate-400/10 border-orange-500/30">
           <CardContent className="py-6 px-6">
             <div className="flex items-start gap-4">
-              <span className="text-3xl">🟠</span>
+              <div className="flex flex-col gap-1 text-2xl">
+                <span className="text-orange-500">₿</span>
+                <span className="text-yellow-400">🥇</span>
+                <span className="text-slate-300">🥈</span>
+              </div>
               <div>
-                <h3 className="font-semibold text-lg text-orange-500 mb-2">Hard Money Philosophy</h3>
-                <p className="text-slate-400 text-sm">
-                  Only Bitcoin, gold, and silver are classified as hard money.
+                <h3 className="font-semibold text-lg mb-2">
+                  <span className="text-orange-500">Hard</span>{' '}
+                  <span className="text-yellow-400">Money</span>{' '}
+                  <span className="text-slate-300">Philosophy</span>
+                </h3>
+                <p className="text-slate-400 text-sm mb-3">
+                  Only <span className="text-orange-500 font-medium">Bitcoin</span>,{' '}
+                  <span className="text-yellow-400 font-medium">gold</span>, and{' '}
+                  <span className="text-slate-300 font-medium">silver</span> are classified as hard money.
                   Stablecoins are dollars (fiat-pegged). Everything else—including
-                  ALGO—is a shitcoin. Sovereignty is measured by hard money holdings only.
+                  ALGO—is a shitcoin.
+                </p>
+                <p className="text-orange-400 text-sm font-medium">
+                  ⛏️ Sovereignty is measured by hard money holdings only.
                 </p>
               </div>
             </div>
@@ -129,14 +142,23 @@ export default function HomePage() {
       <section className="space-y-8">
         <h2 className="text-2xl font-bold text-center">Asset Classification</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <Card className="bg-emerald-500/5 border-emerald-500/30">
+          <Card className="bg-gradient-to-br from-orange-500/10 via-yellow-500/5 to-slate-400/10 border-orange-500/30">
             <CardContent className="pt-6 space-y-3">
               <div className="flex items-center gap-3">
-                <Shield className="h-6 w-6 text-emerald-500" />
-                <h3 className="font-semibold text-lg text-emerald-500">Hard Money</h3>
+                <div className="flex gap-1 text-xl">
+                  <span className="text-orange-500">₿</span>
+                  <span className="text-yellow-400">🥇</span>
+                  <span className="text-slate-300">🥈</span>
+                </div>
+                <h3 className="font-semibold text-lg">
+                  <span className="text-orange-500">Hard</span>{' '}
+                  <span className="text-yellow-400">Money</span>
+                </h3>
               </div>
               <p className="text-slate-400 text-sm">
-                Bitcoin, gold, and silver only. These are your true sovereignty assets—scarce, durable, and beyond control.
+                <span className="text-orange-500">Bitcoin</span>,{' '}
+                <span className="text-yellow-400">gold</span>, and{' '}
+                <span className="text-slate-300">silver</span> only. Your true sovereignty assets—scarce, durable, and beyond control.
               </p>
             </CardContent>
           </Card>

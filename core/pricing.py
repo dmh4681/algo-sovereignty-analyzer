@@ -54,8 +54,8 @@ def get_asset_price(ticker: str) -> Optional[float]:
     if ticker_upper in ['GOETH', 'ETH', 'WETH']:
         return get_ethereum_price()
     
-    # Stablecoins (USDC, USDT) - Assume peg for now
-    if ticker_upper in ['USDC', 'USDT', 'FUSDC', 'FUSDT']:
+    # Stablecoins - Assume peg for now
+    if ticker_upper in ['USDC', 'USDT', 'USDT', 'FUSDC', 'FUSDT', 'DAI', 'FUSD']:
         return 1.0
         
     # Gold/Silver (PAXG, XAUT) - Fetch if possible, but for now we might skip or add later

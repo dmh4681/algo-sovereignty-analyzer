@@ -6,6 +6,7 @@ from typing import Dict, List, Optional, Any
 from .models import AssetCategory, SovereigntyData
 from .classifier import AssetClassifier
 from .pricing import get_algo_price, get_asset_price
+from .lp_parser import LPParser
 
 class AlgorandSovereigntyAnalyzer:
     def __init__(self, use_local_node: bool = True):
@@ -21,7 +22,8 @@ class AlgorandSovereigntyAnalyzer:
             self.headers = {}
         
         self.classifier = AssetClassifier()
-        
+        self.lp_parser = LPParser(self.algod_address, self.headers)
+
         # State storage for re-exporting
         self.last_categories: Dict[str, List[Dict[str, Any]]] = {}
         self.last_address: str = ""
@@ -111,14 +113,37 @@ class AlgorandSovereigntyAnalyzer:
             # Calculate actual amount
             actual_amount = amount / (10 ** decimals)
             
+            # Check if this is an LP token that we can parse
+            if self.lp_parser.is_lp_token(ticker, name):
+                # Try to break down LP token into components
+                breakdown = self.lp_parser.estimate_lp_value(
+                    ticker, name, actual_amount, asset_id, get_asset_price
+                )
+
+                if breakdown:
+                    # Add the parsed components to appropriate categories
+                    components = self.lp_parser.classify_lp_components(
+                        breakdown,
+                        self.classifier.auto_classify_asset
+                    )
+
+                    for comp_category, comp_asset in components:
+                        if comp_category not in categories:
+                            comp_category = 'shitcoin'
+                        categories[comp_category].append(comp_asset)
+
+                    print(f"  📊 Parsed LP: {ticker} → {breakdown.asset1_ticker} + {breakdown.asset2_ticker}")
+                    processed += 1
+                    continue  # Skip adding the raw LP token
+
             # Auto-classify
             category = self.classifier.auto_classify_asset(asset_id, name, ticker)
-            
+
             # Override name/ticker if in manual classifications
             if str(asset_id) in self.classifier.classifications:
                 name = self.classifier.classifications[str(asset_id)]['name']
                 ticker = self.classifier.classifications[str(asset_id)]['ticker']
-            
+
             # Get price and calculate USD value
             price = get_asset_price(ticker)
             usd_value = 0.0
@@ -135,7 +160,7 @@ class AlgorandSovereigntyAnalyzer:
                 'amount': actual_amount,
                 'usd_value': usd_value
             })
-            
+
             processed += 1
         
         print(f"✅ Processed {processed} assets with non-zero balances\n")

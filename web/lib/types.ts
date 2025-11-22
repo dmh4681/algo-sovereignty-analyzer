@@ -5,6 +5,38 @@ export interface Asset {
   usd_value: number
 }
 
+// Hard money sub-types for color coding
+export type HardMoneyType = 'bitcoin' | 'gold' | 'silver'
+
+export function getHardMoneyType(ticker: string): HardMoneyType | null {
+  const t = ticker.toUpperCase()
+  if (t.includes('BTC') || t === 'BITCOIN') return 'bitcoin'
+  if (t.includes('GOLD') || t === 'XAUT' || t === 'PAXG') return 'gold'
+  if (t.includes('SILVER')) return 'silver'
+  return null
+}
+
+export const HARD_MONEY_COLORS = {
+  bitcoin: {
+    text: 'text-orange-500',
+    bg: 'bg-orange-500/10',
+    border: 'border-orange-500/50',
+    emoji: '₿',
+  },
+  gold: {
+    text: 'text-yellow-400',
+    bg: 'bg-yellow-500/10',
+    border: 'border-yellow-500/50',
+    emoji: '🥇',
+  },
+  silver: {
+    text: 'text-slate-300',
+    bg: 'bg-slate-400/10',
+    border: 'border-slate-400/50',
+    emoji: '🥈',
+  },
+} as const
+
 export interface SovereigntyData {
   monthly_fixed_expenses: number
   annual_fixed_expenses: number
