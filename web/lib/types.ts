@@ -17,8 +17,7 @@ export interface SovereigntyData {
 
 export interface Categories {
   hard_money: Asset[]
-  productive: Asset[]
-  nft: Asset[]
+  dollars: Asset[]
   shitcoin: Asset[]
 }
 
@@ -39,11 +38,12 @@ export interface AnalyzeRequest {
   monthly_fixed_expenses?: number
 }
 
-export type CategoryType = 'hard_money' | 'productive' | 'nft' | 'shitcoin'
+export type CategoryType = 'hard_money' | 'dollars' | 'shitcoin'
 
 export interface CategoryConfig {
   key: CategoryType
   title: string
+  description: string
   emoji: string
   colorClass: string
   borderClass: string
@@ -54,30 +54,25 @@ export const CATEGORY_CONFIGS: CategoryConfig[] = [
   {
     key: 'hard_money',
     title: 'Hard Money',
+    description: 'Bitcoin, Gold, Silver',
     emoji: '💎',
     colorClass: 'text-emerald-500',
     borderClass: 'border-emerald-500/50',
     bgClass: 'bg-emerald-500/10',
   },
   {
-    key: 'productive',
-    title: 'Productive',
-    emoji: '🌾',
-    colorClass: 'text-amber-500',
-    borderClass: 'border-amber-500/50',
-    bgClass: 'bg-amber-500/10',
-  },
-  {
-    key: 'nft',
-    title: 'NFTs & Collectibles',
-    emoji: '🎨',
-    colorClass: 'text-purple-500',
-    borderClass: 'border-purple-500/50',
-    bgClass: 'bg-purple-500/10',
+    key: 'dollars',
+    title: 'Dollars',
+    description: 'Stablecoins (Fiat-pegged)',
+    emoji: '💵',
+    colorClass: 'text-blue-500',
+    borderClass: 'border-blue-500/50',
+    bgClass: 'bg-blue-500/10',
   },
   {
     key: 'shitcoin',
     title: 'Shitcoins',
+    description: 'ALGO + Everything Else',
     emoji: '💩',
     colorClass: 'text-red-500',
     borderClass: 'border-red-500/50',
