@@ -49,8 +49,10 @@ class AssetClassifier:
             return AssetCategory.HARD_MONEY.value
 
         # DOLLARS: Stablecoins (fiat-pegged assets)
+        # Includes Folks Finance wrapped versions (fUSDC, etc.)
         dollar_patterns = [
             r'^USDC',       # USDC
+            r'^FUSDC',      # Folks wrapped USDC
             r'^USDT',       # USDT / USDt
             r'^DAI$',       # DAI
             r'^FUSD',       # FUSD

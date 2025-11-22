@@ -39,29 +39,30 @@ def get_ethereum_price() -> Optional[float]:
 def get_asset_price(ticker: str) -> Optional[float]:
     """
     Router function that returns price for any ticker.
+    Handles wrapped/derivative tokens (fALGO, xALGO, fUSDC, etc.)
     """
     ticker_upper = ticker.upper()
-    
-    # ALGO
-    if ticker_upper == 'ALGO':
+
+    # ALGO (including Folks Finance wrapped versions)
+    if ticker_upper in ['ALGO', 'FALGO', 'XALGO']:
         return get_algo_price()
-    
-    # Bitcoin (goBTC, BTC, WBTC)
-    if ticker_upper in ['GOBTC', 'BTC', 'WBTC']:
+
+    # Bitcoin (goBTC, BTC, WBTC, and Folks wrapped)
+    if ticker_upper in ['GOBTC', 'BTC', 'WBTC', 'FGOBTC']:
         return get_bitcoin_price()
-    
-    # Ethereum (goETH, ETH, WETH)
-    if ticker_upper in ['GOETH', 'ETH', 'WETH']:
+
+    # Ethereum (goETH, ETH, WETH, and Folks wrapped)
+    if ticker_upper in ['GOETH', 'ETH', 'WETH', 'FGOETH']:
         return get_ethereum_price()
-    
-    # Stablecoins - Assume peg for now
-    if ticker_upper in ['USDC', 'USDT', 'USDT', 'FUSDC', 'FUSDT', 'DAI', 'FUSD']:
+
+    # Stablecoins - Assume peg for now (including Folks Finance wrapped)
+    if ticker_upper in ['USDC', 'USDT', 'FUSDC', 'FUSDT', 'DAI', 'FUSD']:
         return 1.0
-        
+
     # Gold/Silver (PAXG, XAUT) - Fetch if possible, but for now we might skip or add later
     if ticker_upper in ['PAXG', 'XAUT']:
         # Could add gold price fetching later
         return None
-        
+
     return None
 
