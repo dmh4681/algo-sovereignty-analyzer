@@ -1,3 +1,4 @@
+import re
 from typing import Dict, Any, Optional
 from .models import AssetCategory
 
@@ -40,45 +41,46 @@ class AssetClassifier:
         ticker_upper = ticker.upper()
         
         # HARD MONEY: Wrapped Bitcoin, precious metals
+        # Matches exact BTC, WBTC, or patterns like goBTC, gold/silver tokens
         hard_money_patterns = [
-            'GOBTC', 'WBTC', 'BTC', 
-            'GOLD$', 'SILVER$', 'GOLD', 'SILVER',
-            'XAUT',  # Tether Gold
+            r'^WBTC$', r'^BTC$', r'^GOBTC$',
+            r'GOLD', r'SILVER', r'^XAUT$',
+            r'^PAXG$'
         ]
-        if any(pattern in ticker_upper for pattern in hard_money_patterns):
+        if any(re.search(pattern, ticker_upper) for pattern in hard_money_patterns):
             return AssetCategory.HARD_MONEY.value
         
         # PRODUCTIVE ASSETS: LP tokens, liquid staking, stablecoins, lending
         productive_patterns = [
-            'TMPOOL',      # Tinyman LP tokens
-            'PACT',        # Pact LP tokens
-            'PLP',         # Pact LP token
-            'POOL',        # Generic pool tokens
-            '-LP',         # Generic LP suffix
-            'XALGO',       # Liquid staking ALGO
-            'STALGO',      # Staked ALGO
-            'USDC',        # Stablecoins
-            'USDT', 
-            'FUSD',
-            'FUSDC',
-            'FALGO',       # Folks wrapped ALGO
-            'FOLKS',       # Folks Finance governance
-            'GALGO',       # Governance ALGO
+            r'TMPOOL',      # Tinyman LP tokens
+            r'PACT',        # Pact LP tokens
+            r'PLP$',        # Pact LP token suffix
+            r'POOL',        # Generic pool tokens
+            r'-LP$',        # Generic LP suffix
+            r'^XALGO$',     # Liquid staking ALGO
+            r'^STALGO$',    # Staked ALGO
+            r'^USDC',       # Stablecoins
+            r'^USDT', 
+            r'^FUSD',
+            r'^FALGO',      # Folks wrapped ALGO
+            r'^FOLKS$',     # Folks Finance governance
+            r'^GALGO$',     # Governance ALGO
+            r'YIELD',
         ]
-        if any(pattern in ticker_upper for pattern in productive_patterns):
+        if any(re.search(pattern, ticker_upper) for pattern in productive_patterns):
             return AssetCategory.PRODUCTIVE.value
         
         # NFTs: Domain names, verification badges, collectibles
         nft_patterns = [
-            'NFD',         # NFDomains
-            'VL0',         # Verification Lofty
-            'AFK',         # AFK Elephants
-            'SMC',         # Crypto collectibles
-            'OGG',         # OG Governor badges
+            r'^NFD',        # NFDomains
+            r'^VL\d+',      # Verification Lofty (e.g. VL0)
+            r'^AFK$',       # AFK Elephants
+            r'^SMC$',       # Crypto collectibles
+            r'^OGG$',       # OG Governor badges
         ]
         
         # Check if ticker matches NFT patterns
-        if any(pattern in ticker_upper for pattern in nft_patterns):
+        if any(re.search(pattern, ticker_upper) for pattern in nft_patterns):
             return AssetCategory.NFT.value
         
         # Check if it's likely an NFT by characteristics:

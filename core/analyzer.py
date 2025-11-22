@@ -241,6 +241,47 @@ class AlgorandSovereigntyAnalyzer:
         # SOVEREIGNTY RATIO CALCULATION
         self.calculate_sovereignty_ratio(hard_money_algo)
     
+    def calculate_sovereignty_metrics(self, hard_money_algo: float, monthly_fixed_expenses: float) -> Optional[SovereigntyData]:
+        """Calculate sovereignty metrics based on hard money and expenses"""
+        if monthly_fixed_expenses <= 0:
+            return None
+            
+        # Calculate annual fixed expenses
+        annual_fixed = monthly_fixed_expenses * 12
+        
+        # Get live ALGO price from CoinGecko
+        algo_price = get_algo_price()
+        if not algo_price:
+            algo_price = 0.174 # Fallback
+            
+        # Calculate portfolio value in USD
+        portfolio_usd = hard_money_algo * algo_price
+        
+        # Calculate Sovereignty Ratio
+        sovereignty_ratio = portfolio_usd / annual_fixed
+        
+        # Determine sovereignty status
+        if sovereignty_ratio >= 20:
+            status = "Generationally Sovereign 🟩"
+        elif sovereignty_ratio >= 6:
+            status = "Antifragile 🟢"
+        elif sovereignty_ratio >= 3:
+            status = "Robust 🟡"
+        elif sovereignty_ratio >= 1:
+            status = "Fragile 🔴"
+        else:
+            status = "Vulnerable ⚫"
+            
+        return SovereigntyData(
+            monthly_fixed_expenses=monthly_fixed_expenses,
+            annual_fixed_expenses=annual_fixed,
+            algo_price=algo_price,
+            portfolio_usd=portfolio_usd,
+            sovereignty_ratio=round(sovereignty_ratio, 2),
+            sovereignty_status=status,
+            years_of_runway=round(sovereignty_ratio, 1)
+        )
+
     def calculate_sovereignty_ratio(self, hard_money_algo: float):
         """Calculate and display sovereignty ratio based on manual expense input"""
         print("\n" + "="*60)
@@ -254,54 +295,25 @@ class AlgorandSovereigntyAnalyzer:
             monthly_fixed_input = input("Enter your monthly FIXED expenses (USD): $")
             monthly_fixed = float(monthly_fixed_input.replace(',', ''))
             
-            if monthly_fixed <= 0:
+            metrics = self.calculate_sovereignty_metrics(hard_money_algo, monthly_fixed)
+            
+            if not metrics:
                 print("\n⚠️  Invalid amount. Skipping sovereignty ratio calculation.\n")
                 return
-            
-            # Calculate annual fixed expenses
-            annual_fixed = monthly_fixed * 12
-            
-            # Get live ALGO price from CoinGecko
-            algo_price = get_algo_price()
-            
-            if algo_price:
-                print(f"\n✅ Live ALGO price: ${algo_price:.4f} (CoinGecko)")
-            else:
-                print(f"\n⚠️  Could not fetch live price, using fallback: $0.174")
-                algo_price = 0.174
-            print()
-            
-            # Calculate portfolio value in USD
-            portfolio_usd = hard_money_algo * algo_price
-            
-            # Calculate Sovereignty Ratio
-            sovereignty_ratio = portfolio_usd / annual_fixed
-            
-            # Determine sovereignty status
-            if sovereignty_ratio >= 20:
-                status = "Generationally Sovereign 🟩"
-            elif sovereignty_ratio >= 6:
-                status = "Antifragile 🟢"
-            elif sovereignty_ratio >= 3:
-                status = "Robust 🟡"
-            elif sovereignty_ratio >= 1:
-                status = "Fragile 🔴"
-            else:
-                status = "Vulnerable ⚫"
-            
+
             # Print results
             print("-" * 60)
             print("RESULTS:")
             print("-" * 60)
-            print(f"Monthly Fixed Expenses:    ${monthly_fixed:>12,.2f}")
-            print(f"Annual Fixed Expenses:     ${annual_fixed:>12,.2f}")
-            print(f"Hard Money Portfolio:      ${portfolio_usd:>12,.2f}")
-            print(f"\nSovereignty Ratio:         {sovereignty_ratio:>12,.2f}")
-            print(f"Sovereignty Status:        {status}")
+            print(f"Monthly Fixed Expenses:    ${metrics.monthly_fixed_expenses:>12,.2f}")
+            print(f"Annual Fixed Expenses:     ${metrics.annual_fixed_expenses:>12,.2f}")
+            print(f"Hard Money Portfolio:      ${metrics.portfolio_usd:>12,.2f}")
+            print(f"\nSovereignty Ratio:         {metrics.sovereignty_ratio:>12,.2f}")
+            print(f"Sovereignty Status:        {metrics.sovereignty_status}")
             print("-" * 60)
             
             # Show next level threshold
-            if sovereignty_ratio < 20:
+            if metrics.sovereignty_ratio < 20:
                 next_thresholds = {
                     'Vulnerable': (1, 'Fragile 🔴'),
                     'Fragile': (3, 'Robust 🟡'),
@@ -309,14 +321,14 @@ class AlgorandSovereigntyAnalyzer:
                     'Antifragile': (20, 'Generationally Sovereign 🟩')
                 }
                 
-                current_status_name = status.split()[0]
+                current_status_name = metrics.sovereignty_status.split()[0]
                 if current_status_name in next_thresholds:
                     next_threshold, next_status = next_thresholds[current_status_name]
-                    needed_usd = (next_threshold * annual_fixed) - portfolio_usd
-                    needed_algo = needed_usd / algo_price
+                    needed_usd = (next_threshold * metrics.annual_fixed_expenses) - metrics.portfolio_usd
+                    needed_algo = needed_usd / metrics.algo_price
                     
                     print(f"\nTo reach {next_status}:")
-                    print(f"  Need: ${needed_usd:,.2f} more ({needed_algo:,.0f} ALGO @ ${algo_price:.3f})")
+                    print(f"  Need: ${needed_usd:,.2f} more ({needed_algo:,.0f} ALGO @ ${metrics.algo_price:.3f})")
                     print(f"  Target Ratio: {next_threshold}")
             
             print("="*60 + "\n")
@@ -324,21 +336,11 @@ class AlgorandSovereigntyAnalyzer:
             # Explanation
             print("💡 WHAT THIS MEANS:")
             print("-" * 60)
-            print(f"Your hard money can cover {sovereignty_ratio:.1f} years of fixed expenses.")
-            print(f"This means you could say 'no' to income for {sovereignty_ratio:.1f} years")
+            print(f"Your hard money can cover {metrics.sovereignty_ratio:.1f} years of fixed expenses.")
+            print(f"This means you could say 'no' to income for {metrics.sovereignty_ratio:.1f} years")
             print(f"and still cover your essential costs with just your ALGO.")
             print("\nSovereignty = Optionality = Freedom")
             print("="*60 + "\n")
-            # Export sovereignty data
-            sovereignty_data = SovereigntyData(
-                monthly_fixed_expenses=monthly_fixed,
-                annual_fixed_expenses=annual_fixed,
-                algo_price=algo_price,
-                portfolio_usd=portfolio_usd,
-                sovereignty_ratio=round(sovereignty_ratio, 2),
-                sovereignty_status=status,
-                years_of_runway=round(sovereignty_ratio, 1)
-            )
             
             # Re-export with sovereignty data included
             self.export_to_json(
@@ -346,7 +348,7 @@ class AlgorandSovereigntyAnalyzer:
                 self.last_address, 
                 self.last_is_participating, 
                 self.last_hard_money_algo,
-                sovereignty_data
+                metrics
             )
         except ValueError:
             print("\n⚠️  Invalid input. Skipping sovereignty ratio calculation.\n")
