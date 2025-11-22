@@ -36,6 +36,37 @@ class LPParser:
         # These are cached pool configurations
         self._pool_cache: Dict[int, Dict[str, Any]] = {}
 
+    def _normalize_ticker(self, ticker: str) -> str:
+        """
+        Normalize wrapped/derivative token tickers to their base asset for pricing.
+        fALGO, xALGO, FALGO -> ALGO
+        fUSDC, FUSDC -> USDC
+        etc.
+        """
+        t = ticker.upper()
+
+        # Folks Finance wrapped ALGO variants
+        if t in ['FALGO', 'XALGO'] or t.startswith('FALGO') or t.startswith('XALGO'):
+            return 'ALGO'
+
+        # Folks Finance wrapped USDC
+        if t in ['FUSDC'] or t.startswith('FUSDC'):
+            return 'USDC'
+
+        # Folks Finance wrapped USDT
+        if t in ['FUSDT'] or t.startswith('FUSDT'):
+            return 'USDT'
+
+        # Folks Finance wrapped goBTC
+        if t in ['FGOBTC'] or t.startswith('FGOBTC'):
+            return 'GOBTC'
+
+        # Folks Finance wrapped goETH
+        if t in ['FGOETH'] or t.startswith('FGOETH'):
+            return 'GOETH'
+
+        return ticker
+
     def is_lp_token(self, ticker: str, name: str) -> bool:
         """Check if an asset is likely an LP token"""
         ticker_upper = ticker.upper()
@@ -52,6 +83,12 @@ class LPParser:
             return True
         # Generic pool patterns
         if 'POOL' in name_upper or '-LP' in ticker_upper:
+            return True
+        # Folks Finance LP tokens (often have "/" in name like "fUSDC / fALGO")
+        if '/' in name and ('ALGO' in name_upper or 'USDC' in name_upper):
+            return True
+        # Check for common LP name patterns with slashes (e.g., "xALGO / ALGO")
+        if re.search(r'\w+\s*/\s*\w+', name):
             return True
 
         return False
@@ -143,9 +180,14 @@ class LPParser:
         asset1_ticker = pool_info['asset1_ticker']
         asset2_ticker = pool_info['asset2_ticker']
 
-        # Get prices for both assets
-        price1 = get_price_fn(asset1_ticker) or 0
-        price2 = get_price_fn(asset2_ticker) or 0
+        # Normalize wrapped token tickers for pricing
+        # fALGO, xALGO -> ALGO; fUSDC -> USDC, etc.
+        price_ticker1 = self._normalize_ticker(asset1_ticker)
+        price_ticker2 = self._normalize_ticker(asset2_ticker)
+
+        # Get prices for both assets (using normalized tickers)
+        price1 = get_price_fn(price_ticker1) or 0
+        price2 = get_price_fn(price_ticker2) or 0
 
         # If we have no price data, we can't estimate
         if price1 == 0 and price2 == 0:
@@ -158,15 +200,18 @@ class LPParser:
         # This is a rough estimate - actual LP value depends on pool reserves
         # For now, we'll use LP amount as a proxy (most LP tokens have ~1:1 with total pool value)
 
+        # Stablecoins list (including Folks Finance wrapped versions)
+        stablecoins = ['USDC', 'USDT', 'DAI', 'FUSD', 'FUSDC']
+
         # Try to estimate based on known stablecoin value
-        if asset2_ticker in ['USDC', 'USDT', 'DAI', 'FUSD']:
+        if asset2_ticker in stablecoins or price_ticker2 in stablecoins:
             # Asset 2 is a stablecoin, LP amount often represents total USD value
             total_usd = lp_amount  # Very rough estimate
             asset2_usd = total_usd / 2
             asset1_usd = total_usd / 2
             asset1_amount = asset1_usd / price1 if price1 > 0 else 0
             asset2_amount = asset2_usd  # Stablecoin
-        elif asset1_ticker in ['USDC', 'USDT', 'DAI', 'FUSD']:
+        elif asset1_ticker in stablecoins or price_ticker1 in stablecoins:
             # Asset 1 is a stablecoin
             total_usd = lp_amount
             asset1_usd = total_usd / 2
