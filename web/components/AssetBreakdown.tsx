@@ -41,10 +41,42 @@ function getAssetColor(asset: Asset, isHardMoney: boolean): { textClass: string;
   return { textClass: 'text-slate-200' }
 }
 
+// Filter out insignificant assets for cleaner display (NFTs, dust, etc.)
+function filterDisplayAssets(assets: Asset[], categoryKey: string): Asset[] {
+  // For shitcoins, filter out noise
+  if (categoryKey === 'shitcoin') {
+    return assets.filter(asset => {
+      const ticker = asset.ticker.toUpperCase()
+      const name = asset.name.toUpperCase()
+
+      // Filter out NFTs and collectibles (usually amount of 1)
+      if (asset.amount <= 1 && asset.usd_value < 1) return false
+
+      // Filter out NFDs (domain names)
+      if (ticker.startsWith('NFD') || name.includes('NFD')) return false
+
+      // Filter out verification badges and other collectibles
+      if (ticker.match(/^VL\d+/) || ticker === 'AFK' || ticker === 'OGG') return false
+
+      // Filter out dust (very small amounts with no value)
+      if (asset.amount < 0.01 && asset.usd_value === 0) return false
+
+      return true
+    })
+  }
+
+  // For other categories, show everything
+  return assets
+}
+
 function CategoryCard({ config, assets }: CategoryCardProps) {
   const totalValue = assets.reduce((sum, asset) => sum + asset.usd_value, 0)
   const assetCount = assets.length
   const isHardMoney = config.key === 'hard_money'
+
+  // Filter assets for display (but keep full count)
+  const displayAssets = filterDisplayAssets(assets, config.key)
+  const hiddenCount = assetCount - displayAssets.length
 
   // For hard money, show a gradient border effect
   const cardBorder = isHardMoney
@@ -78,9 +110,9 @@ function CategoryCard({ config, assets }: CategoryCardProps) {
           </div>
         </div>
 
-        {assets.length > 0 ? (
+        {displayAssets.length > 0 ? (
           <div className="space-y-2 max-h-48 overflow-y-auto">
-            {assets.slice(0, 10).map((asset, idx) => {
+            {displayAssets.slice(0, 10).map((asset, idx) => {
               const { textClass, emoji } = getAssetColor(asset, isHardMoney)
               return (
                 <div
@@ -105,11 +137,20 @@ function CategoryCard({ config, assets }: CategoryCardProps) {
                 </div>
               )
             })}
-            {assets.length > 10 && (
+            {displayAssets.length > 10 && (
               <div className="text-xs text-slate-500 text-center pt-2">
-                +{assets.length - 10} more assets
+                +{displayAssets.length - 10} more tokens
               </div>
             )}
+            {hiddenCount > 0 && (
+              <div className="text-xs text-slate-600 text-center pt-1 italic">
+                ({hiddenCount} NFTs/dust hidden)
+              </div>
+            )}
+          </div>
+        ) : assetCount > 0 ? (
+          <div className="text-sm text-slate-500 italic">
+            {hiddenCount} NFTs/collectibles (hidden)
           </div>
         ) : (
           <div className="text-sm text-slate-500 italic">
