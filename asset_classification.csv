@@ -1,0 +1,12 @@
+asset_id,name,ticker,category,notes
+0,Algorand,ALGO,hard_money,Native token (if participating)
+386192725,goBTC,goBTC,hard_money,Wrapped Bitcoin on Algorand
+386195940,goETH,goETH,productive,Wrapped Ethereum
+2751733,Meld Silver,SILVER$,hard_money,Physical silver-backed ASA
+2722949,Meld Gold,GOLD$,hard_money,Physical gold-backed ASA
+312769,Tether USDt,USDt,productive,Stablecoin
+31566704,USDC,USDC,productive,Stablecoin
+470842789,PLANET,PLANET,shitcoin,PlanetWatch token
+287867876,Opulous,OPUL,shitcoin,Music rights token
+163650,Smile Coin,SMILE,shitcoin,Gaming token
+226701642,Yieldly,YLDY,shitcoin,DeFi token
