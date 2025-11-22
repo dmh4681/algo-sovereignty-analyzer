@@ -7,3 +7,4 @@ venv/
 .vscode/
 *.json
 !package.json
+!web/public/manifest.json

@@ -1,16 +1,39 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
+import Image from 'next/image'
 import './globals.css'
+
+export const viewport: Viewport = {
+  themeColor: '#f97316',
+}
 
 export const metadata: Metadata = {
   title: 'Algorand Sovereignty Analyzer',
   description: 'Measure your financial sovereignty. Analyze any Algorand wallet and calculate your freedom.',
   keywords: ['Algorand', 'crypto', 'sovereignty', 'Bitcoin', 'wallet analyzer', 'financial freedom'],
   authors: [{ name: 'Sovereignty Labs' }],
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/favicon-16x16.png', sizes: '16x16', type: 'image/png' },
+      { url: '/favicon-32x32.png', sizes: '32x32', type: 'image/png' },
+      { url: '/favicon-96x96.png', sizes: '96x96', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+  },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Algo Sovereignty',
+  },
   openGraph: {
     title: 'Algorand Sovereignty Analyzer',
-    description: 'Measure your financial sovereignty. Analyze any Algorand wallet.',
+    description: 'Measure your financial sovereignty based on your Algorand holdings.',
     type: 'website',
+    siteName: 'Algorand Sovereignty Analyzer',
   },
 }
 
@@ -33,9 +56,13 @@ export default function RootLayout({
           <header className="border-b border-slate-800/50 backdrop-blur-sm sticky top-0 z-50">
             <div className="container mx-auto px-4 py-4 flex items-center justify-between">
               <Link href="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-orange-500 to-orange-600 flex items-center justify-center text-white font-bold">
-                  S
-                </div>
+                <Image
+                  src="/android-chrome-192x192.png"
+                  alt="Algo Sovereignty Logo"
+                  width={32}
+                  height={32}
+                  className="rounded-lg"
+                />
                 <span className="font-semibold text-lg hidden sm:inline">Sovereignty Analyzer</span>
               </Link>
               <nav className="flex items-center gap-6">
