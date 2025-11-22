@@ -1,10 +1,37 @@
 'use client'
 
-import { Search, BarChart3, Zap } from 'lucide-react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Search, BarChart3, Zap, Wallet } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { SearchBar } from '@/components/SearchBar'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { WalletConnect } from '@/components/WalletConnect'
+import { isValidAlgorandAddress } from '@/lib/utils'
 
 export default function HomePage() {
+  const [address, setAddress] = useState('')
+  const [isValid, setIsValid] = useState(false)
+  const router = useRouter()
+
+  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const addr = e.target.value.toUpperCase()
+    setAddress(addr)
+    setIsValid(isValidAlgorandAddress(addr))
+  }
+
+  const handleManualAnalyze = () => {
+    if (isValid) {
+      router.push(`/analyze?address=${address}`)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && isValid) {
+      handleManualAnalyze()
+    }
+  }
+
   return (
     <div className="max-w-4xl mx-auto space-y-16 py-8">
       {/* Hero Section */}
@@ -16,12 +43,69 @@ export default function HomePage() {
           </span>
         </h1>
         <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-          Analyze any Algorand wallet. Classify your assets. Calculate your freedom.
+          Connect your wallet or enter any Algorand address. Classify your assets. Calculate your freedom.
         </p>
 
-        {/* Search Bar */}
-        <div className="max-w-2xl mx-auto pt-4">
-          <SearchBar size="large" showExamples={true} />
+        {/* Main Input Card */}
+        <div className="max-w-xl mx-auto pt-4">
+          <Card className="bg-slate-900/80 border-slate-800">
+            <CardContent className="pt-6 space-y-6">
+              {/* Wallet Connect - PRIMARY METHOD */}
+              <div>
+                <WalletConnect />
+              </div>
+
+              {/* Divider */}
+              <div className="flex items-center gap-4">
+                <div className="flex-1 border-t border-slate-700" />
+                <span className="text-slate-500 text-sm">OR ENTER MANUALLY</span>
+                <div className="flex-1 border-t border-slate-700" />
+              </div>
+
+              {/* Manual Entry - FALLBACK METHOD */}
+              <div>
+                <label className="block text-sm font-medium mb-2 text-slate-400 text-left">
+                  Algorand Address (58 characters)
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    value={address}
+                    onChange={handleAddressChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4"
+                    className="flex-1 bg-slate-800 border-slate-700 font-mono text-sm"
+                  />
+                  <Button
+                    onClick={handleManualAnalyze}
+                    disabled={!isValid}
+                    variant="outline"
+                    className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white disabled:opacity-50"
+                  >
+                    <Search className="w-4 h-4" />
+                  </Button>
+                </div>
+                {address.length > 0 && !isValid && (
+                  <p className="text-xs text-red-400 mt-2 text-left">
+                    Invalid address format (must be 58 characters, A-Z and 2-7 only)
+                  </p>
+                )}
+              </div>
+
+              {/* Example Link */}
+              <div className="text-center">
+                <button
+                  onClick={() => {
+                    const exampleAddress = 'I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4'
+                    setAddress(exampleAddress)
+                    setIsValid(true)
+                  }}
+                  className="text-sm text-orange-500 hover:text-orange-400 underline"
+                >
+                  Try example address
+                </button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </section>
 
@@ -32,11 +116,11 @@ export default function HomePage() {
           <Card className="bg-slate-900/50 border-slate-800">
             <CardContent className="pt-6 text-center space-y-4">
               <div className="w-12 h-12 mx-auto rounded-full bg-orange-500/10 flex items-center justify-center">
-                <Search className="h-6 w-6 text-orange-500" />
+                <Wallet className="h-6 w-6 text-orange-500" />
               </div>
-              <h3 className="font-semibold text-lg">1. Enter Address</h3>
+              <h3 className="font-semibold text-lg">1. Connect Wallet</h3>
               <p className="text-slate-400 text-sm">
-                Paste any Algorand wallet address (58 characters)
+                Use Pera, Defly, Exodus, or enter any address manually
               </p>
             </CardContent>
           </Card>
@@ -192,8 +276,8 @@ export default function HomePage() {
       {/* CTA */}
       <section className="text-center space-y-6 pb-8">
         <h2 className="text-2xl font-bold">Ready to Measure Your Freedom?</h2>
-        <div className="max-w-xl mx-auto">
-          <SearchBar showExamples={false} />
+        <div className="max-w-md mx-auto">
+          <WalletConnect />
         </div>
       </section>
     </div>

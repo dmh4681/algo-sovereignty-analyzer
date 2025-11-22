@@ -2,6 +2,8 @@ import type { Metadata, Viewport } from 'next'
 import Link from 'next/link'
 import Image from 'next/image'
 import './globals.css'
+import { WalletProviderWrapper } from '@/components/WalletProviderWrapper'
+import { HeaderWalletStatus } from '@/components/HeaderWalletStatus'
 
 export const viewport: Viewport = {
   themeColor: '#f97316',
@@ -45,6 +47,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body className="min-h-screen bg-slate-950 text-slate-50 antialiased">
+        <WalletProviderWrapper>
         <div className="relative min-h-screen">
           {/* Background gradient */}
           <div className="fixed inset-0 -z-10">
@@ -65,7 +68,8 @@ export default function RootLayout({
                 />
                 <span className="font-semibold text-lg hidden sm:inline">Sovereignty Analyzer</span>
               </Link>
-              <nav className="flex items-center gap-6">
+              <nav className="flex items-center gap-4">
+                <HeaderWalletStatus />
                 <a
                   href="https://github.com"
                   target="_blank"
@@ -93,6 +97,7 @@ export default function RootLayout({
             </div>
           </footer>
         </div>
+        </WalletProviderWrapper>
       </body>
     </html>
   )
