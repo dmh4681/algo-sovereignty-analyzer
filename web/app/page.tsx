@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, BarChart3, Zap, Shield, TrendingUp, Lock } from 'lucide-react'
+import { Search, BarChart3, Zap, Shield } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { SearchBar } from '@/components/SearchBar'
 
@@ -106,10 +106,29 @@ export default function HomePage() {
         </Card>
       </section>
 
+      {/* Hard Money Philosophy */}
+      <section>
+        <Card className="bg-orange-500/5 border-orange-500/20">
+          <CardContent className="py-6 px-6">
+            <div className="flex items-start gap-4">
+              <span className="text-3xl">🟠</span>
+              <div>
+                <h3 className="font-semibold text-lg text-orange-500 mb-2">Hard Money Philosophy</h3>
+                <p className="text-slate-400 text-sm">
+                  Only Bitcoin, gold, and silver are classified as hard money.
+                  Stablecoins are dollars (fiat-pegged). Everything else—including
+                  ALGO—is a shitcoin. Sovereignty is measured by hard money holdings only.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </section>
+
       {/* Asset Categories */}
       <section className="space-y-8">
         <h2 className="text-2xl font-bold text-center">Asset Classification</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <Card className="bg-emerald-500/5 border-emerald-500/30">
             <CardContent className="pt-6 space-y-3">
               <div className="flex items-center gap-3">
@@ -117,31 +136,19 @@ export default function HomePage() {
                 <h3 className="font-semibold text-lg text-emerald-500">Hard Money</h3>
               </div>
               <p className="text-slate-400 text-sm">
-                Bitcoin, wrapped BTC, gold tokens, and precious metals. These are your true sovereignty assets—scarce, durable, and beyond control.
+                Bitcoin, gold, and silver only. These are your true sovereignty assets—scarce, durable, and beyond control.
               </p>
             </CardContent>
           </Card>
 
-          <Card className="bg-amber-500/5 border-amber-500/30">
+          <Card className="bg-blue-500/5 border-blue-500/30">
             <CardContent className="pt-6 space-y-3">
               <div className="flex items-center gap-3">
-                <TrendingUp className="h-6 w-6 text-amber-500" />
-                <h3 className="font-semibold text-lg text-amber-500">Productive</h3>
+                <span className="text-2xl">💵</span>
+                <h3 className="font-semibold text-lg text-blue-500">Dollars</h3>
               </div>
               <p className="text-slate-400 text-sm">
-                LP tokens, stablecoins, yield-bearing assets. These generate returns but carry counterparty risk.
-              </p>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-purple-500/5 border-purple-500/30">
-            <CardContent className="pt-6 space-y-3">
-              <div className="flex items-center gap-3">
-                <Lock className="h-6 w-6 text-purple-500" />
-                <h3 className="font-semibold text-lg text-purple-500">NFTs & Collectibles</h3>
-              </div>
-              <p className="text-slate-400 text-sm">
-                Digital collectibles, domains, and unique assets. Valuable for culture, less so for sovereignty.
+                Stablecoins (USDC, USDt, DAI, etc). Fiat-pegged assets with counterparty risk. Not hard money.
               </p>
             </CardContent>
           </Card>
@@ -153,7 +160,7 @@ export default function HomePage() {
                 <h3 className="font-semibold text-lg text-red-500">Shitcoins</h3>
               </div>
               <p className="text-slate-400 text-sm">
-                Everything else. Memecoins, random tokens, and speculative plays. Fun, but not freedom.
+                ALGO and everything else. LP tokens, governance tokens, NFTs, memecoins. Fun, but not freedom.
               </p>
             </CardContent>
           </Card>

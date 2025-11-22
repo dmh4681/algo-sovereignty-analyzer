@@ -10,7 +10,7 @@ interface AssetBreakdownProps {
 
 export function AssetBreakdown({ categories }: AssetBreakdownProps) {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       {CATEGORY_CONFIGS.map((config) => (
         <CategoryCard
           key={config.key}
@@ -38,6 +38,7 @@ function CategoryCard({ config, assets }: CategoryCardProps) {
           <span>{config.emoji}</span>
           <span>{config.title}</span>
         </CardTitle>
+        <p className={`text-sm ${config.colorClass} opacity-70`}>{config.description}</p>
       </CardHeader>
       <CardContent>
         <div className="mb-3">

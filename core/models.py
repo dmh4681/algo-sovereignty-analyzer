@@ -4,8 +4,7 @@ from enum import Enum
 
 class AssetCategory(str, Enum):
     HARD_MONEY = "hard_money"
-    PRODUCTIVE = "productive"
-    NFT = "nft"
+    DOLLARS = "dollars"
     SHITCOIN = "shitcoin"
 
 class Asset(BaseModel):

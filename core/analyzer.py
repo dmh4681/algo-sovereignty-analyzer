@@ -59,20 +59,19 @@ class AlgorandSovereigntyAnalyzer:
         if not account_data:
             return None
         
-        # Initialize categories
+        # Initialize categories (3 categories: hard money maximalist philosophy)
         categories = {
             'hard_money': [],
-            'productive': [],
-            'nft': [],
+            'dollars': [],
             'shitcoin': []
         }
-        
+
         # Check if participating in consensus
         is_participating = account_data.get('status') == 'Online'
         algo_balance = account_data['amount'] / 1_000_000
-        
-        # Add ALGO to appropriate category
-        algo_category = 'hard_money' if is_participating else 'productive'
+
+        # ALGO is a shitcoin - participation status doesn't change category
+        algo_category = 'shitcoin'
         participation_note = " (PARTICIPATING)" if is_participating else " (NOT PARTICIPATING)"
         
         # Get ALGO price
@@ -163,13 +162,13 @@ class AlgorandSovereigntyAnalyzer:
         return categories
     
     def print_results(self, categories: Dict[str, List[Dict[str, Any]]], is_participating: bool):
-        """Print sovereignty analysis results"""
+        """Print sovereignty analysis results (hard money maximalist philosophy)"""
         print("\n" + "="*60)
         print("ALGORAND SOVEREIGNTY ANALYSIS")
         print("="*60 + "\n")
-        
-        # Hard Money
-        print("💎 HARD MONEY ASSETS")
+
+        # Hard Money (Bitcoin, Gold, Silver)
+        print("💎 HARD MONEY (Bitcoin, Gold, Silver)")
         print("-" * 60)
         hard_money_total_usd = 0
         if categories['hard_money']:
@@ -180,63 +179,50 @@ class AlgorandSovereigntyAnalyzer:
             print(f"\n  {'TOTAL USD':12} ${hard_money_total_usd:,.2f}")
         else:
             print("  None")
-        
+
         print("\n")
-        
-        # Productive Assets
-        print("🌱 PRODUCTIVE ASSETS (Yield-Bearing)")
+
+        # Dollars (Stablecoins)
+        print("💵 DOLLARS (Stablecoins)")
         print("-" * 60)
-        productive_count = 0
-        if categories['productive']:
-            for asset in categories['productive']:
+        dollars_total_usd = 0
+        dollars_count = 0
+        if categories['dollars']:
+            for asset in categories['dollars']:
                 amount_str = f"{asset['amount']:,.2f}" if asset['amount'] < 1000 else f"{asset['amount']:,.0f}"
                 usd_str = f"${asset['usd_value']:,.2f}" if asset.get('usd_value', 0) > 0 else "-"
                 print(f"  {asset['ticker']:12} {amount_str:>18} ({usd_str:>10})  {asset['name']}")
-                productive_count += 1
-            print(f"\n  Total positions: {productive_count}")
+                dollars_total_usd += asset.get('usd_value', 0)
+                dollars_count += 1
+            print(f"\n  {'TOTAL USD':12} ${dollars_total_usd:,.2f}")
         else:
             print("  None")
-        
+
         print("\n")
-        
-        # NFTs
-        print("🎨 NFTs & COLLECTIBLES")
-        print("-" * 60)
-        nft_count = 0
-        if categories['nft']:
-            for asset in categories['nft']:
-                amount_str = f"{asset['amount']:,.0f}"
-                print(f"  {asset['ticker']:12} {amount_str:>18}  {asset['name']}")
-                nft_count += 1
-            print(f"\n  Total NFTs: {nft_count}")
-        else:
-            print("  None")
-        
-        print("\n")
-        
-        # Shitcoins
-        print("💩 SHITCOINS")
+
+        # Shitcoins (ALGO + Everything Else)
+        print("💩 SHITCOINS (ALGO + Everything Else)")
         print("-" * 60)
         shitcoin_count = 0
         if categories['shitcoin']:
             for asset in categories['shitcoin']:
                 amount_str = f"{asset['amount']:,.2f}" if asset['amount'] < 1000 else f"{asset['amount']:,.0f}"
-                print(f"  {asset['ticker']:12} {amount_str:>18}  {asset['name']}")
+                usd_str = f"${asset['usd_value']:,.2f}" if asset.get('usd_value', 0) > 0 else "-"
+                print(f"  {asset['ticker']:12} {amount_str:>18} ({usd_str:>10})  {asset['name']}")
                 shitcoin_count += 1
             print(f"\n  Total shitcoins: {shitcoin_count}")
         else:
             print("  None")
-        
+
         print("\n" + "="*60)
         print("SOVEREIGNTY SUMMARY")
         print("="*60)
-        print(f"Participation Status: {'✅ ONLINE - Hard Money Status' if is_participating else '⚪ OFFLINE - Not Hard Money'}")
-        print(f"Hard Money Assets: {len(categories['hard_money'])}")
-        print(f"Productive Assets: {productive_count}")
-        print(f"NFTs: {nft_count}")
-        print(f"Shitcoins: {shitcoin_count}")
+        print(f"Participation Status: {'✅ ONLINE' if is_participating else '⚪ OFFLINE'}")
+        print(f"Hard Money Assets: {len(categories['hard_money'])} (BTC, Gold, Silver only)")
+        print(f"Dollars: {dollars_count} (Stablecoins)")
+        print(f"Shitcoins: {shitcoin_count} (ALGO + Everything Else)")
         print("="*60 + "\n")
-        
+
         # SOVEREIGNTY RATIO CALCULATION
         # Note: In CLI mode we might not have expenses, so we skip or prompt
         # But here we just print results. The calculation method handles prompting if called directly.
@@ -362,7 +348,7 @@ class AlgorandSovereigntyAnalyzer:
                        sovereignty_data: Optional[SovereigntyData] = None):
         """Export analysis results to JSON file"""
         
-        # Build the export data
+        # Build the export data (3 categories: hard money maximalist philosophy)
         export_data = {
             "metadata": {
                 "analyzed_at": datetime.now().isoformat(),
@@ -380,22 +366,14 @@ class AlgorandSovereigntyAnalyzer:
                     }
                     for asset in categories['hard_money']
                 ],
-                "productive": [
+                "dollars": [
                     {
                         "ticker": asset['ticker'],
                         "name": asset['name'],
                         "amount": asset['amount'],
                         "usd_value": asset.get('usd_value', 0)
                     }
-                    for asset in categories['productive']
-                ],
-                "nft": [
-                    {
-                        "ticker": asset['ticker'],
-                        "name": asset['name'],
-                        "amount": asset['amount']
-                    }
-                    for asset in categories['nft']
+                    for asset in categories['dollars']
                 ],
                 "shitcoin": [
                     {
@@ -409,8 +387,7 @@ class AlgorandSovereigntyAnalyzer:
             },
             "summary": {
                 "hard_money_count": len(categories['hard_money']),
-                "productive_count": len(categories['productive']),
-                "nft_count": len(categories['nft']),
+                "dollars_count": len(categories['dollars']),
                 "shitcoin_count": len(categories['shitcoin']),
                 "total_algo": hard_money_algo
             }
