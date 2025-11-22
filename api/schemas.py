@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 from core.models import AssetCategory, SovereigntyData
+from core.history import SovereigntySnapshot
 
 class AnalysisResponse(BaseModel):
     address: str
@@ -12,3 +13,20 @@ class AnalysisResponse(BaseModel):
 class AnalyzeRequest(BaseModel):
     address: str
     monthly_fixed_expenses: Optional[float] = None
+
+
+class HistorySaveRequest(BaseModel):
+    address: str
+    monthly_fixed_expenses: float
+
+
+class HistorySaveResponse(BaseModel):
+    success: bool
+    message: str
+    snapshot: Optional[SovereigntySnapshot] = None
+
+
+class HistoryResponse(BaseModel):
+    address: str
+    snapshots: List[SovereigntySnapshot]
+    count: int
