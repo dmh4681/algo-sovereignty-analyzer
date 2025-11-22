@@ -5,7 +5,7 @@ from typing import Dict, List, Optional, Any
 
 from .models import AssetCategory, SovereigntyData
 from .classifier import AssetClassifier
-from .pricing import get_algo_price
+from .pricing import get_algo_price, get_asset_price
 
 class AlgorandSovereigntyAnalyzer:
     def __init__(self, use_local_node: bool = True):
@@ -75,11 +75,15 @@ class AlgorandSovereigntyAnalyzer:
         algo_category = 'hard_money' if is_participating else 'productive'
         participation_note = " (PARTICIPATING)" if is_participating else " (NOT PARTICIPATING)"
         
+        # Get ALGO price
+        algo_price = get_algo_price() or 0.0
+        algo_usd_value = algo_balance * algo_price
+        
         categories[algo_category].append({
             'name': f'Algorand{participation_note}',
             'ticker': 'ALGO',
             'amount': algo_balance,
-            'usd_value': 0
+            'usd_value': algo_usd_value
         })
         
         # Process ASAs
@@ -116,33 +120,28 @@ class AlgorandSovereigntyAnalyzer:
                 name = self.classifier.classifications[str(asset_id)]['name']
                 ticker = self.classifier.classifications[str(asset_id)]['ticker']
             
-            # Ensure category key exists (handle potential mismatch between enum and string keys)
-            if category not in categories:
-                # Fallback or map to existing keys if needed
-                # For now assuming classifier returns valid keys matching our dict
-                pass
+            # Get price and calculate USD value
+            price = get_asset_price(ticker)
+            usd_value = 0.0
+            if price:
+                usd_value = actual_amount * price
 
-            if category in categories:
-                 categories[category].append({
-                    'name': name,
-                    'ticker': ticker,
-                    'amount': actual_amount,
-                    'usd_value': 0
-                })
-            else:
-                # Fallback to shitcoin if unknown category returned
-                categories['shitcoin'].append({
-                    'name': name,
-                    'ticker': ticker,
-                    'amount': actual_amount,
-                    'usd_value': 0
-                })
+            # Ensure category key exists
+            if category not in categories:
+                category = 'shitcoin'
+
+            categories[category].append({
+                'name': name,
+                'ticker': ticker,
+                'amount': actual_amount,
+                'usd_value': usd_value
+            })
             
             processed += 1
         
         print(f"✅ Processed {processed} assets with non-zero balances\n")
         
-        # Calculate hard money algo amount for later use
+        # Calculate hard money algo amount for later use (legacy support)
         hard_money_algo = 0
         for asset in categories['hard_money']:
             if asset['ticker'] == 'ALGO':
@@ -172,14 +171,13 @@ class AlgorandSovereigntyAnalyzer:
         # Hard Money
         print("💎 HARD MONEY ASSETS")
         print("-" * 60)
-        hard_money_algo = 0
+        hard_money_total_usd = 0
         if categories['hard_money']:
             for asset in categories['hard_money']:
-                print(f"  {asset['ticker']:12} {asset['amount']:>18,.2f}  {asset['name']}")
-                if asset['ticker'] == 'ALGO':
-                    hard_money_algo = asset['amount']
-            if hard_money_algo > 0:
-                print(f"\n  {'TOTAL':12} {hard_money_algo:>18,.2f} ALGO")
+                usd_str = f"${asset['usd_value']:,.2f}" if asset['usd_value'] > 0 else "-"
+                print(f"  {asset['ticker']:12} {asset['amount']:>18,.2f} ({usd_str:>10})  {asset['name']}")
+                hard_money_total_usd += asset.get('usd_value', 0)
+            print(f"\n  {'TOTAL USD':12} ${hard_money_total_usd:,.2f}")
         else:
             print("  None")
         
@@ -192,7 +190,8 @@ class AlgorandSovereigntyAnalyzer:
         if categories['productive']:
             for asset in categories['productive']:
                 amount_str = f"{asset['amount']:,.2f}" if asset['amount'] < 1000 else f"{asset['amount']:,.0f}"
-                print(f"  {asset['ticker']:12} {amount_str:>18}  {asset['name']}")
+                usd_str = f"${asset['usd_value']:,.2f}" if asset.get('usd_value', 0) > 0 else "-"
+                print(f"  {asset['ticker']:12} {amount_str:>18} ({usd_str:>10})  {asset['name']}")
                 productive_count += 1
             print(f"\n  Total positions: {productive_count}")
         else:
@@ -239,23 +238,24 @@ class AlgorandSovereigntyAnalyzer:
         print("="*60 + "\n")
         
         # SOVEREIGNTY RATIO CALCULATION
-        self.calculate_sovereignty_ratio(hard_money_algo)
+        # Note: In CLI mode we might not have expenses, so we skip or prompt
+        # But here we just print results. The calculation method handles prompting if called directly.
     
-    def calculate_sovereignty_metrics(self, hard_money_algo: float, monthly_fixed_expenses: float) -> Optional[SovereigntyData]:
-        """Calculate sovereignty metrics based on hard money and expenses"""
+    def calculate_sovereignty_metrics(self, categories: Dict[str, List[Dict[str, Any]]], monthly_fixed_expenses: float) -> Optional[SovereigntyData]:
+        """Calculate sovereignty metrics based on TOTAL hard money portfolio and expenses"""
         if monthly_fixed_expenses <= 0:
             return None
             
         # Calculate annual fixed expenses
         annual_fixed = monthly_fixed_expenses * 12
         
-        # Get live ALGO price from CoinGecko
-        algo_price = get_algo_price()
-        if not algo_price:
-            algo_price = 0.174 # Fallback
+        # Calculate total hard money portfolio value in USD
+        portfolio_usd = 0.0
+        for asset in categories.get('hard_money', []):
+            portfolio_usd += asset.get('usd_value', 0.0)
             
-        # Calculate portfolio value in USD
-        portfolio_usd = hard_money_algo * algo_price
+        # Get ALGO price for reference
+        algo_price = get_algo_price() or 0.174
         
         # Calculate Sovereignty Ratio
         sovereignty_ratio = portfolio_usd / annual_fixed
@@ -295,7 +295,8 @@ class AlgorandSovereigntyAnalyzer:
             monthly_fixed_input = input("Enter your monthly FIXED expenses (USD): $")
             monthly_fixed = float(monthly_fixed_input.replace(',', ''))
             
-            metrics = self.calculate_sovereignty_metrics(hard_money_algo, monthly_fixed)
+            # Use the new metrics calculation with self.last_categories
+            metrics = self.calculate_sovereignty_metrics(self.last_categories, monthly_fixed)
             
             if not metrics:
                 print("\n⚠️  Invalid amount. Skipping sovereignty ratio calculation.\n")
@@ -325,10 +326,11 @@ class AlgorandSovereigntyAnalyzer:
                 if current_status_name in next_thresholds:
                     next_threshold, next_status = next_thresholds[current_status_name]
                     needed_usd = (next_threshold * metrics.annual_fixed_expenses) - metrics.portfolio_usd
+                    # Just estimate needed ALGO based on current price
                     needed_algo = needed_usd / metrics.algo_price
                     
                     print(f"\nTo reach {next_status}:")
-                    print(f"  Need: ${needed_usd:,.2f} more ({needed_algo:,.0f} ALGO @ ${metrics.algo_price:.3f})")
+                    print(f"  Need: ${needed_usd:,.2f} more (~{needed_algo:,.0f} ALGO)")
                     print(f"  Target Ratio: {next_threshold}")
             
             print("="*60 + "\n")
@@ -338,7 +340,7 @@ class AlgorandSovereigntyAnalyzer:
             print("-" * 60)
             print(f"Your hard money can cover {metrics.sovereignty_ratio:.1f} years of fixed expenses.")
             print(f"This means you could say 'no' to income for {metrics.sovereignty_ratio:.1f} years")
-            print(f"and still cover your essential costs with just your ALGO.")
+            print(f"and still cover your essential costs with just your hard money assets.")
             print("\nSovereignty = Optionality = Freedom")
             print("="*60 + "\n")
             
