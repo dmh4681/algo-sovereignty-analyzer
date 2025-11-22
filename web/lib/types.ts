@@ -111,3 +111,31 @@ export const CATEGORY_CONFIGS: CategoryConfig[] = [
     bgClass: 'bg-red-500/10',
   },
 ]
+
+// History types
+export interface SovereigntySnapshot {
+  address: string
+  timestamp: string
+  sovereignty_ratio: number
+  hard_money_usd: number
+  total_portfolio_usd: number
+  algo_price: number
+  participation_status: boolean
+}
+
+export interface HistoryResponse {
+  address: string
+  snapshots: SovereigntySnapshot[]
+  count: number
+}
+
+export interface HistorySaveRequest {
+  address: string
+  monthly_fixed_expenses: number
+}
+
+export interface HistorySaveResponse {
+  success: boolean
+  message: string
+  snapshot: SovereigntySnapshot | null
+}

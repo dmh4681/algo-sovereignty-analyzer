@@ -1,4 +1,10 @@
-import { AnalyzeRequest, AnalysisResponse } from './types'
+import {
+  AnalyzeRequest,
+  AnalysisResponse,
+  HistoryResponse,
+  HistorySaveRequest,
+  HistorySaveResponse,
+} from './types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api/v1'
 
@@ -94,4 +100,43 @@ export function calculateSovereigntyMetrics(
     nextMilestone,
     neededAlgo: nextMilestone ? nextMilestone.needed / algoPrice : 0,
   }
+}
+
+/**
+ * Get historical sovereignty snapshots for an address
+ */
+export async function getHistory(
+  address: string,
+  days: 30 | 90 | 365 = 90
+): Promise<HistoryResponse> {
+  const response = await fetch(`${API_BASE}/history/${address}?days=${days}`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch history', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Save a sovereignty snapshot to history
+ */
+export async function saveHistorySnapshot(
+  request: HistorySaveRequest
+): Promise<HistorySaveResponse> {
+  const response = await fetch(`${API_BASE}/history/save`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new ApiError(
+      errorData.detail || 'Failed to save history snapshot',
+      response.status
+    )
+  }
+
+  return response.json()
 }

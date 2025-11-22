@@ -11,6 +11,7 @@ import { SovereigntyScore } from '@/components/SovereigntyScore'
 import { AssetBreakdown, AssetBreakdownSummary } from '@/components/AssetBreakdown'
 import { RunwayCalculator, NextMilestone } from '@/components/RunwayCalculator'
 import { LoadingSpinner, LoadingState } from '@/components/LoadingState'
+import { HistoryChart } from '@/components/HistoryChart'
 import { analyzeWallet, ApiError } from '@/lib/api'
 import { AnalysisResponse } from '@/lib/types'
 import { truncateAddress } from '@/lib/utils'
@@ -213,6 +214,11 @@ function AnalyzeContent() {
           <section>
             <h2 className="text-xl font-semibold mb-4">Asset Breakdown</h2>
             <AssetBreakdown categories={analysis.categories} />
+          </section>
+
+          {/* History Chart */}
+          <section>
+            <HistoryChart address={address} monthlyExpenses={expenses || undefined} />
           </section>
 
           {/* Calculator Section */}
