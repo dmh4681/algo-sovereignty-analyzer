@@ -12,6 +12,7 @@ import { AssetBreakdown, AssetBreakdownSummary } from '@/components/AssetBreakdo
 import { RunwayCalculator, NextMilestone } from '@/components/RunwayCalculator'
 import { LoadingSpinner, LoadingState } from '@/components/LoadingState'
 import { HistoryChart } from '@/components/HistoryChart'
+import { BadgeSection } from '@/components/BadgeSection'
 import { analyzeWallet, ApiError } from '@/lib/api'
 import { AnalysisResponse } from '@/lib/types'
 import { truncateAddress } from '@/lib/utils'
@@ -220,6 +221,26 @@ function AnalyzeContent() {
           <section>
             <HistoryChart address={address} monthlyExpenses={expenses || undefined} />
           </section>
+
+          {/* Badge Section */}
+          {analysis.sovereignty_data && (
+            <section>
+              {(() => {
+                const hardMoneyValue = analysis.categories.hard_money.reduce((sum, a) => sum + a.usd_value, 0)
+                const dollarsValue = analysis.categories.dollars.reduce((sum, a) => sum + a.usd_value, 0)
+                const shitcoinValue = analysis.categories.shitcoin.reduce((sum, a) => sum + a.usd_value, 0)
+                const totalValue = hardMoneyValue + dollarsValue + shitcoinValue
+                const hardMoneyPercentage = totalValue > 0 ? (hardMoneyValue / totalValue) * 100 : 0
+
+                return (
+                  <BadgeSection
+                    sovereigntyRatio={analysis.sovereignty_data!.sovereignty_ratio}
+                    hardMoneyPercentage={hardMoneyPercentage}
+                  />
+                )
+              })()}
+            </section>
+          )}
 
           {/* Calculator Section */}
           <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
