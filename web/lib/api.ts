@@ -6,7 +6,8 @@ import {
   HistorySaveResponse,
 } from './types'
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || '/api/v1'
+// Use direct backend URL to avoid Next.js proxy timeout issues
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
 export class ApiError extends Error {
   constructor(
@@ -22,22 +23,37 @@ export class ApiError extends Error {
 export async function analyzeWallet(
   request: AnalyzeRequest
 ): Promise<AnalysisResponse> {
-  const response = await fetch(`${API_BASE}/analyze`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(request),
-  })
+  // Create AbortController for timeout
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}))
-    throw new ApiError(
-      errorData.detail || 'Wallet analysis failed',
-      response.status,
-      errorData.code
-    )
+  try {
+    const response = await fetch(`${API_BASE}/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new ApiError(
+        errorData.detail || 'Wallet analysis failed',
+        response.status,
+        errorData.code
+      )
+    }
+
+    return response.json()
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ApiError('Request timed out after 60 seconds', 408)
+    }
+    throw error
   }
-
-  return response.json()
 }
 
 export async function getClassifications(): Promise<Record<string, { name: string; ticker: string; category: string }>> {

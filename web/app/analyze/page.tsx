@@ -203,7 +203,17 @@ function AnalyzeContent() {
                   <div className="text-right">
                     <div className="text-sm text-slate-400">Hard Money ALGO</div>
                     <div className="text-3xl font-bold text-orange-500 tabular-nums">
-                      {analysis.hard_money_algo.toLocaleString()} ALGO
+                      {(() => {
+                        // Calculate ALGO equivalent of hard money assets
+                        const hardMoneyValue = analysis.categories.hard_money.reduce((sum, a) => sum + a.usd_value, 0)
+                        // Get ALGO price from ALGO holdings or use fallback
+                        const algoAsset = analysis.categories.algo.find(a => a.ticker === 'ALGO')
+                        const algoPrice = algoAsset && algoAsset.amount > 0 && algoAsset.usd_value > 0
+                          ? algoAsset.usd_value / algoAsset.amount
+                          : 0.15 // fallback price
+                        const hardMoneyAlgo = algoPrice > 0 ? hardMoneyValue / algoPrice : 0
+                        return hardMoneyAlgo.toLocaleString(undefined, { maximumFractionDigits: 0 })
+                      })()} ALGO
                     </div>
                   </div>
                 </div>

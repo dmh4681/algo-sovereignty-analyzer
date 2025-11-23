@@ -69,9 +69,12 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
     analyzer = AlgorandSovereigntyAnalyzer(use_local_node=use_local_node)
     
     try:
+        print(f"📊 Starting analysis for {request.address[:8]}...")
         categories = analyzer.analyze_wallet(request.address)
         if not categories:
             raise HTTPException(status_code=404, detail="Wallet not found or empty")
+        
+        print(f"✅ Analysis complete. Categories: {list(categories.keys())}")
             
         # Calculate sovereignty metrics if expenses provided
         sovereignty_data = None
@@ -101,15 +104,23 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
         if not use_local_node:
             cache_analysis(request.address, result)
         
-        return AnalysisResponse(
+        print(f"📤 Preparing response...")
+        response = AnalysisResponse(
             address=request.address,
             is_participating=analyzer.last_is_participating,
             hard_money_algo=analyzer.last_hard_money_algo,
             categories=categories,
             sovereignty_data=sovereignty_data
         )
+        print(f"✅ Response ready, sending...")
+        return response
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ Error in analyze_wallet endpoint: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 @router.get("/classifications")
 async def get_classifications() -> Dict[str, Dict[str, str]]:

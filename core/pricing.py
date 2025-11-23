@@ -92,9 +92,15 @@ def fetch_vestige_price(asset_id: int) -> Optional[float]:
         response.raise_for_status()
         data = response.json()
         if data and len(data) > 0:
-            return data[0].get('price')
+            price = data[0].get('price')
+            if price is not None and price > 0:
+                return price
+    except requests.exceptions.Timeout:
+        print(f"⚠️  Timeout fetching Vestige price for asset {asset_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️  Network error fetching Vestige price for asset {asset_id}: {e}")
     except Exception as e:
-        print(f"⚠️  Failed to fetch Vestige price for asset {asset_id}: {e}")
+        print(f"⚠️  Unexpected error fetching Vestige price for asset {asset_id}: {e}")
     return None
 
 def get_asset_price(ticker: str, asset_id: Optional[int] = None) -> Optional[float]:

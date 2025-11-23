@@ -178,11 +178,92 @@ class LPParser:
             print(f"⚠️  Failed to fetch pool assets for {creator_address}: {e}")
         
         return None, None
+    
+    def get_pool_state(self, pool_address: str, lp_asset_id: int, asset1_id: int, asset2_id: int) -> Optional[dict]:
+        """
+        Query pool using Tinyman SDK to get exact reserves and total supply.
+        Returns dict with: total_supply, reserve1, reserve2
+        """
+        try:
+            print(f"🔍 Using Tinyman SDK for LP {lp_asset_id}")
+            print(f"   Asset IDs: {asset1_id}, {asset2_id}")
+            
+            from tinyman.v2.client import TinymanV2MainnetClient
+            from algosdk.v2client.algod import AlgodClient
+            
+            # Create Algorand client
+            algod_client = AlgodClient("", self.algod_address)
+            
+            # Create Tinyman client
+            tinyman_client = TinymanV2MainnetClient(algod_client=algod_client)
+            
+            # Fetch the pool
+            # Tinyman SDK needs Asset objects
+            from tinyman.assets import Asset as TinymanAsset
+            
+            # Create asset objects
+            if asset1_id == 0:
+                asset1 = tinyman_client.fetch_asset(0)  # ALGO
+            else:
+                asset1 = tinyman_client.fetch_asset(asset1_id)
+            
+            if asset2_id == 0:
+                asset2 = tinyman_client.fetch_asset(0)  # ALGO
+            else:
+                asset2 = tinyman_client.fetch_asset(asset2_id)
+            
+            # Fetch the pool
+            pool = tinyman_client.fetch_pool(asset1, asset2)
+            
+            if not pool or not pool.exists:
+                print(f"   ❌ Pool not found")
+                return None
+            
+            # Get pool info
+            info = pool.info()
+            
+            # info is a dict, not an object
+            # Total LP token supply (circulating)
+            total_supply = info.get('issued_pool_tokens', 0) / (10 ** 6)  # LP tokens have 6 decimals
+            
+            # Reserves
+            reserve1 = info.get('asset1_reserves', 0) / (10 ** asset1.decimals)
+            reserve2 = info.get('asset2_reserves', 0) / (10 ** asset2.decimals)
+            
+            print(f"   ✅ Tinyman SDK data:")
+            print(f"      Total LP supply: {total_supply:,.2f}")
+            print(f"      Reserve1 ({asset1.unit_name}): {reserve1:,.2f}")
+            print(f"      Reserve2 ({asset2.unit_name}): {reserve2:,.2f}")
+            
+            return {
+                'total_supply': total_supply,
+                'reserve1': reserve1,
+                'reserve2': reserve2
+            }
+            
+        except Exception as e:
+            print(f"❌ Tinyman SDK error: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
 
     def estimate_lp_value(self, lp_ticker: str, lp_name: str, lp_amount: float,
                           asset_id: int, get_price_fn) -> Optional[LPBreakdown]:
         """
         Estimate the underlying value of LP tokens.
+        """
+        try:
+            return self._estimate_lp_value_internal(lp_ticker, lp_name, lp_amount, asset_id, get_price_fn)
+        except Exception as e:
+            print(f"⚠️  Error estimating LP value for {lp_ticker}: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def _estimate_lp_value_internal(self, lp_ticker: str, lp_name: str, lp_amount: float,
+                          asset_id: int, get_price_fn) -> Optional[LPBreakdown]:
+        """
+        Internal implementation of LP value estimation.
         """
 
         pool_info = self.get_pool_info(asset_id)
@@ -223,53 +304,63 @@ class LPParser:
                     # Both are ASAs. Just assign in order.
                     asset1_id = id1
                     asset2_id = id2
-            else:
-                # Fallback: Try to map tickers to known Asset IDs
-                # This ensures we get accurate pricing (premiums) even if node lookup fails
-                known_ids = {
-                    'ALGO': 0,
-                    'USDC': 31566704,
-                    'USDT': 312769,
-                    'XALGO': 1134696561,
-                    'FALGO': 3184331013,
-                    'FUSDC': 3184331239,
-                    'GOBTC': 386192725,
-                    'GOETH': 386195940,
-                    'WBTC': 1058926737,
-                    'WETH': 1058926737, # Check this if needed, but usually same
-                    'SILVER$': 246516580, # Meld Silver
-                    'GOLD$': 246519683,   # Meld Gold
-                }
-                
-                if asset1_id is None and asset1_ticker in known_ids:
-                    asset1_id = known_ids[asset1_ticker]
-                    
-                if asset2_id is None and asset2_ticker in known_ids:
-                    asset2_id = known_ids[asset2_ticker]
+        
+        # ALWAYS apply hardcoded ID fallbacks if we don't have IDs yet
+        # This ensures we get accurate pricing even if pool resolution failed
+        known_ids = {
+            'ALGO': 0,
+            'USDC': 31566704,
+            'USDT': 312769,
+            'XALGO': 1134696561,
+            'FALGO': 3184331013,
+            'FUSDC': 3184331239,
+            'GOBTC': 386192725,
+            'GOETH': 386195940,
+            'WBTC': 1058926737,
+            'WETH': 1058926737,
+            'SILVER$': 246516580,
+            'GOLD$': 246519683,
+        }
+        
+        if asset1_id is None and asset1_ticker in known_ids:
+            asset1_id = known_ids[asset1_ticker]
+            
+        if asset2_id is None and asset2_ticker in known_ids:
+            asset2_id = known_ids[asset2_ticker]
 
         # Get prices using resolved IDs if available, otherwise fallback to ticker
         # We do NOT normalize tickers anymore, so xALGO stays xALGO.
         price1 = get_price_fn(asset1_ticker, asset1_id) or 0
         price2 = get_price_fn(asset2_ticker, asset2_id) or 0
 
-        # STRATEGY 1: Direct LP Token Pricing (The "Better Way")
-        # Try to get the price of the LP token itself from Vestige
-        # This is accurate because Vestige tracks the LP value directly
-        lp_price = get_price_fn(lp_ticker, asset_id)
+        # TINYMAN ACCURATE FORMULA
+        # Get pool state (total LP supply and reserves) for exact calculation
+        pool_state = None
+        if 'creator' in pool_info and asset1_id is not None and asset2_id is not None:
+            pool_state = self.get_pool_state(
+                pool_info['creator'],
+                asset_id,
+                asset1_id,
+                asset2_id
+            )
         
-        if lp_price and lp_price > 0:
-            total_usd = lp_amount * lp_price
+        if pool_state and pool_state['total_supply'] > 0:
+            # Use Tinyman's exact formula:
+            # User LP Value = (User LP / Total LP) × (Reserve1 Value + Reserve2 Value)
+            user_share = lp_amount / pool_state['total_supply']
             
-            # We still need component prices to estimate amounts
-            # If we can't get them, we'll make a best guess
-            p1 = price1 if price1 > 0 else (1.0 if 'USDC' in asset1_ticker or 'USDT' in asset1_ticker else 0.15)
-            p2 = price2 if price2 > 0 else (1.0 if 'USDC' in asset2_ticker or 'USDT' in asset2_ticker else 0.15)
+            reserve1_value = pool_state['reserve1'] * price1
+            reserve2_value = pool_state['reserve2'] * price2
+            total_usd = user_share * (reserve1_value + reserve2_value)
             
-            asset1_usd = total_usd / 2
-            asset2_usd = total_usd / 2
+            # Calculate user's share of each asset
+            asset1_amount = user_share * pool_state['reserve1']
+            asset2_amount = user_share * pool_state['reserve2']
             
-            asset1_amount = asset1_usd / p1
-            asset2_amount = asset2_usd / p2
+            asset1_usd = asset1_amount * price1
+            asset2_usd = asset2_amount * price2
+            
+            print(f"✅ Tinyman formula: {lp_amount:.2f} LP / {pool_state['total_supply']:.2f} total = {user_share*100:.4f}% share = ${total_usd:.2f}")
             
             return LPBreakdown(
                 lp_ticker=lp_ticker,
@@ -283,8 +374,8 @@ class LPParser:
                 total_usd=total_usd
             )
 
-        # STRATEGY 2: Component-based Pricing (Geometric Mean)
-        # Fallback if Direct LP pricing fails
+        # FALLBACK: If pool state query failed, use geometric mean
+        print(f"⚠️  Pool state unavailable for {lp_ticker}, using geometric mean estimate")
         
         # If we have no price data, we can't estimate
         if price1 == 0 and price2 == 0:

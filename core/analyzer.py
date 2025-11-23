@@ -174,6 +174,9 @@ class AlgorandSovereigntyAnalyzer:
         
         print(f"✅ Processed {processed} assets with non-zero balances\n")
         
+        # Sort shitcoins by USD value (highest to lowest)
+        categories['shitcoin'].sort(key=lambda x: x.get('usd_value', 0), reverse=True)
+        
         # Calculate hard money algo amount for later use (legacy support)
         hard_money_algo = 0
         for asset in categories['hard_money']:
