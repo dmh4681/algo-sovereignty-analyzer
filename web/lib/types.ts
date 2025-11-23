@@ -49,6 +49,7 @@ export interface SovereigntyData {
 
 export interface Categories {
   hard_money: Asset[]
+  algo: Asset[]
   dollars: Asset[]
   shitcoin: Asset[]
 }
@@ -70,7 +71,7 @@ export interface AnalyzeRequest {
   monthly_fixed_expenses?: number
 }
 
-export type CategoryType = 'hard_money' | 'dollars' | 'shitcoin'
+export type CategoryType = 'hard_money' | 'algo' | 'dollars' | 'shitcoin'
 
 export interface CategoryConfig {
   key: CategoryType
@@ -93,6 +94,15 @@ export const CATEGORY_CONFIGS: CategoryConfig[] = [
     bgClass: 'bg-emerald-500/10',
   },
   {
+    key: 'algo',
+    title: 'Algorand',
+    description: 'Native Token & Ecosystem',
+    emoji: 'Ⱥ',
+    colorClass: 'text-slate-200',
+    borderClass: 'border-slate-500/50',
+    bgClass: 'bg-slate-500/10',
+  },
+  {
     key: 'dollars',
     title: 'Dollars',
     description: 'Stablecoins (Fiat-pegged)',
@@ -104,7 +114,7 @@ export const CATEGORY_CONFIGS: CategoryConfig[] = [
   {
     key: 'shitcoin',
     title: 'Shitcoins',
-    description: 'ALGO + Everything Else',
+    description: 'Everything Else',
     emoji: '💩',
     colorClass: 'text-red-500',
     borderClass: 'border-red-500/50',

@@ -227,9 +227,10 @@ function AnalyzeContent() {
             <section>
               {(() => {
                 const hardMoneyValue = analysis.categories.hard_money.reduce((sum, a) => sum + a.usd_value, 0)
+                const algoValue = analysis.categories.algo.reduce((sum, a) => sum + a.usd_value, 0)
                 const dollarsValue = analysis.categories.dollars.reduce((sum, a) => sum + a.usd_value, 0)
                 const shitcoinValue = analysis.categories.shitcoin.reduce((sum, a) => sum + a.usd_value, 0)
-                const totalValue = hardMoneyValue + dollarsValue + shitcoinValue
+                const totalValue = hardMoneyValue + algoValue + dollarsValue + shitcoinValue
                 const hardMoneyPercentage = totalValue > 0 ? (hardMoneyValue / totalValue) * 100 : 0
 
                 return (
@@ -246,7 +247,10 @@ function AnalyzeContent() {
           <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <RunwayCalculator
               portfolioUSD={analysis.sovereignty_data?.portfolio_usd ||
-                analysis.categories.hard_money.reduce((sum, a) => sum + a.usd_value, 0)}
+                (analysis.categories.hard_money.reduce((sum, a) => sum + a.usd_value, 0) +
+                  analysis.categories.algo.reduce((sum, a) => sum + a.usd_value, 0) +
+                  analysis.categories.dollars.reduce((sum, a) => sum + a.usd_value, 0) +
+                  analysis.categories.shitcoin.reduce((sum, a) => sum + a.usd_value, 0))}
               algoPrice={analysis.sovereignty_data?.algo_price || 0.174}
               initialExpenses={expenses || undefined}
               onUpdate={handleExpenseUpdate}

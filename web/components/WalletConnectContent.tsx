@@ -2,7 +2,7 @@
 
 import { useWallet, type Wallet } from '@txnlab/use-wallet-react'
 import { Button } from '@/components/ui/button'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Dialog,
@@ -50,14 +50,26 @@ const WALLET_INFO: Record<string, { name: string; icon: string; description: str
 interface WalletConnectContentProps {
   onConnect?: (address: string) => void
   redirectOnConnect?: boolean
+  autoRedirect?: boolean
 }
 
-export default function WalletConnectContent({ onConnect, redirectOnConnect = true }: WalletConnectContentProps) {
+export default function WalletConnectContent({
+  onConnect,
+  redirectOnConnect = true,
+  autoRedirect = false
+}: WalletConnectContentProps) {
   const { wallets, activeAccount, activeWallet } = useWallet()
   const [showModal, setShowModal] = useState(false)
   const [connecting, setConnecting] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
+
+  // Auto-redirect if already connected
+  useEffect(() => {
+    if (activeAccount && autoRedirect) {
+      router.push(`/analyze?address=${activeAccount.address}`)
+    }
+  }, [activeAccount, autoRedirect, router])
 
   const handleConnect = async (wallet: Wallet) => {
     setConnecting(wallet.id)
@@ -105,6 +117,13 @@ export default function WalletConnectContent({ onConnect, redirectOnConnect = tr
           className="border-slate-700"
         >
           Disconnect
+        </Button>
+        <Button
+          size="sm"
+          onClick={() => onConnect?.(activeAccount.address) || (redirectOnConnect && router.push(`/analyze?address=${activeAccount.address}`))}
+          className="bg-orange-500 hover:bg-orange-600 text-white"
+        >
+          Analyze
         </Button>
       </div>
     )

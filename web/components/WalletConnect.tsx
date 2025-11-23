@@ -25,8 +25,9 @@ const WalletConnectContent = dynamic(
 interface WalletConnectProps {
   onConnect?: (address: string) => void
   redirectOnConnect?: boolean
+  autoRedirect?: boolean
 }
 
-export function WalletConnect({ onConnect, redirectOnConnect = true }: WalletConnectProps) {
-  return <WalletConnectContent onConnect={onConnect} redirectOnConnect={redirectOnConnect} />
+export function WalletConnect({ onConnect, redirectOnConnect = true, autoRedirect = false }: WalletConnectProps) {
+  return <WalletConnectContent onConnect={onConnect} redirectOnConnect={redirectOnConnect} autoRedirect={autoRedirect} />
 }

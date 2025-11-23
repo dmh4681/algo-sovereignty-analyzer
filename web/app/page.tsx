@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, BarChart3, Zap, Wallet } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -52,7 +52,7 @@ export default function HomePage() {
             <CardContent className="pt-6 space-y-6">
               {/* Wallet Connect - PRIMARY METHOD */}
               <div>
-                <WalletConnect />
+                <WalletConnect autoRedirect={true} />
               </div>
 
               {/* Divider */}
@@ -210,11 +210,10 @@ export default function HomePage() {
                   Only <span className="text-orange-500 font-medium">Bitcoin</span>,{' '}
                   <span className="text-yellow-400 font-medium">gold</span>, and{' '}
                   <span className="text-slate-300 font-medium">silver</span> are classified as hard money.
-                  Stablecoins are dollars (fiat-pegged). Everything else—including
-                  ALGO—is a shitcoin.
+                  Stablecoins are dollars (fiat-pegged). Everything else is a shitcoin.
                 </p>
                 <p className="text-orange-400 text-sm font-medium">
-                  ⛏️ Sovereignty is measured by hard money holdings only.
+                  ⛏️ Sovereignty is measured by your total portfolio value (Hard Money + Algorand + Dollars + Shitcoins).
                 </p>
               </div>
             </div>

@@ -61,9 +61,10 @@ class AlgorandSovereigntyAnalyzer:
         if not account_data:
             return None
         
-        # Initialize categories (3 categories: hard money maximalist philosophy)
+        # Initialize categories (4 categories now)
         categories = {
             'hard_money': [],
+            'algo': [],
             'dollars': [],
             'shitcoin': []
         }
@@ -72,8 +73,8 @@ class AlgorandSovereigntyAnalyzer:
         is_participating = account_data.get('status') == 'Online'
         algo_balance = account_data['amount'] / 1_000_000
 
-        # ALGO is a shitcoin - participation status doesn't change category
-        algo_category = 'shitcoin'
+        # ALGO goes to 'algo' category
+        algo_category = 'algo'
         participation_note = " (PARTICIPATING)" if is_participating else " (NOT PARTICIPATING)"
         
         # Get ALGO price
@@ -128,6 +129,10 @@ class AlgorandSovereigntyAnalyzer:
                     )
 
                     for comp_category, comp_asset in components:
+                        # If classifier returns shitcoin but it's ALGO-related, move to algo
+                        if comp_asset['ticker'] in ['ALGO', 'XALGO', 'FALGO']:
+                            comp_category = 'algo'
+                        
                         if comp_category not in categories:
                             comp_category = 'shitcoin'
                         categories[comp_category].append(comp_asset)
@@ -145,14 +150,18 @@ class AlgorandSovereigntyAnalyzer:
                 ticker = self.classifier.classifications[str(asset_id)]['ticker']
 
             # Get price and calculate USD value
-            price = get_asset_price(ticker)
+            price = get_asset_price(ticker, asset_id)
             usd_value = 0.0
             if price:
                 usd_value = actual_amount * price
 
             # Ensure category key exists
             if category not in categories:
-                category = 'shitcoin'
+                # Check if it should be in algo category
+                if ticker.upper() in ['ALGO', 'XALGO', 'FALGO']:
+                    category = 'algo'
+                else:
+                    category = 'shitcoin'
 
             categories[category].append({
                 'name': name,
@@ -207,6 +216,22 @@ class AlgorandSovereigntyAnalyzer:
 
         print("\n")
 
+        # Algorand
+        print("Ⱥ ALGORAND")
+        print("-" * 60)
+        algo_total_usd = 0
+        if categories['algo']:
+            for asset in categories['algo']:
+                amount_str = f"{asset['amount']:,.2f}" if asset['amount'] < 1000 else f"{asset['amount']:,.0f}"
+                usd_str = f"${asset['usd_value']:,.2f}" if asset.get('usd_value', 0) > 0 else "-"
+                print(f"  {asset['ticker']:12} {amount_str:>18} ({usd_str:>10})  {asset['name']}")
+                algo_total_usd += asset.get('usd_value', 0)
+            print(f"\n  {'TOTAL USD':12} ${algo_total_usd:,.2f}")
+        else:
+            print("  None")
+
+        print("\n")
+
         # Dollars (Stablecoins)
         print("💵 DOLLARS (Stablecoins)")
         print("-" * 60)
@@ -225,8 +250,8 @@ class AlgorandSovereigntyAnalyzer:
 
         print("\n")
 
-        # Shitcoins (ALGO + Everything Else)
-        print("💩 SHITCOINS (ALGO + Everything Else)")
+        # Shitcoins (Everything Else)
+        print("💩 SHITCOINS (Everything Else)")
         print("-" * 60)
         shitcoin_count = 0
         if categories['shitcoin']:
@@ -243,9 +268,10 @@ class AlgorandSovereigntyAnalyzer:
         print("SOVEREIGNTY SUMMARY")
         print("="*60)
         print(f"Participation Status: {'✅ ONLINE' if is_participating else '⚪ OFFLINE'}")
-        print(f"Hard Money Assets: {len(categories['hard_money'])} (BTC, Gold, Silver only)")
+        print(f"Hard Money Assets: {len(categories['hard_money'])} (BTC, Gold, Silver)")
+        print(f"Algorand Assets: {len(categories['algo'])}")
         print(f"Dollars: {dollars_count} (Stablecoins)")
-        print(f"Shitcoins: {shitcoin_count} (ALGO + Everything Else)")
+        print(f"Shitcoins: {shitcoin_count} (Everything Else)")
         print("="*60 + "\n")
 
         # SOVEREIGNTY RATIO CALCULATION
@@ -260,10 +286,11 @@ class AlgorandSovereigntyAnalyzer:
         # Calculate annual fixed expenses
         annual_fixed = monthly_fixed_expenses * 12
         
-        # Calculate total hard money portfolio value in USD
+        # Calculate total portfolio value in USD (Hard Money + Algo + Dollars + Shitcoins)
         portfolio_usd = 0.0
-        for asset in categories.get('hard_money', []):
-            portfolio_usd += asset.get('usd_value', 0.0)
+        for category in ['hard_money', 'algo', 'dollars', 'shitcoin']:
+            for asset in categories.get(category, []):
+                portfolio_usd += asset.get('usd_value', 0.0)
             
         # Get ALGO price for reference
         algo_price = get_algo_price() or 0.174
@@ -390,6 +417,15 @@ class AlgorandSovereigntyAnalyzer:
                         "usd_value": asset.get('usd_value', 0)
                     }
                     for asset in categories['hard_money']
+                ],
+                "algo": [
+                    {
+                        "ticker": asset['ticker'],
+                        "name": asset['name'],
+                        "amount": asset['amount'],
+                        "usd_value": asset.get('usd_value', 0)
+                    }
+                    for asset in categories['algo']
                 ],
                 "dollars": [
                     {

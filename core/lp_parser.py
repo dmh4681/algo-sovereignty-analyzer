@@ -7,6 +7,7 @@ allowing proper classification of the component assets.
 
 import requests
 import re
+import math
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 
@@ -145,21 +146,43 @@ class LPParser:
                 'asset2_ticker': asset2_ticker,
                 'lp_asset_id': asset_id,
                 'creator': creator,
-                # We'll estimate reserves later based on pricing
                 'estimated': True
             }
 
         return None
 
+    def _get_pool_assets(self, creator_address: str) -> Tuple[Optional[int], Optional[int]]:
+        """
+        Fetch the assets held by the pool account to identify the pair.
+        Returns (asset1_id, asset2_id).
+        """
+        try:
+            url = f"{self.algod_address}/v2/accounts/{creator_address}"
+            response = requests.get(url, headers=self.headers, timeout=5)
+            if response.status_code == 200:
+                data = response.json()
+                assets = data.get('assets', [])
+                
+                # Tinyman pools hold 2 assets. One might be ALGO (which isn't in 'assets' list).
+                # If we find 2 assets, those are the pair.
+                # If we find 1 asset, the other is ALGO (Asset 0).
+                
+                found_ids = [a['asset-id'] for a in assets if a['amount'] > 0]
+                
+                if len(found_ids) == 2:
+                    return found_ids[0], found_ids[1]
+                elif len(found_ids) == 1:
+                    return found_ids[0], 0  # Asset + ALGO
+                
+        except Exception as e:
+            print(f"⚠️  Failed to fetch pool assets for {creator_address}: {e}")
+        
+        return None, None
+
     def estimate_lp_value(self, lp_ticker: str, lp_name: str, lp_amount: float,
                           asset_id: int, get_price_fn) -> Optional[LPBreakdown]:
         """
         Estimate the underlying value of LP tokens.
-
-        Since querying on-chain pool state is complex, we'll use a simplified approach:
-        - Parse the asset pair from the LP token name
-        - Estimate 50/50 split of total value (common for most AMM pools)
-        - Use current prices to calculate USD values
         """
 
         pool_info = self.get_pool_info(asset_id)
@@ -179,69 +202,124 @@ class LPParser:
 
         asset1_ticker = pool_info['asset1_ticker']
         asset2_ticker = pool_info['asset2_ticker']
+        
+        # Try to resolve actual asset IDs from the pool creator address
+        asset1_id = None
+        asset2_id = None
+        
+        if 'creator' in pool_info:
+            id1, id2 = self._get_pool_assets(pool_info['creator'])
+            
+            if id1 is not None and id2 is not None:
+                # We have IDs. We'll assign them to asset1/asset2.
+                # We try to match ALGO (0) if present.
+                if id1 == 0:
+                    if asset1_ticker == 'ALGO': asset1_id = 0; asset2_id = id2
+                    else: asset1_id = id2; asset2_id = 0
+                elif id2 == 0:
+                    if asset1_ticker == 'ALGO': asset1_id = 0; asset2_id = id1
+                    else: asset1_id = id1; asset2_id = 0
+                else:
+                    # Both are ASAs. Just assign in order.
+                    asset1_id = id1
+                    asset2_id = id2
+            else:
+                # Fallback: Try to map tickers to known Asset IDs
+                # This ensures we get accurate pricing (premiums) even if node lookup fails
+                known_ids = {
+                    'ALGO': 0,
+                    'USDC': 31566704,
+                    'USDT': 312769,
+                    'XALGO': 1134696561,
+                    'FALGO': 3184331013,
+                    'FUSDC': 3184331239,
+                    'GOBTC': 386192725,
+                    'GOETH': 386195940,
+                    'WBTC': 1058926737,
+                    'WETH': 1058926737, # Check this if needed, but usually same
+                    'SILVER$': 246516580, # Meld Silver
+                    'GOLD$': 246519683,   # Meld Gold
+                }
+                
+                if asset1_id is None and asset1_ticker in known_ids:
+                    asset1_id = known_ids[asset1_ticker]
+                    
+                if asset2_id is None and asset2_ticker in known_ids:
+                    asset2_id = known_ids[asset2_ticker]
 
-        # Normalize wrapped token tickers for pricing
-        # fALGO, xALGO -> ALGO; fUSDC -> USDC, etc.
-        price_ticker1 = self._normalize_ticker(asset1_ticker)
-        price_ticker2 = self._normalize_ticker(asset2_ticker)
+        # Get prices using resolved IDs if available, otherwise fallback to ticker
+        # We do NOT normalize tickers anymore, so xALGO stays xALGO.
+        price1 = get_price_fn(asset1_ticker, asset1_id) or 0
+        price2 = get_price_fn(asset2_ticker, asset2_id) or 0
 
-        # Get prices for both assets (using normalized tickers)
-        price1 = get_price_fn(price_ticker1) or 0
-        price2 = get_price_fn(price_ticker2) or 0
+        # STRATEGY 1: Direct LP Token Pricing (The "Better Way")
+        # Try to get the price of the LP token itself from Vestige
+        # This is accurate because Vestige tracks the LP value directly
+        lp_price = get_price_fn(lp_ticker, asset_id)
+        
+        if lp_price and lp_price > 0:
+            total_usd = lp_amount * lp_price
+            
+            # We still need component prices to estimate amounts
+            # If we can't get them, we'll make a best guess
+            p1 = price1 if price1 > 0 else (1.0 if 'USDC' in asset1_ticker or 'USDT' in asset1_ticker else 0.15)
+            p2 = price2 if price2 > 0 else (1.0 if 'USDC' in asset2_ticker or 'USDT' in asset2_ticker else 0.15)
+            
+            asset1_usd = total_usd / 2
+            asset2_usd = total_usd / 2
+            
+            asset1_amount = asset1_usd / p1
+            asset2_amount = asset2_usd / p2
+            
+            return LPBreakdown(
+                lp_ticker=lp_ticker,
+                lp_amount=lp_amount,
+                asset1_ticker=asset1_ticker,
+                asset1_amount=asset1_amount,
+                asset1_usd=asset1_usd,
+                asset2_ticker=asset2_ticker,
+                asset2_amount=asset2_amount,
+                asset2_usd=asset2_usd,
+                total_usd=total_usd
+            )
 
+        # STRATEGY 2: Component-based Pricing (Geometric Mean)
+        # Fallback if Direct LP pricing fails
+        
         # If we have no price data, we can't estimate
         if price1 == 0 and price2 == 0:
             return None
-
-        # For AMM pools, the value is typically split ~50/50
-        # If we have both prices, estimate based on that
-        # If we only have one price, we can estimate total value = 2 * known_value
-
-        # This is a rough estimate - actual LP value depends on pool reserves
-        # For now, we'll use LP amount as a proxy (most LP tokens have ~1:1 with total pool value)
-
-        # Stablecoins list (including Folks Finance wrapped versions)
-        stablecoins = ['USDC', 'USDT', 'DAI', 'FUSD', 'FUSDC']
-
-        # Try to estimate based on known stablecoin value
-        if asset2_ticker in stablecoins or price_ticker2 in stablecoins:
-            # Asset 2 is a stablecoin, LP amount often represents total USD value
-            total_usd = lp_amount  # Very rough estimate
-            asset2_usd = total_usd / 2
-            asset1_usd = total_usd / 2
-            asset1_amount = asset1_usd / price1 if price1 > 0 else 0
-            asset2_amount = asset2_usd  # Stablecoin
-        elif asset1_ticker in stablecoins or price_ticker1 in stablecoins:
-            # Asset 1 is a stablecoin
-            total_usd = lp_amount
+            
+        # Standard AMM Pricing Formula (Geometric Mean)
+        # Value of 1 LP Token = 2 * math.sqrt(Price1 * Price2)
+        
+        if price1 > 0 and price2 > 0:
+            # Calculate value per LP token
+            lp_token_value = 2 * math.sqrt(price1 * price2)
+            
+            total_usd = lp_amount * lp_token_value
+            
+            # Split value 50/50 between assets
             asset1_usd = total_usd / 2
             asset2_usd = total_usd / 2
-            asset1_amount = asset1_usd  # Stablecoin
-            asset2_amount = asset2_usd / price2 if price2 > 0 else 0
-        elif price1 > 0 and price2 > 0:
-            # Both have prices, estimate based on typical LP mechanics
-            # LP tokens are usually issued at sqrt(asset1 * asset2) or similar
-            # For simplicity, assume total value = lp_amount * some_factor
-            # This is very rough - in practice you'd query the pool
-            total_usd = lp_amount * max(price1, price2) * 0.1  # Rough heuristic
-            asset1_usd = total_usd / 2
-            asset2_usd = total_usd / 2
+            
+            # Calculate amounts based on prices
             asset1_amount = asset1_usd / price1
             asset2_amount = asset2_usd / price2
-        else:
-            return None
-
-        return LPBreakdown(
-            lp_ticker=lp_ticker,
-            lp_amount=lp_amount,
-            asset1_ticker=asset1_ticker,
-            asset1_amount=asset1_amount,
-            asset1_usd=asset1_usd,
-            asset2_ticker=asset2_ticker,
-            asset2_amount=asset2_amount,
-            asset2_usd=asset2_usd,
-            total_usd=total_usd
-        )
+            
+            return LPBreakdown(
+                lp_ticker=lp_ticker,
+                lp_amount=lp_amount,
+                asset1_ticker=asset1_ticker,
+                asset1_amount=asset1_amount,
+                asset1_usd=asset1_usd,
+                asset2_ticker=asset2_ticker,
+                asset2_amount=asset2_amount,
+                asset2_usd=asset2_usd,
+                total_usd=total_usd
+            )
+            
+        return None
 
     def classify_lp_components(self, breakdown: LPBreakdown, classify_fn) -> List[Tuple[str, Dict[str, Any]]]:
         """
