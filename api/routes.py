@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
 from core.history import SovereigntySnapshot, get_history_manager
+from core.pricing import _fetch_price
 from .schemas import (
     AnalysisResponse,
     AnalyzeRequest,
@@ -290,3 +291,65 @@ async def get_history(
         snapshots=snapshots,
         count=len(snapshots)
     )
+
+
+@router.get("/gold-silver-ratio")
+async def get_gold_silver_ratio():
+    """
+    Get current Gold/Silver ratio with historical context.
+
+    Returns ratio, prices, and status indicator.
+    """
+    try:
+        # Fetch prices from CoinGecko
+        gold_price = _fetch_price('gold')  # Price per oz
+        silver_price = _fetch_price('silver')  # Price per oz
+
+        # Fallback to hardcoded if API fails
+        if not gold_price:
+            gold_price = 2050.0  # Approximate gold price per oz
+        if not silver_price:
+            silver_price = 25.0  # Approximate silver price per oz
+
+        # Calculate ratio
+        ratio = round(gold_price / silver_price, 2)
+
+        # Historical context
+        historical_mean = 15.0
+        historical_range = {"low": 12, "high": 90}
+
+        # Status indicator
+        if ratio > 80:
+            status = "undervalued"
+            color = "red"
+            message = "Silver significantly undervalued relative to gold"
+        elif ratio > 60:
+            status = "below_average"
+            color = "orange"
+            message = "Silver moderately undervalued"
+        elif ratio > 40:
+            status = "normalized"
+            color = "yellow"
+            message = "Ratio approaching historical norms"
+        else:
+            status = "compressed"
+            color = "green"
+            message = "Ratio compressed - silver relatively expensive"
+
+        return {
+            "ratio": ratio,
+            "gold_price": round(gold_price, 2),
+            "silver_price": round(silver_price, 2),
+            "historical_mean": historical_mean,
+            "historical_range": historical_range,
+            "status": status,
+            "color": color,
+            "message": message,
+            "interpretation": {
+                "what_it_means": "The Gold/Silver ratio measures how many ounces of silver it takes to buy one ounce of gold.",
+                "current_signal": f"At {ratio}:1, silver is {('undervalued' if ratio > 60 else 'fairly valued')} compared to gold.",
+                "historical_note": f"The ratio has ranged from {historical_range['low']}:1 to {historical_range['high']}:1 over the past century. The long-term mean is around {historical_mean}:1."
+            }
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to fetch ratio: {str(e)}")

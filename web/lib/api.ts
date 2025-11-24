@@ -7,6 +7,7 @@ import {
   NewsArticlesResponse,
   CurateBatchRequest,
   CurateBatchResponse,
+  GoldSilverRatio,
 } from './types'
 
 // Use direct backend URL to avoid Next.js proxy timeout issues
@@ -217,4 +218,17 @@ export async function getCuratedNews(
     }
     throw error
   }
+}
+
+/**
+ * Get current Gold/Silver ratio with historical context
+ */
+export async function getGoldSilverRatio(): Promise<GoldSilverRatio> {
+  const response = await fetch(`${API_BASE}/gold-silver-ratio`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch gold/silver ratio', response.status)
+  }
+
+  return response.json()
 }
