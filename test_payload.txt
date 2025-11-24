@@ -1,0 +1,18 @@
+{
+  "address": "TEST_ADDRESS",
+  "analysis": {
+    "total_usd": 1000,
+    "categories": {
+      "hard_money": [
+        {"name": "Bitcoin", "ticker": "BTC", "amount": 0.1, "usd_value": 500}
+      ],
+      "algo": [
+        {"name": "Algorand", "ticker": "ALGO", "amount": 1000, "usd_value": 200}
+      ],
+      "dollars": [],
+      "shitcoin": [
+        {"name": "Meme", "ticker": "MEME", "amount": 10000, "usd_value": 300}
+      ]
+    }
+  }
+}

@@ -27,10 +27,7 @@ export function WalletProviderWrapper({ children }: WalletProviderWrapperProps) 
     setMounted(true)
   }, [])
 
-  // Prevent hydration mismatch by not rendering wallet provider until mounted
-  if (!mounted) {
-    return <>{children}</>
-  }
+
 
   return (
     <WalletProvider manager={walletManager}>

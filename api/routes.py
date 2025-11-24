@@ -8,10 +8,27 @@ from .schemas import (
     HistorySaveResponse,
     HistoryResponse
 )
+from .agent import SovereigntyCoach, AdviceRequest
 from typing import Dict, Any, Tuple, Optional, List
 from datetime import datetime, timedelta
 
 router = APIRouter()
+
+@router.post("/agent/advice")
+async def get_agent_advice(request: AdviceRequest):
+    """
+    Get personalized financial sovereignty advice from the AI agent.
+    """
+    print(f"DEBUG: Received advice request for address: {request.address}")
+    try:
+        coach = SovereigntyCoach()
+        advice = coach.generate_advice(request.analysis)
+        return {"advice": advice}
+    except Exception as e:
+        print(f"ERROR in /agent/advice: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # Simple cache: {address: (analysis_result, timestamp)}
 _wallet_cache: Dict[str, Tuple[dict, datetime]] = {}

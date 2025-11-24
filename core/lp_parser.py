@@ -221,14 +221,18 @@ class LPParser:
             
             # Get pool info
             info = pool.info()
+            print(f"   ℹ️ Tinyman info keys: {list(info.keys())}")
             
             # info is a dict, not an object
-            # Total LP token supply (circulating)
-            total_supply = info.get('issued_pool_tokens', 0) / (10 ** 6)  # LP tokens have 6 decimals
+            # Keys usually use underscores in V2 state
+            total_supply = info.get('issued_pool_tokens', 0) / (10 ** 6)
             
-            # Reserves
-            reserve1 = info.get('asset1_reserves', 0) / (10 ** asset1.decimals)
-            reserve2 = info.get('asset2_reserves', 0) / (10 ** asset2.decimals)
+            # Try both formats just in case
+            r1 = info.get('asset_1_reserves') or info.get('asset1_reserves', 0)
+            r2 = info.get('asset_2_reserves') or info.get('asset2_reserves', 0)
+            
+            reserve1 = r1 / (10 ** asset1.decimals)
+            reserve2 = r2 / (10 ** asset2.decimals)
             
             print(f"   ✅ Tinyman SDK data:")
             print(f"      Total LP supply: {total_supply:,.2f}")
@@ -248,85 +252,55 @@ class LPParser:
             return None
 
     def estimate_lp_value(self, lp_ticker: str, lp_name: str, lp_amount: float,
-                          asset_id: int, get_price_fn) -> Optional[LPBreakdown]:
+                         asset_id: int, get_price_fn) -> Optional[LPBreakdown]:
         """
-        Estimate the underlying value of LP tokens.
+        Estimate the value of an LP token position.
         """
-        try:
-            return self._estimate_lp_value_internal(lp_ticker, lp_name, lp_amount, asset_id, get_price_fn)
-        except Exception as e:
-            print(f"⚠️  Error estimating LP value for {lp_ticker}: {e}")
-            import traceback
-            traceback.print_exc()
+        # Parse the LP name to get underlying assets
+        # Expected format: "TinymanPool2.0 XALGO-ALGO"
+        parts = lp_name.replace("TinymanPool2.0 ", "").split("-")
+        if len(parts) != 2:
+            print(f"⚠️  Could not parse LP name: {lp_name}")
             return None
-    
-    def _estimate_lp_value_internal(self, lp_ticker: str, lp_name: str, lp_amount: float,
-                          asset_id: int, get_price_fn) -> Optional[LPBreakdown]:
-        """
-        Internal implementation of LP value estimation.
-        """
-
-        pool_info = self.get_pool_info(asset_id)
-        if not pool_info:
-            # Try to parse from the name/ticker directly
-            pair_match = re.search(r'(\w+)[/-](\w+)', lp_name)
-            if not pair_match:
-                pair_match = re.search(r'(\w+)[/-](\w+)', lp_ticker)
-            if not pair_match:
-                return None
-
-            pool_info = {
-                'asset1_ticker': pair_match.group(1).upper(),
-                'asset2_ticker': pair_match.group(2).upper(),
-                'estimated': True
-            }
-
-        asset1_ticker = pool_info['asset1_ticker']
-        asset2_ticker = pool_info['asset2_ticker']
+            
+        asset1_ticker = parts[0]
+        asset2_ticker = parts[1]
         
-        # Try to resolve actual asset IDs from the pool creator address
+        # Resolve asset IDs
+        # We need the pool creator address to find the assets
+        pool_info = self.get_pool_info(asset_id)
+        
         asset1_id = None
         asset2_id = None
         
-        if 'creator' in pool_info:
-            id1, id2 = self._get_pool_assets(pool_info['creator'])
-            
-            if id1 is not None and id2 is not None:
-                # We have IDs. We'll assign them to asset1/asset2.
-                # We try to match ALGO (0) if present.
-                if id1 == 0:
-                    if asset1_ticker == 'ALGO': asset1_id = 0; asset2_id = id2
-                    else: asset1_id = id2; asset2_id = 0
-                elif id2 == 0:
-                    if asset1_ticker == 'ALGO': asset1_id = 0; asset2_id = id1
-                    else: asset1_id = id1; asset2_id = 0
-                else:
-                    # Both are ASAs. Just assign in order.
-                    asset1_id = id1
-                    asset2_id = id2
+        if pool_info and 'creator' in pool_info:
+            # Get the assets from the pool creator account
+            # This is reliable because the pool account must opt-in to the assets
+            assets = self._get_pool_assets(pool_info['creator'])
+            if assets and len(assets) >= 2:
+                asset1_id = assets[0]
+                asset2_id = assets[1]
         
-        # ALWAYS apply hardcoded ID fallbacks if we don't have IDs yet
-        # This ensures we get accurate pricing even if pool resolution failed
-        known_ids = {
-            'ALGO': 0,
-            'USDC': 31566704,
-            'USDT': 312769,
-            'XALGO': 1134696561,
-            'FALGO': 3184331013,
-            'FUSDC': 3184331239,
-            'GOBTC': 386192725,
-            'GOETH': 386195940,
-            'WBTC': 1058926737,
-            'WETH': 1058926737,
-            'SILVER$': 246516580,
-            'GOLD$': 246519683,
-        }
-        
-        if asset1_id is None and asset1_ticker in known_ids:
-            asset1_id = known_ids[asset1_ticker]
+        # Fallback IDs if resolution failed
+        if asset1_id is None or asset2_id is None:
+            # Apply hardcoded fallbacks based on ticker names
+            if asset1_ticker == 'XALGO': asset1_id = 1134696561
+            elif asset1_ticker == 'ALGO': asset1_id = 0
+            elif asset1_ticker == 'FUSDC': asset1_id = 3184331239
+            elif asset1_ticker == 'FALGO': asset1_id = 3184331013
+            elif asset1_ticker == 'USDC': asset1_id = 31566704
+            elif asset1_ticker == 'GOLD$': asset1_id = 1241944285
+            elif asset1_ticker == 'SILVER$': asset1_id = 1241945177
+            elif asset1_ticker == 'goBTC': asset1_id = 386192725
             
-        if asset2_id is None and asset2_ticker in known_ids:
-            asset2_id = known_ids[asset2_ticker]
+            if asset2_ticker == 'XALGO': asset2_id = 1134696561
+            elif asset2_ticker == 'ALGO': asset2_id = 0
+            elif asset2_ticker == 'FUSDC': asset2_id = 3184331239
+            elif asset2_ticker == 'FALGO': asset2_id = 3184331013
+            elif asset2_ticker == 'USDC': asset2_id = 31566704
+            elif asset2_ticker == 'GOLD$': asset2_id = 1241944285
+            elif asset2_ticker == 'SILVER$': asset2_id = 1241945177
+            elif asset2_ticker == 'goBTC': asset2_id = 386192725
 
         # Get prices using resolved IDs if available, otherwise fallback to ticker
         # We do NOT normalize tickers anymore, so xALGO stays xALGO.
@@ -336,7 +310,7 @@ class LPParser:
         # TINYMAN ACCURATE FORMULA
         # Get pool state (total LP supply and reserves) for exact calculation
         pool_state = None
-        if 'creator' in pool_info and asset1_id is not None and asset2_id is not None:
+        if pool_info and 'creator' in pool_info and asset1_id is not None and asset2_id is not None:
             pool_state = self.get_pool_state(
                 pool_info['creator'],
                 asset_id,
@@ -344,38 +318,42 @@ class LPParser:
                 asset2_id
             )
         
+        # Check if pool state is valid AND has non-zero value
         if pool_state and pool_state['total_supply'] > 0:
-            # Use Tinyman's exact formula:
-            # User LP Value = (User LP / Total LP) × (Reserve1 Value + Reserve2 Value)
+            # Calculate potential value to see if it's valid
             user_share = lp_amount / pool_state['total_supply']
-            
             reserve1_value = pool_state['reserve1'] * price1
             reserve2_value = pool_state['reserve2'] * price2
-            total_usd = user_share * (reserve1_value + reserve2_value)
+            potential_total_usd = user_share * (reserve1_value + reserve2_value)
             
-            # Calculate user's share of each asset
-            asset1_amount = user_share * pool_state['reserve1']
-            asset2_amount = user_share * pool_state['reserve2']
-            
-            asset1_usd = asset1_amount * price1
-            asset2_usd = asset2_amount * price2
-            
-            print(f"✅ Tinyman formula: {lp_amount:.2f} LP / {pool_state['total_supply']:.2f} total = {user_share*100:.4f}% share = ${total_usd:.2f}")
-            
-            return LPBreakdown(
-                lp_ticker=lp_ticker,
-                lp_amount=lp_amount,
-                asset1_ticker=asset1_ticker,
-                asset1_amount=asset1_amount,
-                asset1_usd=asset1_usd,
-                asset2_ticker=asset2_ticker,
-                asset2_amount=asset2_amount,
-                asset2_usd=asset2_usd,
-                total_usd=total_usd
-            )
+            if potential_total_usd > 0.01: # Threshold to avoid zero values
+                total_usd = potential_total_usd
+                
+                # Calculate user's share of each asset
+                asset1_amount = user_share * pool_state['reserve1']
+                asset2_amount = user_share * pool_state['reserve2']
+                
+                asset1_usd = asset1_amount * price1
+                asset2_usd = asset2_amount * price2
+                
+                print(f"✅ Tinyman formula: {lp_amount:.2f} LP / {pool_state['total_supply']:.2f} total = {user_share*100:.4f}% share = ${total_usd:.2f}")
+                
+                return LPBreakdown(
+                    lp_ticker=lp_ticker,
+                    lp_amount=lp_amount,
+                    asset1_ticker=asset1_ticker,
+                    asset1_amount=asset1_amount,
+                    asset1_usd=asset1_usd,
+                    asset2_ticker=asset2_ticker,
+                    asset2_amount=asset2_amount,
+                    asset2_usd=asset2_usd,
+                    total_usd=total_usd
+                )
+            else:
+                print(f"⚠️  Tinyman SDK returned near-zero value (${potential_total_usd:.4f}), falling back to geometric mean")
 
-        # FALLBACK: If pool state query failed, use geometric mean
-        print(f"⚠️  Pool state unavailable for {lp_ticker}, using geometric mean estimate")
+        # FALLBACK: If pool state query failed OR returned zero value, use geometric mean
+        print(f"⚠️  Pool state unavailable or invalid for {lp_ticker}, using geometric mean estimate")
         
         # If we have no price data, we can't estimate
         if price1 == 0 and price2 == 0:
