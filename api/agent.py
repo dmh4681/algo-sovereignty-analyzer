@@ -78,7 +78,7 @@ class SovereigntyCoach:
 
         try:
             message = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
+                model="claude-sonnet-4-5-20250929",
                 max_tokens=1000,
                 temperature=0.7,
                 system="You are a maximalist financial coach. You believe in Bitcoin, Gold, and Algorand as the rails. You despise fiat currency and excessive gambling on meme coins.",
