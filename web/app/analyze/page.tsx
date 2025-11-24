@@ -7,6 +7,12 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { SearchBar } from '@/components/SearchBar'
+import { NodeStatusCard } from '@/components/NodeStatusCard'
+
+// ... (existing imports)
+
+
+
 import { SovereigntyScore } from '@/components/SovereigntyScore'
 import { AssetBreakdown, AssetBreakdownSummary } from '@/components/AssetBreakdown'
 import { RunwayCalculator, NextMilestone } from '@/components/RunwayCalculator'
@@ -190,6 +196,11 @@ function AnalyzeContent() {
           {analysis.sovereignty_data && (
             <SovereigntyScore data={analysis.sovereignty_data} />
           )}
+
+          {/* Node Status */}
+          <section>
+            <NodeStatusCard isParticipating={analysis.is_participating} />
+          </section>
 
           {/* Quick Summary */}
           {!analysis.sovereignty_data && (
