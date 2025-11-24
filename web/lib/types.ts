@@ -194,3 +194,23 @@ export interface CurateBatchResponse {
   metal: string
   fetched_count: number
 }
+
+// Gold/Silver Ratio types
+export interface GoldSilverRatio {
+  ratio: number
+  gold_price: number
+  silver_price: number
+  historical_mean: number
+  historical_range: {
+    low: number
+    high: number
+  }
+  status: 'undervalued' | 'below_average' | 'normalized' | 'compressed'
+  color: string
+  message: string
+  interpretation: {
+    what_it_means: string
+    current_signal: string
+    historical_note: string
+  }
+}

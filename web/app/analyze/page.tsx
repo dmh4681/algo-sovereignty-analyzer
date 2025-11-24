@@ -19,6 +19,7 @@ import { RunwayCalculator, NextMilestone } from '@/components/RunwayCalculator'
 import { LoadingSpinner, LoadingState } from '@/components/LoadingState'
 import { HistoryChart } from '@/components/HistoryChart'
 import { BadgeSection } from '@/components/BadgeSection'
+import GoldSilverRatio from '@/components/GoldSilverRatio'
 import { analyzeWallet, ApiError } from '@/lib/api'
 import { AnalysisResponse } from '@/lib/types'
 import { truncateAddress } from '@/lib/utils'
@@ -233,6 +234,11 @@ function AnalyzeContent() {
           <section>
             <h2 className="text-xl font-semibold mb-4">Asset Breakdown</h2>
             <AssetBreakdown categories={analysis.categories} />
+          </section>
+
+          {/* Gold/Silver Ratio Widget */}
+          <section>
+            <GoldSilverRatio />
           </section>
 
           {/* Node Status */}
