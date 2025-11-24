@@ -10,6 +10,7 @@ print(f"DEBUG: Loading .env from {env_path}")
 load_dotenv(dotenv_path=env_path, override=True)
 
 from .routes import router
+from .news.routes import router as news_router
 
 app = FastAPI(
     title="Algorand Sovereignty Analyzer API",
@@ -27,6 +28,7 @@ app.add_middleware(
 )
 
 app.include_router(router, prefix="/api/v1")
+app.include_router(news_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

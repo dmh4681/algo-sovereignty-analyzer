@@ -157,3 +157,40 @@ export interface HistorySaveResponse {
   message: string
   snapshot: SovereigntySnapshot | null
 }
+
+// News Curator types
+export interface NewsArticle {
+  title: string
+  summary: string
+  link: string
+  published: string
+  source: string
+}
+
+export interface AnalyzedArticle {
+  original: NewsArticle
+  analysis: string
+  sovereignty_score: number
+  metal: string
+  analyzed_at: string
+}
+
+export interface NewsArticlesResponse {
+  articles: NewsArticle[]
+  count: number
+  metal: string
+}
+
+export interface CurateBatchRequest {
+  metal: 'gold' | 'silver'
+  hours?: number
+  limit?: number
+  min_score?: number
+}
+
+export interface CurateBatchResponse {
+  articles: AnalyzedArticle[]
+  count: number
+  metal: string
+  fetched_count: number
+}
