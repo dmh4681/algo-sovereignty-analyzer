@@ -60,6 +60,14 @@ export interface AnalysisResponse {
   hard_money_algo: number
   categories: Categories
   sovereignty_data: SovereigntyData | null
+  participation_info?: {
+    staked_amount: number
+    vote_first_valid: number | null
+    vote_last_valid: number | null
+    key_expiration_rounds: number | null
+    is_incentive_eligible: boolean
+    estimated_apy: number
+  }
   metadata?: {
     analyzed_at: string
     participation_status: string

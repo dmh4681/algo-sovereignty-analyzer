@@ -80,7 +80,8 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
                 is_participating=cached['is_participating'],
                 hard_money_algo=cached['hard_money_algo'],
                 categories=categories,
-                sovereignty_data=sovereignty_data
+                sovereignty_data=sovereignty_data,
+                participation_info=cached.get('participation_info')
             )
 
     analyzer = AlgorandSovereigntyAnalyzer(use_local_node=use_local_node)
@@ -114,7 +115,8 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
             'address': request.address,
             'is_participating': analyzer.last_is_participating,
             'hard_money_algo': analyzer.last_hard_money_algo,
-            'categories': categories
+            'categories': categories,
+            'participation_info': analyzer.last_participation_info
         }
         
         # Cache it
@@ -127,7 +129,8 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
             is_participating=analyzer.last_is_participating,
             hard_money_algo=analyzer.last_hard_money_algo,
             categories=categories,
-            sovereignty_data=sovereignty_data
+            sovereignty_data=sovereignty_data,
+            participation_info=analyzer.last_participation_info
         )
         print(f"✅ Response ready, sending...")
         return response

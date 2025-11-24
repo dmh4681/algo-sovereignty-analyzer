@@ -197,10 +197,7 @@ function AnalyzeContent() {
             <SovereigntyScore data={analysis.sovereignty_data} />
           )}
 
-          {/* Node Status */}
-          <section>
-            <NodeStatusCard isParticipating={analysis.is_participating} />
-          </section>
+
 
           {/* Quick Summary */}
           {!analysis.sovereignty_data && (
@@ -236,6 +233,14 @@ function AnalyzeContent() {
           <section>
             <h2 className="text-xl font-semibold mb-4">Asset Breakdown</h2>
             <AssetBreakdown categories={analysis.categories} />
+          </section>
+
+          {/* Node Status */}
+          <section>
+            <NodeStatusCard
+              isParticipating={analysis.is_participating}
+              participationInfo={analysis.participation_info}
+            />
           </section>
 
           {/* History Chart */}

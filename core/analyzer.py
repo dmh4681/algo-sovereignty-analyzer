@@ -34,6 +34,7 @@ class AlgorandSovereigntyAnalyzer:
         self.last_address: str = ""
         self.last_is_participating: bool = False
         self.last_hard_money_algo: float = 0.0
+        self.last_participation_info: Dict[str, Any] = {}
 
     def get_account_assets(self, address: str) -> Optional[Dict[str, Any]]:
         """Get all assets for an Algorand address"""
@@ -219,11 +220,53 @@ class AlgorandSovereigntyAnalyzer:
                 hard_money_algo = asset['amount']
                 break
 
+        # Extract participation key information
+        participation_info = {}
+        if is_participating:
+            participation_data = account_data.get('participation', {})
+            
+            # Extract key expiration data
+            vote_first_valid = participation_data.get('vote-first-valid')
+            vote_last_valid = participation_data.get('vote-last-valid')
+            
+            # Calculate rounds until expiration if available
+            key_expiration_rounds = None
+            if vote_last_valid:
+                key_expiration_rounds = vote_last_valid
+            
+            # Check incentive eligibility (mainnet threshold is typically 1 ALGO minimum)
+            # For participation rewards, need to be online + have sufficient stake
+            is_incentive_eligible = algo_balance >= 1.0
+            
+            # Estimated APY (Algorand participation rewards are ~4-5% currently)
+            # This is a baseline estimate - actual rewards vary by network conditions
+            estimated_apy = 4.5
+            
+            participation_info = {
+                'staked_amount': algo_balance,
+                'vote_first_valid': vote_first_valid,
+                'vote_last_valid': vote_last_valid,
+                'key_expiration_rounds': key_expiration_rounds,
+                'is_incentive_eligible': is_incentive_eligible,
+                'estimated_apy': estimated_apy
+            }
+        else:
+            # Not participating - provide minimal info
+            participation_info = {
+                'staked_amount': 0.0,
+                'vote_first_valid': None,
+                'vote_last_valid': None,
+                'key_expiration_rounds': None,
+                'is_incentive_eligible': False,
+                'estimated_apy': 0.0
+            }
+
         # Store for later JSON export with sovereignty data
         self.last_categories = categories
         self.last_address = address
         self.last_is_participating = is_participating
         self.last_hard_money_algo = hard_money_algo
+        self.last_participation_info = participation_info
         
         # Print results
         self.print_results(categories, is_participating)

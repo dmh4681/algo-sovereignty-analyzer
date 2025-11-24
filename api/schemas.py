@@ -9,6 +9,7 @@ class AnalysisResponse(BaseModel):
     hard_money_algo: float
     categories: Dict[str, List[Dict[str, Any]]]
     sovereignty_data: Optional[SovereigntyData] = None
+    participation_info: Optional[Dict[str, Any]] = None
 
 class AnalyzeRequest(BaseModel):
     address: str

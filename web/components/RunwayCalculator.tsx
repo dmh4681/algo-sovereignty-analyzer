@@ -35,9 +35,14 @@ export function RunwayCalculator({
 
   const handleCalculate = () => {
     const expenseValue = typeof expenses === 'string' ? parseFloat(expenses) : expenses
-    if (expenseValue > 0) {
+    if (expenseValue >= 1000) {
       setCalculatedExpenses(expenseValue)
       onUpdate?.(expenseValue)
+    } else if (expenseValue > 0) {
+      // Enforce minimum of $1000
+      setCalculatedExpenses(1000)
+      setExpenses(1000)
+      onUpdate?.(1000)
     }
   }
 
@@ -70,7 +75,7 @@ export function RunwayCalculator({
                 onChange={(e) => setExpenses(e.target.value)}
                 onKeyDown={handleKeyDown}
                 className="pl-7"
-                min="0"
+                min="1000"
                 step="100"
               />
             </div>
