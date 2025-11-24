@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict
 import aiohttp
 import re
+import html
 
 
 class NewsAggregator:
@@ -49,10 +50,13 @@ class NewsAggregator:
             await self.session.close()
 
     def _strip_html(self, text: str) -> str:
-        """Remove HTML tags from text"""
+        """Remove HTML tags and decode HTML entities"""
         if not text:
             return ""
+        # Remove HTML tags
         clean = re.sub(r'<[^>]+>', '', text)
+        # Decode HTML entities like &nbsp;, &amp;, etc.
+        clean = html.unescape(clean)
         return clean.strip()
 
     def _parse_rss(self, content: str, source_url: str) -> List[Dict]:
