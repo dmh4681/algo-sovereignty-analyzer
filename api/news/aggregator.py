@@ -3,79 +3,134 @@ News Aggregator Service
 Fetches and aggregates precious metals news from multiple RSS sources
 """
 
-import feedparser
 import asyncio
+import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
 from typing import List, Dict
 import aiohttp
+import re
 
 
 class NewsAggregator:
     """Fetches and aggregates precious metals news from multiple sources"""
-    
+
     GOLD_SOURCES = [
         'https://www.kitco.com/rss/gold.xml',
         'https://www.mining.com/category/gold/feed/',
         'https://www.mining-technology.com/feed/',
-        'https://www.marketwatch.com/rss/topstories',
     ]
-    
+
     SILVER_SOURCES = [
         'https://www.kitco.com/rss/silver.xml',
         'https://www.mining.com/category/silver/feed/',
-        'https://www.silverinstitute.org/feed/',
     ]
-    
+
     def __init__(self):
         self.session = None
-    
+
     async def __aenter__(self):
-        self.session = aiohttp.ClientSession()
+        self.session = aiohttp.ClientSession(
+            headers={'User-Agent': 'Mozilla/5.0 (compatible; NewsCurator/1.0)'}
+        )
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
-    
+
+    def _strip_html(self, text: str) -> str:
+        """Remove HTML tags from text"""
+        if not text:
+            return ""
+        clean = re.sub(r'<[^>]+>', '', text)
+        return clean.strip()
+
+    def _parse_rss(self, content: str, source_url: str) -> List[Dict]:
+        """Parse RSS/Atom feed XML"""
+        articles = []
+        try:
+            root = ET.fromstring(content)
+
+            # Try RSS 2.0 format
+            channel = root.find('channel')
+            if channel is not None:
+                feed_title = channel.findtext('title', source_url)
+                for item in channel.findall('item')[:10]:
+                    articles.append({
+                        'title': item.findtext('title', ''),
+                        'summary': self._strip_html(item.findtext('description', '')),
+                        'link': item.findtext('link', ''),
+                        'published': item.findtext('pubDate', ''),
+                        'source': feed_title,
+                    })
+                return articles
+
+            # Try Atom format
+            ns = {'atom': 'http://www.w3.org/2005/Atom'}
+            feed_title = root.findtext('atom:title', source_url, ns)
+            if feed_title == source_url:
+                feed_title = root.findtext('title', source_url)
+
+            entries = root.findall('atom:entry', ns)
+            if not entries:
+                entries = root.findall('entry')
+
+            for entry in entries[:10]:
+                link = ''
+                link_elem = entry.find('atom:link', ns)
+                if link_elem is None:
+                    link_elem = entry.find('link')
+                if link_elem is not None:
+                    link = link_elem.get('href', link_elem.text or '')
+
+                articles.append({
+                    'title': entry.findtext('atom:title', '', ns) or entry.findtext('title', ''),
+                    'summary': self._strip_html(
+                        entry.findtext('atom:summary', '', ns) or entry.findtext('summary', '')
+                    ),
+                    'link': link,
+                    'published': entry.findtext('atom:published', '', ns) or entry.findtext('published', ''),
+                    'source': feed_title,
+                })
+
+        except ET.ParseError as e:
+            print(f"XML parse error for {source_url}: {e}")
+
+        return articles
+
     async def fetch_feed(self, url: str) -> List[Dict]:
         """Fetch and parse a single RSS feed"""
         try:
-            async with self.session.get(url, timeout=10) as response:
+            timeout = aiohttp.ClientTimeout(total=15)
+            async with self.session.get(url, timeout=timeout) as response:
+                if response.status != 200:
+                    print(f"HTTP {response.status} for {url}")
+                    return []
                 content = await response.text()
-                feed = feedparser.parse(content)
-                
-                articles = []
-                for entry in feed.entries[:10]:  # Limit to 10 most recent
-                    articles.append({
-                        'title': entry.get('title', ''),
-                        'summary': entry.get('summary', entry.get('description', '')),
-                        'link': entry.get('link', ''),
-                        'published': entry.get('published', ''),
-                        'source': feed.feed.get('title', url),
-                    })
-                return articles
+                return self._parse_rss(content, url)
+        except asyncio.TimeoutError:
+            print(f"Timeout fetching {url}")
+            return []
         except Exception as e:
             print(f"Error fetching {url}: {e}")
             return []
-    
+
     async def fetch_all(self, metal: str, hours: int = 24) -> List[Dict]:
         """Fetch all news for a specific metal within timeframe"""
         sources = self.GOLD_SOURCES if metal == 'gold' else self.SILVER_SOURCES
-        
+
         tasks = [self.fetch_feed(url) for url in sources]
         results = await asyncio.gather(*tasks)
-        
+
         # Flatten and deduplicate
         all_articles = []
         seen_titles = set()
-        
+
         for articles in results:
             for article in articles:
-                if article['title'] not in seen_titles:
-                    seen_titles.add(article['title'])
+                title = article['title'].strip()
+                if title and title not in seen_titles:
+                    seen_titles.add(title)
                     all_articles.append(article)
-        
-        # Filter by timeframe (basic check, can be enhanced)
-        cutoff = datetime.now() - timedelta(hours=hours)
-        
+
         return sorted(all_articles, key=lambda x: x.get('published', ''), reverse=True)
