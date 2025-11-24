@@ -14,15 +14,25 @@ import re
 class NewsAggregator:
     """Fetches and aggregates precious metals news from multiple sources"""
 
+    # Updated RSS feeds - tested November 2024
     GOLD_SOURCES = [
-        'https://www.kitco.com/rss/gold.xml',
-        'https://www.mining.com/category/gold/feed/',
-        'https://www.mining-technology.com/feed/',
+        # Kitco mining news
+        'https://www.kitco.com/news/category/mining/rss',
+        # Mining.com main feed
+        'https://www.mining.com/feed/',
+        # Google News RSS for gold
+        'https://news.google.com/rss/search?q=gold+price+mining&hl=en-US&gl=US&ceid=US:en',
+        # Reddit r/Gold (always works)
+        'https://www.reddit.com/r/Gold/.rss',
     ]
 
     SILVER_SOURCES = [
-        'https://www.kitco.com/rss/silver.xml',
-        'https://www.mining.com/category/silver/feed/',
+        # Kitco mining (covers silver too)
+        'https://www.kitco.com/news/category/mining/rss',
+        # Google News RSS for silver
+        'https://news.google.com/rss/search?q=silver+price+mining&hl=en-US&gl=US&ceid=US:en',
+        # Reddit r/Silverbugs
+        'https://www.reddit.com/r/Silverbugs/.rss',
     ]
 
     def __init__(self):
