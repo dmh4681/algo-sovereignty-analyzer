@@ -48,6 +48,18 @@ class AssetClassifier:
         if any(re.search(pattern, ticker_upper) for pattern in hard_money_patterns):
             return AssetCategory.HARD_MONEY.value
 
+        # ALGO: Native ALGO and liquid staking derivatives
+        algo_patterns = [
+            r'^XALGO$',     # Folks Finance liquid staking
+            r'^FALGO$',     # Folks Finance wrapped ALGO
+            r'^GALGO$',     # Governance ALGO
+            r'^MALGO$',     # Messina ALGO
+            r'^LALGO$',     # Liquid ALGO variants
+            r'^TALGO$',     # Tinyman ALGO
+        ]
+        if any(re.search(pattern, ticker_upper) for pattern in algo_patterns):
+            return AssetCategory.ALGO.value
+
         # DOLLARS: Stablecoins (fiat-pegged assets)
         # Includes Folks Finance wrapped versions (fUSDC, etc.)
         dollar_patterns = [

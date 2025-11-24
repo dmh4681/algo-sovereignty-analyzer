@@ -4,6 +4,7 @@ from enum import Enum
 
 class AssetCategory(str, Enum):
     HARD_MONEY = "hard_money"
+    ALGO = "algo"
     DOLLARS = "dollars"
     SHITCOIN = "shitcoin"
 
