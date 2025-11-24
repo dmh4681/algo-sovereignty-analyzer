@@ -4,6 +4,9 @@ import {
   HistoryResponse,
   HistorySaveRequest,
   HistorySaveResponse,
+  NewsArticlesResponse,
+  CurateBatchRequest,
+  CurateBatchResponse,
 } from './types'
 
 // Use direct backend URL to avoid Next.js proxy timeout issues
@@ -155,4 +158,63 @@ export async function saveHistorySnapshot(
   }
 
   return response.json()
+}
+
+// --- News Curator API ---
+
+/**
+ * Get raw news articles without AI analysis
+ */
+export async function getNewsArticles(
+  metal: 'gold' | 'silver' = 'gold',
+  hours: number = 48,
+  limit: number = 10
+): Promise<NewsArticlesResponse> {
+  const response = await fetch(
+    `${API_BASE}/news/articles?metal=${metal}&hours=${hours}&limit=${limit}`
+  )
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch news articles', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get AI-curated news with sovereignty analysis
+ */
+export async function getCuratedNews(
+  request: CurateBatchRequest
+): Promise<CurateBatchResponse> {
+  const controller = new AbortController()
+  // Longer timeout for AI analysis (2 minutes)
+  const timeoutId = setTimeout(() => controller.abort(), 120000)
+
+  try {
+    const response = await fetch(`${API_BASE}/news/curate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new ApiError(
+        errorData.detail || 'News curation failed',
+        response.status
+      )
+    }
+
+    return response.json()
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ApiError('News curation timed out', 408)
+    }
+    throw error
+  }
 }

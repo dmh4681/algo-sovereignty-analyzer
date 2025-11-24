@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { WalletConnect } from '@/components/WalletConnect'
+import NewsCurator from '@/components/NewsCurator'
 import { isValidAlgorandAddress } from '@/lib/utils'
 
 export default function HomePage() {
@@ -270,6 +271,16 @@ export default function HomePage() {
             </CardContent>
           </Card>
         </div>
+      </section>
+
+      {/* News Curator Section */}
+      <section className="space-y-8">
+        <h2 className="text-2xl font-bold text-center">Precious Metals Intelligence</h2>
+        <p className="text-slate-400 text-center max-w-2xl mx-auto">
+          AI-curated gold and silver news, analyzed through the sovereignty lens.
+          See what matters for hard money holders.
+        </p>
+        <NewsCurator />
       </section>
 
       {/* CTA */}
