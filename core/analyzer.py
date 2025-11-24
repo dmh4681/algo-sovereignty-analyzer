@@ -9,6 +9,11 @@ from .pricing import get_algo_price, get_asset_price
 from .lp_parser import LPParser
 
 class AlgorandSovereigntyAnalyzer:
+    # Minimum USD value to include in shitcoin category (filters dust)
+    DUST_THRESHOLD_USD = 10.0
+    # Maximum amount for NFT-like detection (small integer holdings)
+    NFT_MAX_AMOUNT = 10
+
     def __init__(self, use_local_node: bool = True):
         if use_local_node:
             # Your local node
@@ -51,7 +56,33 @@ class AlgorandSovereigntyAnalyzer:
         except requests.exceptions.RequestException:
             # Silently fail for asset detail fetching
             return None
-    
+
+    def _is_dust_or_nft(self, amount: float, usd_value: float, price: Optional[float], name: str) -> bool:
+        """
+        Detect dust tokens and NFT-like items that should be filtered out.
+
+        Criteria:
+        - NFT-like: Small integer amount (1-10) with no price data
+        - Dust: Very low USD value (< threshold) with no meaningful price
+        - Reward tokens: Names containing 'reward', 'airdrop', etc. with low value
+        """
+        # NFT-like detection: small integer holdings with no price
+        if amount <= self.NFT_MAX_AMOUNT and amount == int(amount) and price is None:
+            return True
+
+        # Dust detection: has a price but value is negligible
+        if price is not None and usd_value < self.DUST_THRESHOLD_USD:
+            # Check for reward/airdrop tokens which are often spam
+            dust_keywords = ['reward', 'airdrop', 'free', 'bonus', 'promo']
+            name_lower = name.lower()
+            if any(keyword in name_lower for keyword in dust_keywords):
+                return True
+            # Still filter if value is truly negligible (< $1)
+            if usd_value < 1.0:
+                return True
+
+        return False
+
     def analyze_wallet(self, address: str) -> Optional[Dict[str, List[Dict[str, Any]]]]:
         """Analyze an Algorand wallet's sovereignty score"""
         print(f"\n🔍 Analyzing wallet: {address[:8]}...{address[-6:]}\n")
@@ -162,6 +193,10 @@ class AlgorandSovereigntyAnalyzer:
                     category = 'algo'
                 else:
                     category = 'shitcoin'
+
+            # Filter out dust tokens and NFT-like items from shitcoin category
+            if category == 'shitcoin' and self._is_dust_or_nft(actual_amount, usd_value, price, name):
+                continue  # Skip this asset
 
             categories[category].append({
                 'name': name,
