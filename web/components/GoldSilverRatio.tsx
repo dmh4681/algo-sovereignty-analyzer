@@ -65,20 +65,9 @@ export default function GoldSilverRatio() {
     }
   }
 
-  const getGradientColors = () => {
-    if (data.status === 'undervalued') {
-      return 'from-red-500/10 via-orange-500/5 to-slate-400/10 border-red-500/30'
-    } else if (data.status === 'below_average') {
-      return 'from-orange-500/10 via-yellow-500/5 to-slate-400/10 border-orange-500/30'
-    } else if (data.status === 'normalized') {
-      return 'from-yellow-500/10 via-orange-500/5 to-slate-400/10 border-yellow-500/30'
-    } else {
-      return 'from-green-500/10 via-emerald-500/5 to-slate-400/10 border-green-500/30'
-    }
-  }
-
   return (
-    <Card className={`bg-gradient-to-br ${getGradientColors()}`}>
+    <Card className="bg-gradient-to-r from-yellow-500/20 via-orange-500/10 to-slate-300/20 border-yellow-500/40"
+>
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div>
@@ -120,15 +109,15 @@ export default function GoldSilverRatio() {
 
         {/* Current Prices */}
         <div className="grid grid-cols-2 gap-2 pt-2">
-          <div className="text-center p-2 bg-slate-800/50 rounded">
-            <div className="text-xs text-slate-500">Gold</div>
-            <div className="text-lg font-semibold text-yellow-400">${data.gold_price}</div>
-            <div className="text-xs text-slate-500">per oz</div>
+          <div className="text-center p-3 bg-gradient-to-br from-yellow-500/20 to-yellow-600/10 rounded-lg border border-yellow-500/30">
+            <div className="text-xs text-yellow-400/80 font-medium">🥇 Gold</div>
+            <div className="text-xl font-bold text-yellow-400">${data.gold_price.toLocaleString()}</div>
+            <div className="text-xs text-yellow-500/60">per oz</div>
           </div>
-          <div className="text-center p-2 bg-slate-800/50 rounded">
-            <div className="text-xs text-slate-500">Silver</div>
-            <div className="text-lg font-semibold text-slate-300">${data.silver_price}</div>
-            <div className="text-xs text-slate-500">per oz</div>
+          <div className="text-center p-3 bg-gradient-to-br from-slate-400/20 to-slate-500/10 rounded-lg border border-slate-400/30">
+            <div className="text-xs text-slate-300/80 font-medium">🥈 Silver</div>
+            <div className="text-xl font-bold text-slate-300">${data.silver_price.toLocaleString()}</div>
+            <div className="text-xs text-slate-400/60">per oz</div>
           </div>
         </div>
 

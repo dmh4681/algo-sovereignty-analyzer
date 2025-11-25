@@ -25,13 +25,13 @@ def get_hardcoded_price(ticker: str) -> Optional[float]:
     if t in ['ETH', 'WETH', 'GOETH', 'FGOETH']:
         return 3000.0 # Approximate
         
-    # Meld Silver (1g)
+    # Meld Silver (1g) - Update weekly
     if t == 'SILVER$':
-        return 0.90
-        
-    # Meld Gold (1g)
+        return 1.54  # ~$48/oz
+
+    # Meld Gold (1g) - Update weekly
     if t == 'GOLD$':
-        return 80.0
+        return 131.80  # ~$4100/oz
         
     return None
 
