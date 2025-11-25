@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
 from core.history import SovereigntySnapshot, get_history_manager
-from core.pricing import _fetch_price
+from core.pricing import get_hardcoded_price
 from .schemas import (
     AnalysisResponse,
     AnalyzeRequest,
@@ -296,80 +296,58 @@ async def get_history(
 @router.get("/gold-silver-ratio")
 async def get_gold_silver_ratio():
     """
-    Get current Gold/Silver ratio with historical context.
+    Get current Gold/Silver ratio using Meld Gold/Silver prices.
 
-    Returns ratio, prices, and status indicator.
+    Uses hardcoded Meld prices (per gram) and converts to per ounce.
+    Update weekly in core/pricing.py
     """
-    try:
-        # Fetch prices from CoinGecko
-        gold_price = _fetch_price('gold')  # Price per oz
-        silver_price = _fetch_price('silver')  # Price per oz
+    GRAMS_PER_OZ = 31.1035
 
-        # Fallback to hardcoded if API fails or returns 0
-        if not gold_price or gold_price == 0:
-            gold_price = 4100.0  # Current gold price per oz (update weekly)
-        if not silver_price or silver_price == 0:
-            silver_price = 48.0  # Current silver price per oz (update weekly)
+    # Get Meld prices (per gram)
+    gold_per_gram = get_hardcoded_price('GOLD$') or 131.80
+    silver_per_gram = get_hardcoded_price('SILVER$') or 1.54
 
-        # Ensure we don't divide by zero
-        if silver_price == 0:
-            silver_price = 48.0
+    # Convert to per ounce
+    gold_price = round(gold_per_gram * GRAMS_PER_OZ, 2)
+    silver_price = round(silver_per_gram * GRAMS_PER_OZ, 2)
 
-        # Calculate ratio
-        ratio = round(gold_price / silver_price, 2)
+    # Calculate ratio
+    ratio = round(gold_price / silver_price, 2)
 
-        # Historical context
-        historical_mean = 15.0
-        historical_range = {"low": 12, "high": 90}
+    # Historical context
+    historical_mean = 15.0
+    historical_range = {"low": 12, "high": 90}
 
-        # Status indicator
-        if ratio > 80:
-            status = "undervalued"
-            color = "red"
-            message = "Silver significantly undervalued relative to gold"
-        elif ratio > 60:
-            status = "below_average"
-            color = "orange"
-            message = "Silver moderately undervalued"
-        elif ratio > 40:
-            status = "normalized"
-            color = "yellow"
-            message = "Ratio approaching historical norms"
-        else:
-            status = "compressed"
-            color = "green"
-            message = "Ratio compressed - silver relatively expensive"
+    # Status indicator
+    if ratio > 80:
+        status = "undervalued"
+        color = "red"
+        message = "Silver significantly undervalued relative to gold"
+    elif ratio > 60:
+        status = "below_average"
+        color = "orange"
+        message = "Silver moderately undervalued"
+    elif ratio > 40:
+        status = "normalized"
+        color = "yellow"
+        message = "Ratio approaching historical norms"
+    else:
+        status = "compressed"
+        color = "green"
+        message = "Ratio compressed - silver relatively expensive"
 
-        return {
-            "ratio": ratio,
-            "gold_price": round(gold_price, 2),
-            "silver_price": round(silver_price, 2),
-            "historical_mean": historical_mean,
-            "historical_range": historical_range,
-            "status": status,
-            "color": color,
-            "message": message,
-            "interpretation": {
-                "what_it_means": "The Gold/Silver ratio measures how many ounces of silver it takes to buy one ounce of gold.",
-                "current_signal": f"At {ratio}:1, silver is {('undervalued' if ratio > 60 else 'fairly valued')} compared to gold.",
-                "historical_note": f"The ratio has ranged from {historical_range['low']}:1 to {historical_range['high']}:1 over the past century. The long-term mean is around {historical_mean}:1."
-            }
+    return {
+        "ratio": ratio,
+        "gold_price": gold_price,
+        "silver_price": silver_price,
+        "historical_mean": historical_mean,
+        "historical_range": historical_range,
+        "status": status,
+        "color": color,
+        "message": message,
+        "interpretation": {
+            "what_it_means": "The Gold/Silver ratio measures how many ounces of silver it takes to buy one ounce of gold.",
+            "current_signal": f"At {ratio}:1, silver is {('undervalued' if ratio > 60 else 'fairly valued')} compared to gold.",
+            "historical_note": f"The ratio has ranged from {historical_range['low']}:1 to {historical_range['high']}:1 over the past century. The long-term mean is around {historical_mean}:1."
         }
-    except Exception as e:
-        # If everything fails, return hardcoded fallback values
-        print(f"Gold/Silver ratio endpoint error: {e}")
-        return {
-            "ratio": 85.4,
-            "gold_price": 4100.0,
-            "silver_price": 48.0,
-            "historical_mean": 15.0,
-            "historical_range": {"low": 12, "high": 90},
-            "status": "undervalued",
-            "color": "red",
-            "message": "Silver significantly undervalued relative to gold",
-            "interpretation": {
-                "what_it_means": "The Gold/Silver ratio measures how many ounces of silver it takes to buy one ounce of gold.",
-                "current_signal": "At 85.4:1, silver is undervalued compared to gold.",
-                "historical_note": "The ratio has ranged from 12:1 to 90:1 over the past century. The long-term mean is around 15:1."
-            }
-        }
+    }
