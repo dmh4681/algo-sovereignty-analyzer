@@ -78,6 +78,9 @@ export default function RootLayout({
                   <Link href="/news" className="text-sm text-slate-400 hover:text-yellow-500 transition-colors">
                     News
                   </Link>
+                  <Link href="/shop" className="text-sm text-slate-400 hover:text-orange-500 transition-colors">
+                    Shop
+                  </Link>
                   <HeaderWalletStatus />
                   <a
                     href="https://github.com"
