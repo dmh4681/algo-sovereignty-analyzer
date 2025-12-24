@@ -20,6 +20,11 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
+
 try:
     from algosdk import account, mnemonic, transaction
     from algosdk.v2client import algod
