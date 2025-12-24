@@ -1,3 +1,10 @@
+// NFT Sale Smart Contract Configuration
+export const NFT_SALE_CONTRACT = {
+  appId: 3381223080,
+  priceAlgo: 100,
+  priceMicroAlgo: 100_000_000,
+}
+
 export interface PickaxeNFT {
   id: string
   name: string

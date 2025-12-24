@@ -1,10 +1,174 @@
 'use client'
 
+import { useState } from 'react'
 import Image from 'next/image'
-import { Pickaxe, Package, Sparkles, ExternalLink, ShoppingCart } from 'lucide-react'
+import { Pickaxe, Package, Sparkles, ExternalLink, ShoppingCart, Loader2, CheckCircle2, XCircle, Wallet } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { PICKAXE_NFTS, BUNDLE_DEAL, getPickaxeColorClasses } from '@/lib/nft-config'
+import { PICKAXE_NFTS, BUNDLE_DEAL, getPickaxeColorClasses, type PickaxeNFT } from '@/lib/nft-config'
+import { usePurchaseNFT } from '@/lib/usePurchaseNFT'
+import { useWallet } from '@txnlab/use-wallet-react'
+
+function PurchaseButton({ nft }: { nft: PickaxeNFT }) {
+  const { purchaseNFT, status, error, txId, reset, isConnected } = usePurchaseNFT()
+  const { wallets } = useWallet()
+  const [showModal, setShowModal] = useState(false)
+
+  const handleBuyClick = async () => {
+    if (!isConnected) {
+      // Try to connect with first available wallet
+      const availableWallet = wallets.find(w => w.isAvailable)
+      if (availableWallet) {
+        try {
+          await availableWallet.connect()
+        } catch {
+          // User cancelled or error
+          return
+        }
+      }
+      return
+    }
+
+    setShowModal(true)
+    await purchaseNFT(nft)
+  }
+
+  const handleClose = () => {
+    setShowModal(false)
+    reset()
+  }
+
+  const getStatusMessage = () => {
+    switch (status) {
+      case 'checking':
+        return 'Checking asset opt-in...'
+      case 'opting-in':
+        return 'Preparing opt-in transaction...'
+      case 'signing':
+        return 'Please sign the transaction in your wallet...'
+      case 'submitting':
+        return 'Submitting transaction to network...'
+      case 'success':
+        return 'Purchase successful!'
+      case 'error':
+        return error || 'Purchase failed'
+      default:
+        return ''
+    }
+  }
+
+  const isProcessing = ['checking', 'opting-in', 'signing', 'submitting'].includes(status)
+
+  return (
+    <>
+      <Button
+        className="w-full gap-2"
+        onClick={handleBuyClick}
+        disabled={isProcessing}
+      >
+        {!isConnected ? (
+          <>
+            <Wallet className="w-4 h-4" />
+            Connect Wallet
+          </>
+        ) : isProcessing ? (
+          <>
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Processing...
+          </>
+        ) : (
+          <>
+            <ShoppingCart className="w-4 h-4" />
+            Buy Now
+          </>
+        )}
+      </Button>
+
+      {/* Purchase Modal */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-xl font-bold">Purchasing {nft.name}</h3>
+              {(status === 'success' || status === 'error') && (
+                <button
+                  onClick={handleClose}
+                  className="text-slate-400 hover:text-white"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+
+            <div className="flex items-center gap-4 py-4">
+              {isProcessing && (
+                <Loader2 className="w-8 h-8 animate-spin text-orange-500" />
+              )}
+              {status === 'success' && (
+                <CheckCircle2 className="w-8 h-8 text-green-500" />
+              )}
+              {status === 'error' && (
+                <XCircle className="w-8 h-8 text-red-500" />
+              )}
+              <div className="flex-1">
+                <p className="text-slate-300">{getStatusMessage()}</p>
+                {status === 'signing' && (
+                  <p className="text-sm text-slate-500 mt-1">
+                    This will send {nft.price} ALGO to the contract
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {status === 'success' && txId && (
+              <div className="bg-slate-800/50 rounded-lg p-4 space-y-2">
+                <p className="text-sm text-slate-400">Transaction ID:</p>
+                <a
+                  href={`https://explorer.perawallet.app/tx/${txId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-sm text-orange-500 hover:text-orange-400 break-all flex items-center gap-1"
+                >
+                  {txId}
+                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
+                </a>
+                <p className="text-sm text-green-400 mt-2">
+                  Your {nft.name} NFT has been sent to your wallet!
+                </p>
+              </div>
+            )}
+
+            {status === 'error' && (
+              <div className="bg-red-900/20 border border-red-900/50 rounded-lg p-4">
+                <p className="text-sm text-red-400">{error}</p>
+                <Button
+                  variant="outline"
+                  className="mt-3"
+                  onClick={() => {
+                    reset()
+                    purchaseNFT(nft)
+                  }}
+                >
+                  Try Again
+                </Button>
+              </div>
+            )}
+
+            {(status === 'success' || status === 'error') && (
+              <Button
+                className="w-full"
+                variant={status === 'success' ? 'default' : 'outline'}
+                onClick={handleClose}
+              >
+                {status === 'success' ? 'Done' : 'Close'}
+              </Button>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
 
 export default function ShopPage() {
   return (
@@ -51,7 +215,7 @@ export default function ShopPage() {
                 </div>
                 <Button size="lg" disabled className="gap-2">
                   <ShoppingCart className="w-4 h-4" />
-                  Buy Bundle
+                  Coming Soon
                 </Button>
               </div>
             </div>
@@ -135,13 +299,7 @@ export default function ShopPage() {
                   </a>
 
                   {/* Buy Button */}
-                  <Button
-                    className="w-full gap-2"
-                    disabled
-                  >
-                    <ShoppingCart className="w-4 h-4" />
-                    Buy Now
-                  </Button>
+                  <PurchaseButton nft={nft} />
                 </CardContent>
               </Card>
             )

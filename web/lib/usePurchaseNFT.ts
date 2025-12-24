@@ -1,0 +1,138 @@
+import { useState, useCallback } from 'react'
+import { useWallet } from '@txnlab/use-wallet-react'
+import algosdk from 'algosdk'
+import { NFT_SALE_CONTRACT, type PickaxeNFT } from './nft-config'
+
+// AlgoNode mainnet
+const ALGOD_URL = 'https://mainnet-api.algonode.cloud'
+const ALGOD_TOKEN = ''
+
+type PurchaseStatus = 'idle' | 'checking' | 'opting-in' | 'signing' | 'submitting' | 'success' | 'error'
+
+interface PurchaseResult {
+  success: boolean
+  txId?: string
+  error?: string
+}
+
+export function usePurchaseNFT() {
+  const { activeAccount, signTransactions, sendTransactions } = useWallet()
+  const [status, setStatus] = useState<PurchaseStatus>('idle')
+  const [error, setError] = useState<string | null>(null)
+  const [txId, setTxId] = useState<string | null>(null)
+
+  const algodClient = new algosdk.Algodv2(ALGOD_TOKEN, ALGOD_URL, '')
+
+  const checkAssetOptIn = useCallback(async (address: string, asaId: number): Promise<boolean> => {
+    try {
+      const accountInfo = await algodClient.accountInformation(address).do()
+      const assets = accountInfo.assets || []
+      return assets.some((asset: { 'asset-id': number }) => asset['asset-id'] === asaId)
+    } catch {
+      return false
+    }
+  }, [])
+
+  const purchaseNFT = useCallback(async (nft: PickaxeNFT): Promise<PurchaseResult> => {
+    if (!activeAccount) {
+      setError('Please connect your wallet first')
+      setStatus('error')
+      return { success: false, error: 'Wallet not connected' }
+    }
+
+    setStatus('checking')
+    setError(null)
+    setTxId(null)
+
+    try {
+      const address = activeAccount.address
+      const appAddress = algosdk.getApplicationAddress(NFT_SALE_CONTRACT.appId)
+
+      // Get suggested params
+      const params = await algodClient.getTransactionParams().do()
+
+      const transactions: algosdk.Transaction[] = []
+
+      // Check if user needs to opt-in to the ASA
+      const isOptedIn = await checkAssetOptIn(address, nft.asaId)
+
+      if (!isOptedIn) {
+        setStatus('opting-in')
+        // Create opt-in transaction
+        const optInTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
+          sender: address,
+          receiver: address,
+          assetIndex: nft.asaId,
+          amount: 0,
+          suggestedParams: params,
+        })
+        transactions.push(optInTxn)
+      }
+
+      // Payment transaction (100 ALGO to app address)
+      const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
+        sender: address,
+        receiver: appAddress,
+        amount: NFT_SALE_CONTRACT.priceMicroAlgo,
+        suggestedParams: params,
+      })
+      transactions.push(paymentTxn)
+
+      // Application call transaction
+      const appCallParams = { ...params }
+      appCallParams.fee = 2000 // Cover outer tx + inner tx fee
+      appCallParams.flatFee = true
+
+      const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
+        sender: address,
+        appIndex: NFT_SALE_CONTRACT.appId,
+        appArgs: [new Uint8Array(Buffer.from('buy'))],
+        foreignAssets: [nft.asaId],
+        suggestedParams: appCallParams,
+      })
+      transactions.push(appCallTxn)
+
+      // Group the transactions
+      algosdk.assignGroupID(transactions)
+
+      // Encode transactions for signing
+      const encodedTxns = transactions.map((txn) => txn.toByte())
+
+      setStatus('signing')
+      // Sign all transactions
+      const signedTxns = await signTransactions(encodedTxns)
+
+      setStatus('submitting')
+      // Submit to network
+      const response = await sendTransactions(signedTxns)
+
+      const confirmedTxId = response.txId || (transactions[transactions.length - 1].txID())
+      setTxId(confirmedTxId)
+      setStatus('success')
+
+      return { success: true, txId: confirmedTxId }
+    } catch (err) {
+      console.error('Purchase failed:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Purchase failed. Please try again.'
+      setError(errorMessage)
+      setStatus('error')
+      return { success: false, error: errorMessage }
+    }
+  }, [activeAccount, signTransactions, sendTransactions, checkAssetOptIn])
+
+  const reset = useCallback(() => {
+    setStatus('idle')
+    setError(null)
+    setTxId(null)
+  }, [])
+
+  return {
+    purchaseNFT,
+    status,
+    error,
+    txId,
+    reset,
+    isConnected: !!activeAccount,
+    address: activeAccount?.address,
+  }
+}
