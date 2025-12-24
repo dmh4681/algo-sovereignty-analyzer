@@ -1,37 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { Search, BarChart3, Zap, Wallet } from 'lucide-react'
+import { BarChart3, Zap, Wallet } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
 import { WalletConnect } from '@/components/WalletConnect'
-import { isValidAlgorandAddress } from '@/lib/utils'
 
 export default function HomePage() {
-  const [address, setAddress] = useState('')
-  const [isValid, setIsValid] = useState(false)
-  const router = useRouter()
-
-  const handleAddressChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const addr = e.target.value.toUpperCase()
-    setAddress(addr)
-    setIsValid(isValidAlgorandAddress(addr))
-  }
-
-  const handleManualAnalyze = () => {
-    if (isValid) {
-      router.push(`/analyze?address=${address}`)
-    }
-  }
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter' && isValid) {
-      handleManualAnalyze()
-    }
-  }
-
   return (
     <div className="max-w-4xl mx-auto space-y-16 py-8">
       {/* Hero Section */}
@@ -43,67 +16,15 @@ export default function HomePage() {
           </span>
         </h1>
         <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-          Connect your wallet or enter any Algorand address. Classify your assets. Calculate your freedom.
+          Connect your Algorand wallet. Classify your assets. Calculate your freedom.
         </p>
 
         {/* Main Input Card */}
         <div className="max-w-xl mx-auto pt-4">
           <Card className="bg-slate-900/80 border-slate-800">
-            <CardContent className="pt-6 space-y-6">
-              {/* Wallet Connect - PRIMARY METHOD */}
-              <div>
-                <WalletConnect autoRedirect={true} />
-              </div>
-
-              {/* Divider */}
-              <div className="flex items-center gap-4">
-                <div className="flex-1 border-t border-slate-700" />
-                <span className="text-slate-500 text-sm">OR ENTER MANUALLY</span>
-                <div className="flex-1 border-t border-slate-700" />
-              </div>
-
-              {/* Manual Entry - FALLBACK METHOD */}
-              <div>
-                <label className="block text-sm font-medium mb-2 text-slate-400 text-left">
-                  Algorand Address (58 characters)
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    value={address}
-                    onChange={handleAddressChange}
-                    onKeyDown={handleKeyDown}
-                    placeholder="I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4"
-                    className="flex-1 bg-slate-800 border-slate-700 font-mono text-sm"
-                  />
-                  <Button
-                    onClick={handleManualAnalyze}
-                    disabled={!isValid}
-                    variant="outline"
-                    className="border-orange-500 text-orange-500 hover:bg-orange-500 hover:text-white disabled:opacity-50"
-                  >
-                    <Search className="w-4 h-4" />
-                  </Button>
-                </div>
-                {address.length > 0 && !isValid && (
-                  <p className="text-xs text-red-400 mt-2 text-left">
-                    Invalid address format (must be 58 characters, A-Z and 2-7 only)
-                  </p>
-                )}
-              </div>
-
-              {/* Example Link */}
-              <div className="text-center">
-                <button
-                  onClick={() => {
-                    const exampleAddress = 'I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4'
-                    setAddress(exampleAddress)
-                    setIsValid(true)
-                  }}
-                  className="text-sm text-orange-500 hover:text-orange-400 underline"
-                >
-                  Try example address
-                </button>
-              </div>
+            <CardContent className="pt-6 pb-6">
+              {/* Wallet Connect - ONLY METHOD */}
+              <WalletConnect autoRedirect={true} />
             </CardContent>
           </Card>
         </div>
