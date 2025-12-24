@@ -16,11 +16,11 @@ function PurchaseButton({ nft }: { nft: PickaxeNFT }) {
 
   const handleBuyClick = async () => {
     if (!isConnected) {
-      // Try to connect with first available wallet
-      const availableWallet = wallets.find(w => w.isAvailable)
-      if (availableWallet) {
+      // Try to connect with first wallet (Pera)
+      const wallet = wallets[0]
+      if (wallet) {
         try {
-          await availableWallet.connect()
+          await wallet.connect()
         } catch {
           // User cancelled or error
           return
