@@ -5,6 +5,8 @@ export interface PickaxeNFT {
   image: string
   price: number // in ALGO
   supply: number
+  asaId: number // Minted ASA ID on Algorand mainnet
+  explorerUrl: string
   targetAsset: {
     name: string
     ticker: string
@@ -23,6 +25,8 @@ export const PICKAXE_NFTS: PickaxeNFT[] = [
     image: '/nfts/gold_pickaxe.png',
     price: 100,
     supply: 1000,
+    asaId: 3381152020,
+    explorerUrl: 'https://explorer.perawallet.app/asset/3381152020',
     targetAsset: {
       name: 'Meld Gold',
       ticker: 'GOLD$',
@@ -30,7 +34,7 @@ export const PICKAXE_NFTS: PickaxeNFT[] = [
     },
     rarity: 'legendary',
     color: 'yellow',
-    available: false
+    available: true
   },
   {
     id: 'silver_pickaxe',
@@ -39,6 +43,8 @@ export const PICKAXE_NFTS: PickaxeNFT[] = [
     image: '/nfts/silver_pickaxe.png',
     price: 100,
     supply: 2000,
+    asaId: 3381152697,
+    explorerUrl: 'https://explorer.perawallet.app/asset/3381152697',
     targetAsset: {
       name: 'Meld Silver',
       ticker: 'SILVER$',
@@ -46,7 +52,7 @@ export const PICKAXE_NFTS: PickaxeNFT[] = [
     },
     rarity: 'epic',
     color: 'slate',
-    available: false
+    available: true
   },
   {
     id: 'bitcoin_pickaxe',
@@ -55,6 +61,8 @@ export const PICKAXE_NFTS: PickaxeNFT[] = [
     image: '/nfts/bitcoin_pickaxe.png',
     price: 100,
     supply: 1500,
+    asaId: 3381152867,
+    explorerUrl: 'https://explorer.perawallet.app/asset/3381152867',
     targetAsset: {
       name: 'goBTC',
       ticker: 'goBTC',
@@ -62,7 +70,7 @@ export const PICKAXE_NFTS: PickaxeNFT[] = [
     },
     rarity: 'legendary',
     color: 'orange',
-    available: false
+    available: true
   }
 ]
 

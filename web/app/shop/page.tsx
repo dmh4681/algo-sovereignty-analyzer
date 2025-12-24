@@ -1,7 +1,7 @@
 'use client'
 
 import Image from 'next/image'
-import { Pickaxe, Package, Sparkles, Lock } from 'lucide-react'
+import { Pickaxe, Package, Sparkles, ExternalLink, ShoppingCart } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { PICKAXE_NFTS, BUNDLE_DEAL, getPickaxeColorClasses } from '@/lib/nft-config'
@@ -50,8 +50,8 @@ export default function ShopPage() {
                   <div className="text-2xl font-bold text-orange-500">{BUNDLE_DEAL.bundlePrice} ALGO</div>
                 </div>
                 <Button size="lg" disabled className="gap-2">
-                  <Lock className="w-4 h-4" />
-                  Coming Soon
+                  <ShoppingCart className="w-4 h-4" />
+                  Buy Bundle
                 </Button>
               </div>
             </div>
@@ -123,20 +123,24 @@ export default function ShopPage() {
                     </div>
                   </div>
 
+                  {/* Verify on Explorer */}
+                  <a
+                    href={nft.explorerUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 text-sm text-slate-400 hover:text-orange-500 transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3" />
+                    Verify on Pera Explorer (ASA {nft.asaId})
+                  </a>
+
                   {/* Buy Button */}
                   <Button
                     className="w-full gap-2"
-                    variant={nft.available ? 'default' : 'secondary'}
-                    disabled={!nft.available}
+                    disabled
                   >
-                    {nft.available ? (
-                      <>Buy Now</>
-                    ) : (
-                      <>
-                        <Lock className="w-4 h-4" />
-                        Coming Soon
-                      </>
-                    )}
+                    <ShoppingCart className="w-4 h-4" />
+                    Buy Now
                   </Button>
                 </CardContent>
               </Card>
