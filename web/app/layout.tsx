@@ -69,6 +69,9 @@ export default function RootLayout({
                   <span className="font-semibold text-lg hidden sm:inline">Sovereignty Analyzer</span>
                 </Link>
                 <nav className="flex items-center gap-4">
+                  <Link href="/network" className="text-sm text-slate-400 hover:text-cyan-500 transition-colors">
+                    Network
+                  </Link>
                   <Link href="/philosophy" className="text-sm text-slate-400 hover:text-orange-500 transition-colors">
                     Philosophy
                   </Link>
