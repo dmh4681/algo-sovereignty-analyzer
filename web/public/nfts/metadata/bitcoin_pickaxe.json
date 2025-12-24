@@ -1,0 +1,17 @@
+{
+  "name": "Bitcoin Pickaxe",
+  "description": "Grants access to automated ALGO → goBTC conversion. Mine sovereignty with every block.",
+  "image": "https://algosovereignty.com/nfts/bitcoin_pickaxe.png",
+  "image_mimetype": "image/png",
+  "external_url": "https://algosovereignty.com/shop",
+  "properties": {
+    "type": "Bitcoin Pickaxe",
+    "rarity": "Epic",
+    "target_asset": "goBTC (Wrapped Bitcoin)",
+    "target_asa_id": 386192725,
+    "max_supply": 1500,
+    "utility": "Auto-Mining Enabled",
+    "swap_threshold": "10 ALGO",
+    "protocol_fee": "0.5%"
+  }
+}

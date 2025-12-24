@@ -1,0 +1,17 @@
+{
+  "name": "Gold Pickaxe",
+  "description": "Grants access to automated ALGO → Meld Gold conversion. Mine sovereignty with every block.",
+  "image": "https://algosovereignty.com/nfts/gold_pickaxe.png",
+  "image_mimetype": "image/png",
+  "external_url": "https://algosovereignty.com/shop",
+  "properties": {
+    "type": "Gold Pickaxe",
+    "rarity": "Legendary",
+    "target_asset": "GOLD$ (Meld Gold)",
+    "target_asa_id": 246516580,
+    "max_supply": 1000,
+    "utility": "Auto-Mining Enabled",
+    "swap_threshold": "10 ALGO",
+    "protocol_fee": "0.5%"
+  }
+}
