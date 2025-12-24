@@ -223,6 +223,9 @@ def opt_contract_into_asa(
     print(f"Opting contract into ASA {asa_id}...")
 
     params = client.suggested_params()
+    # Cover fee for outer tx + inner tx (contract opt-in)
+    params.fee = 2000
+    params.flat_fee = True
     txn = transaction.ApplicationNoOpTxn(
         sender=sender_address,
         sp=params,
