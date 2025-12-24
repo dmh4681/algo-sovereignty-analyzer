@@ -195,6 +195,42 @@ export interface CurateBatchResponse {
   fetched_count: number
 }
 
+// Infrastructure Audit types
+export interface InfrastructureNode {
+  hostname: string
+  ip: string
+  port: number
+  isp: string
+  org: string
+  country: string
+  region: string
+  city: string
+  asn: string
+  classification: 'cloud' | 'sovereign'
+}
+
+export interface InfrastructureInterpretation {
+  health: 'healthy' | 'moderate' | 'concerning' | 'critical'
+  color: string
+  message: string
+  cloud_dependency: string
+  recommendation: string
+}
+
+export interface InfrastructureAudit {
+  total_nodes: number
+  cloud_nodes: number
+  sovereign_nodes: number
+  cloud_percentage: number
+  sovereign_percentage: number
+  decentralization_score: number
+  top_providers: Record<string, number>
+  top_countries: Record<string, number>
+  timestamp: string
+  cache_expires: string
+  interpretation: InfrastructureInterpretation
+}
+
 // Gold/Silver Ratio types
 export interface GoldSilverRatio {
   ratio: number

@@ -8,6 +8,7 @@ import {
   CurateBatchRequest,
   CurateBatchResponse,
   GoldSilverRatio,
+  InfrastructureAudit,
 } from './types'
 
 // Use direct backend URL to avoid Next.js proxy timeout issues
@@ -228,6 +229,28 @@ export async function getGoldSilverRatio(): Promise<GoldSilverRatio> {
 
   if (!response.ok) {
     throw new ApiError('Failed to fetch gold/silver ratio', response.status)
+  }
+
+  return response.json()
+}
+
+// --- Infrastructure Audit API ---
+
+/**
+ * Get Algorand relay node infrastructure audit
+ * Analyzes centralization of relay network
+ */
+export async function getInfrastructureAudit(
+  forceRefresh: boolean = false
+): Promise<InfrastructureAudit> {
+  const url = forceRefresh
+    ? `${API_BASE}/sovereignty/infrastructure?force_refresh=true`
+    : `${API_BASE}/sovereignty/infrastructure`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch infrastructure audit', response.status)
   }
 
   return response.json()

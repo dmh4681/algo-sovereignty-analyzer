@@ -9,3 +9,4 @@ tinyman-py-sdk @ git+https://github.com/tinymanorg/tinyman-py-sdk.git
 anthropic>=0.3.0
 python-dotenv>=1.0.0
 aiohttp>=3.8.0
+dnspython>=2.4.0

@@ -20,6 +20,7 @@ import { LoadingSpinner, LoadingState } from '@/components/LoadingState'
 import { HistoryChart } from '@/components/HistoryChart'
 import { BadgeSection } from '@/components/BadgeSection'
 import GoldSilverRatio from '@/components/GoldSilverRatio'
+import InfrastructureHealth from '@/components/InfrastructureHealth'
 import { analyzeWallet, ApiError } from '@/lib/api'
 import { AnalysisResponse } from '@/lib/types'
 import { truncateAddress } from '@/lib/utils'
@@ -236,9 +237,10 @@ function AnalyzeContent() {
             <AssetBreakdown categories={analysis.categories} />
           </section>
 
-          {/* Gold/Silver Ratio Widget */}
-          <section>
+          {/* Network Health Widgets */}
+          <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <GoldSilverRatio />
+            <InfrastructureHealth />
           </section>
 
           {/* Node Status */}
