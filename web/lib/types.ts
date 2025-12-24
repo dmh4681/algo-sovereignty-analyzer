@@ -231,6 +231,51 @@ export interface InfrastructureAudit {
   interpretation: InfrastructureInterpretation
 }
 
+// Participation Audit types
+export interface ParticipationValidator {
+  address: string
+  address_short: string
+  stake_algo: number
+  stake_formatted: string
+  incentive_eligible: boolean
+  vote_first_valid: number
+  vote_last_valid: number
+  keys_valid: boolean
+  last_proposed: number | null
+  last_heartbeat: number | null
+  recently_active: boolean
+}
+
+export interface ParticipationInterpretation {
+  health: 'strong' | 'healthy' | 'moderate' | 'low' | 'critical'
+  color: string
+  message: string
+  stake_description: string
+  recommendation: string
+}
+
+export interface ParticipationStats {
+  current_round: number
+  online_stake: {
+    algo: number
+    formatted: string
+    percentage: number
+  }
+  total_supply: {
+    algo: number
+    formatted: string
+  }
+  validators: {
+    estimated_count: number
+    top_validators: ParticipationValidator[]
+    incentive_eligible_count: number
+    incentive_eligible_stake: string
+  }
+  interpretation: ParticipationInterpretation
+  timestamp: string
+  cache_expires: string
+}
+
 // Gold/Silver Ratio types
 export interface GoldSilverRatio {
   ratio: number

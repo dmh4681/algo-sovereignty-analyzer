@@ -12,6 +12,10 @@ from .infra_audit import (
     get_infrastructure_summary,
     RelayNode
 )
+from .participation_audit import (
+    audit_participation,
+    get_participation_summary
+)
 
 router = APIRouter(prefix="/sovereignty", tags=["infrastructure"])
 
@@ -147,3 +151,28 @@ async def get_country_breakdown() -> Dict[str, Any]:
         "total_countries": len(sorted_countries),
         "timestamp": result.timestamp
     }
+
+
+# --- Participation Endpoints ---
+
+@router.get("/participation")
+async def get_participation_stats(
+    force_refresh: bool = Query(False, description="Bypass cache and fetch fresh data")
+) -> Dict[str, Any]:
+    """
+    Get Algorand consensus participation statistics.
+
+    Returns:
+    - Online stake (ALGO participating in consensus)
+    - Percentage of total supply online
+    - Top validators by stake
+    - Incentive-eligible account stats
+
+    Data is cached for 15 minutes unless force_refresh=true
+    """
+    try:
+        return get_participation_summary(force_refresh=force_refresh)
+    except Exception as e:
+        print(f"Participation audit error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Participation audit failed: {str(e)}")

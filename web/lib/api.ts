@@ -9,6 +9,7 @@ import {
   CurateBatchResponse,
   GoldSilverRatio,
   InfrastructureAudit,
+  ParticipationStats,
 } from './types'
 
 // Use direct backend URL to avoid Next.js proxy timeout issues
@@ -251,6 +252,26 @@ export async function getInfrastructureAudit(
 
   if (!response.ok) {
     throw new ApiError('Failed to fetch infrastructure audit', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get Algorand consensus participation statistics
+ * Analyzes online stake and validator distribution
+ */
+export async function getParticipationStats(
+  forceRefresh: boolean = false
+): Promise<ParticipationStats> {
+  const url = forceRefresh
+    ? `${API_BASE}/sovereignty/participation?force_refresh=true`
+    : `${API_BASE}/sovereignty/participation`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch participation stats', response.status)
   }
 
   return response.json()
