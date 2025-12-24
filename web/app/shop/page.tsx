@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import { Pickaxe, Package, Sparkles, ExternalLink, ShoppingCart, Loader2, CheckCircle2, XCircle, Wallet } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -13,6 +14,11 @@ function PurchaseButton({ nft }: { nft: PickaxeNFT }) {
   const { purchaseNFT, status, error, txId, reset, isConnected } = usePurchaseNFT()
   const { wallets } = useWallet()
   const [showModal, setShowModal] = useState(false)
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   const handleBuyClick = async () => {
     if (!isConnected) {
@@ -84,16 +90,22 @@ function PurchaseButton({ nft }: { nft: PickaxeNFT }) {
         )}
       </Button>
 
-      {/* Purchase Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 space-y-4">
+      {/* Purchase Modal - rendered via portal to avoid hover interference */}
+      {mounted && showModal && createPortal(
+        <div
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-[100] p-4"
+          onClick={handleClose}
+        >
+          <div
+            className="bg-slate-900 border border-slate-700 rounded-xl max-w-md w-full p-6 space-y-4"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between">
               <h3 className="text-xl font-bold">Purchasing {nft.name}</h3>
               {(status === 'success' || status === 'error') && (
                 <button
                   onClick={handleClose}
-                  className="text-slate-400 hover:text-white"
+                  className="text-slate-400 hover:text-white text-2xl leading-none"
                 >
                   &times;
                 </button>
@@ -164,7 +176,8 @@ function PurchaseButton({ nft }: { nft: PickaxeNFT }) {
               </Button>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )
