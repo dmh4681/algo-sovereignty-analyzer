@@ -16,7 +16,7 @@ interface PurchaseResult {
 }
 
 export function usePurchaseNFT() {
-  const { activeAccount, signTransactions, sendTransactions } = useWallet()
+  const { activeAccount, transactionSigner } = useWallet()
   const [status, setStatus] = useState<PurchaseStatus>('idle')
   const [error, setError] = useState<string | null>(null)
   const [txId, setTxId] = useState<string | null>(null)
@@ -95,22 +95,22 @@ export function usePurchaseNFT() {
       // Group the transactions
       algosdk.assignGroupID(transactions)
 
-      // Encode transactions for signing
-      const encodedTxns = transactions.map((txn) => txn.toByte())
-
       setStatus('signing')
-      // Sign all transactions
-      const signedTxns = await signTransactions(encodedTxns)
+      // Sign all transactions using transactionSigner
+      const indexesToSign = transactions.map((_, i) => i)
+      const signedTxns = await transactionSigner(transactions, indexesToSign)
 
       setStatus('submitting')
-      // Submit to network
-      const response = await sendTransactions(signedTxns)
+      // Submit to network using algod client
+      const { txid } = await algodClient.sendRawTransaction(signedTxns).do()
 
-      const confirmedTxId = response.txId || (transactions[transactions.length - 1].txID())
-      setTxId(confirmedTxId)
+      // Wait for confirmation
+      await algosdk.waitForConfirmation(algodClient, txid, 4)
+
+      setTxId(txid)
       setStatus('success')
 
-      return { success: true, txId: confirmedTxId }
+      return { success: true, txId: txid }
     } catch (err) {
       console.error('Purchase failed:', err)
       const errorMessage = err instanceof Error ? err.message : 'Purchase failed. Please try again.'
@@ -118,7 +118,7 @@ export function usePurchaseNFT() {
       setStatus('error')
       return { success: false, error: errorMessage }
     }
-  }, [activeAccount, signTransactions, sendTransactions, checkAssetOptIn])
+  }, [activeAccount, transactionSigner, checkAssetOptIn])
 
   const reset = useCallback(() => {
     setStatus('idle')
