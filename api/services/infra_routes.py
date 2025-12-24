@@ -2,9 +2,10 @@
 Infrastructure Audit API Routes
 """
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HTTPException
 from typing import Dict, Any, List
 from dataclasses import asdict
+import traceback
 
 from .infra_audit import (
     audit_infrastructure,
@@ -30,7 +31,12 @@ async def get_infrastructure_audit(
 
     Data is cached for 4 hours unless force_refresh=true
     """
-    return get_infrastructure_summary()
+    try:
+        return get_infrastructure_summary(force_refresh=force_refresh)
+    except Exception as e:
+        print(f"Infrastructure audit error: {e}")
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Infrastructure audit failed: {str(e)}")
 
 
 @router.get("/infrastructure/nodes")

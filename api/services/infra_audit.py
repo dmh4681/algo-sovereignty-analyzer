@@ -82,7 +82,9 @@ class InfrastructureCache:
             if self._cache is None:
                 return None
             # Check if cache expired
-            cache_time = datetime.fromisoformat(self._cache.timestamp)
+            # Handle "Z" suffix for ISO format (Python < 3.11 compatibility)
+            timestamp_str = self._cache.timestamp.replace("Z", "+00:00")
+            cache_time = datetime.fromisoformat(timestamp_str).replace(tzinfo=None)
             if datetime.utcnow() - cache_time > self._ttl:
                 self._cache = None
                 return None
@@ -365,11 +367,11 @@ def audit_infrastructure(network: str = "mainnet", force_refresh: bool = False) 
     return result
 
 
-def get_infrastructure_summary() -> Dict[str, Any]:
+def get_infrastructure_summary(force_refresh: bool = False) -> Dict[str, Any]:
     """
     Get a simplified summary for API response.
     """
-    result = audit_infrastructure()
+    result = audit_infrastructure(force_refresh=force_refresh)
 
     return {
         "total_nodes": result.total_nodes,
