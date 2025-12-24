@@ -1,0 +1,96 @@
+{
+  "metadata": {
+    "analyzed_at": "2025-11-24T22:09:31.733373",
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "address_short": "I26BHULC...L3BIP4",
+    "participation_status": "online"
+  },
+  "assets": {
+    "hard_money": [
+      {
+        "ticker": "GOLD$",
+        "name": "Meld Gold (g)",
+        "amount": 2.599835,
+        "usd_value": 338.5740178262748
+      },
+      {
+        "ticker": "SILVER$",
+        "name": "Meld Silver (g)",
+        "amount": 222.377664,
+        "usd_value": 359.12935625237685
+      },
+      {
+        "ticker": "goBTC",
+        "name": "goBTC",
+        "amount": 0.01560609,
+        "usd_value": 1362.8239527225583
+      }
+    ],
+    "algo": [
+      {
+        "ticker": "ALGO",
+        "name": "Algorand (PARTICIPATING)",
+        "amount": 127144.257819,
+        "usd_value": 18368.149494337475
+      },
+      {
+        "ticker": "xALGO",
+        "name": "Governance xAlgo",
+        "amount": 33861.503004,
+        "usd_value": 5775.280200728347
+      }
+    ],
+    "dollars": [
+      {
+        "ticker": "USDC",
+        "name": "USDC",
+        "amount": 1000.776667,
+        "usd_value": 1000.776667
+      }
+    ],
+    "shitcoin": [
+      {
+        "ticker": "ALPHA",
+        "name": "Alpha Arcade",
+        "amount": 50159.789144,
+        "usd_value": 1296.234969605754
+      },
+      {
+        "ticker": "OPUL",
+        "name": "Opulous",
+        "amount": 50115.2564883694,
+        "usd_value": 605.2958506948748
+      },
+      {
+        "ticker": "FOLKS",
+        "name": "Folks Finance",
+        "amount": 40.006882,
+        "usd_value": 351.100336461177
+      },
+      {
+        "ticker": "TINY",
+        "name": "TINY",
+        "amount": 444.9033,
+        "usd_value": 1.9964505742227476
+      },
+      {
+        "ticker": "PLP",
+        "name": "fALGO/fSILVER$ PACT LP Token",
+        "amount": 1e-06,
+        "usd_value": 0.0
+      },
+      {
+        "ticker": "ALPHA-Y",
+        "name": "Alpha Market 2829841613 Yes",
+        "amount": 0.022233,
+        "usd_value": 0.0
+      }
+    ]
+  },
+  "summary": {
+    "hard_money_count": 3,
+    "dollars_count": 1,
+    "shitcoin_count": 6,
+    "total_algo": 0
+  }
+}

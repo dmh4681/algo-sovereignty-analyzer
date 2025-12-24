@@ -1,0 +1,41 @@
+{
+  "mainnet": {
+    "gold": {
+      "type": "gold",
+      "asset_name": "Gold Pickaxe",
+      "unit_name": "GOLDPICK",
+      "asset_id": 3381152020,
+      "total": 1000,
+      "txid": "AXWEGVQFH34VB6GQQPVMGEIDGIBFS7XXYZTURQM6QXTPQI6GMHHA",
+      "network": "mainnet",
+      "explorer_url": "https://explorer.perawallet.app/asset/3381152020",
+      "metadata_url": "https://algosovereignty.com/nfts/metadata/gold_pickaxe.json#arc3",
+      "created_at": "2025-12-24T04:07:57.334895Z"
+    },
+    "silver": {
+      "type": "silver",
+      "asset_name": "Silver Pickaxe",
+      "unit_name": "SLVRPICK",
+      "asset_id": 3381152697,
+      "total": 2000,
+      "txid": "NFRD7N4NFBUIEWL2Y6QNDF6ZL54XEFJ6AYQ2ZBAYIQQIT6CDKLHA",
+      "network": "mainnet",
+      "explorer_url": "https://explorer.perawallet.app/asset/3381152697",
+      "metadata_url": "https://algosovereignty.com/nfts/metadata/silver_pickaxe.json#arc3",
+      "created_at": "2025-12-24T04:09:39.629122Z"
+    },
+    "bitcoin": {
+      "type": "bitcoin",
+      "asset_name": "Bitcoin Pickaxe",
+      "unit_name": "BTCPICK",
+      "asset_id": 3381152867,
+      "total": 1500,
+      "txid": "GGC7Q2V3Z3P7LL66EPDXGPEIIK67QHYQ347E3VTSNJST6JDBHDRA",
+      "network": "mainnet",
+      "explorer_url": "https://explorer.perawallet.app/asset/3381152867",
+      "metadata_url": "https://algosovereignty.com/nfts/metadata/bitcoin_pickaxe.json#arc3",
+      "created_at": "2025-12-24T04:10:01.763788Z"
+    }
+  },
+  "testnet": {}
+}

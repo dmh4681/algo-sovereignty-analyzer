@@ -1,0 +1,20 @@
+{
+  "name": "Algorand Sovereignty Analyzer",
+  "short_name": "Algo Sovereignty",
+  "description": "Measure your financial sovereignty. Analyze any Algorand wallet and calculate your freedom.",
+  "icons": [
+    {
+      "src": "/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ],
+  "theme_color": "#f97316",
+  "background_color": "#0f172a",
+  "display": "standalone"
+}

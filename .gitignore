@@ -5,7 +5,6 @@ __pycache__/
 venv/
 .idea/
 .vscode/
-*.json
 !package.json
 !web/public/manifest.json
 !web/public/nfts/metadata/*.json
