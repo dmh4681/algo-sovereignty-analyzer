@@ -194,8 +194,8 @@ def approval_program():
     program = Cond(
         [Txn.application_id() == Int(0), on_create],
         [Txn.on_completion() == OnComplete.NoOp, on_call],
-        [Txn.on_completion() == OnComplete.DeleteApplication, And(is_owner, Approve())],
-        [Txn.on_completion() == OnComplete.UpdateApplication, And(is_owner, Approve())],
+        [And(Txn.on_completion() == OnComplete.DeleteApplication, is_owner), Approve()],
+        [And(Txn.on_completion() == OnComplete.UpdateApplication, is_owner), Approve()],
         [Txn.on_completion() == OnComplete.OptIn, Approve()],
         [Txn.on_completion() == OnComplete.CloseOut, Approve()],
     )
