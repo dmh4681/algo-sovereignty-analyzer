@@ -293,7 +293,7 @@ export default function NetworkPage() {
                 Top Validators by Stake
               </CardTitle>
               <CardDescription>
-                Largest participating accounts (sampled from {'>'}100K ALGO holders)
+                Largest participating accounts (sampled from {'>'}1M ALGO holders)
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -554,7 +554,7 @@ export default function NetworkPage() {
           <div>
             <strong className="text-slate-400">Participation:</strong> Online stake from algod{' '}
             <code className="text-cyan-500">/v2/ledger/supply</code>. Top validators sampled from
-            indexer accounts with {'>'}100K ALGO that are marked "Online" with valid participation keys.
+            indexer accounts with {'>'}1M ALGO that are marked "Online" with valid participation keys.
           </div>
           <div>
             <strong className="text-slate-400">Scoring:</strong> Relay decentralization weighs sovereign

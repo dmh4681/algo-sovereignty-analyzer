@@ -104,32 +104,32 @@ def get_ledger_supply() -> Dict[str, Any]:
 
 
 def get_online_accounts_sample(
-    min_stake_algo: int = 10000,
+    min_stake_algo: int = 1_000_000,
     limit: int = 100
 ) -> List[Dict[str, Any]]:
     """
     Get a sample of online accounts from the indexer.
 
     Args:
-        min_stake_algo: Minimum stake in ALGO to filter
+        min_stake_algo: Minimum stake in ALGO to filter (default 1M ALGO for actual validators)
         limit: Maximum accounts to return
 
     Returns:
-        List of account data dicts
+        List of account data dicts sorted by stake (highest first)
     """
     online_accounts = []
     min_stake_microalgos = min_stake_algo * MICROALGOS
 
     try:
-        # Query accounts with significant stake
-        # Note: Indexer status filter may not work perfectly, so we filter client-side
+        # Query high-value accounts (>1M ALGO) - these are more likely to be validators
+        # The indexer returns ~450 accounts with >1M ALGO, of which ~100+ are online
         response = requests.get(
             f"{INDEXER_MAINNET}/v2/accounts",
             params={
                 "currency-greater-than": min_stake_microalgos,
-                "limit": limit * 3  # Get more to filter
+                "limit": 1000  # Get all whale accounts
             },
-            timeout=30
+            timeout=60
         )
 
         if response.status_code == 200:
@@ -139,9 +139,12 @@ def get_online_accounts_sample(
             # Filter to only actually online accounts with participation keys
             for acc in all_accounts:
                 if (acc.get("status") == "Online" and
-                    acc.get("participation") and
-                    len(online_accounts) < limit):
+                    acc.get("participation")):
                     online_accounts.append(acc)
+
+            # Sort by stake (highest first) and limit
+            online_accounts.sort(key=lambda x: x.get("amount", 0), reverse=True)
+            online_accounts = online_accounts[:limit]
 
     except requests.RequestException as e:
         print(f"Error fetching online accounts: {e}")
@@ -252,7 +255,8 @@ def audit_participation(force_refresh: bool = False) -> ParticipationStats:
     online_pct = (online_micro / total_micro * 100) if total_micro > 0 else 0
 
     # Get sample of top validators (slower)
-    top_accounts = get_online_accounts_sample(min_stake_algo=100000, limit=50)
+    # Query accounts with >1M ALGO - these are the significant validators
+    top_accounts = get_online_accounts_sample(min_stake_algo=1_000_000, limit=100)
 
     # Get incentive-eligible sample
     eligible_accounts = get_incentive_eligible_sample(limit=100)
