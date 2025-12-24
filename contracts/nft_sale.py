@@ -93,8 +93,8 @@ def approval_program():
         # Buyer must have opted into the ASA before purchasing
         Assert(buyer_opted_in(Gtxn[0].sender(), Txn.assets[0])),
         # Send 1 NFT to the buyer
-        InnerTransaction.Begin(),
-        InnerTransaction.SetFields(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: Txn.assets[0],
@@ -103,7 +103,7 @@ def approval_program():
                 TxnField.fee: Int(0),  # Use pooled fee
             }
         ),
-        InnerTransaction.Submit(),
+        InnerTxnBuilder.Submit(),
         Approve(),
     )
 
@@ -118,8 +118,8 @@ def approval_program():
             Balance(Global.current_application_address()) - Btoi(Txn.application_args[1])
             >= MinBalance(Global.current_application_address())
         ),
-        InnerTransaction.Begin(),
-        InnerTransaction.SetFields(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.Payment,
                 TxnField.amount: Btoi(Txn.application_args[1]),
@@ -127,7 +127,7 @@ def approval_program():
                 TxnField.fee: Int(0),
             }
         ),
-        InnerTransaction.Submit(),
+        InnerTxnBuilder.Submit(),
         Approve(),
     )
 
@@ -138,8 +138,8 @@ def approval_program():
         Assert(Txn.assets.length() >= Int(1)),
         # Must specify amount in app args[1]
         Assert(Txn.application_args.length() >= Int(2)),
-        InnerTransaction.Begin(),
-        InnerTransaction.SetFields(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: Txn.assets[0],
@@ -148,7 +148,7 @@ def approval_program():
                 TxnField.fee: Int(0),
             }
         ),
-        InnerTransaction.Submit(),
+        InnerTxnBuilder.Submit(),
         Approve(),
     )
 
@@ -167,8 +167,8 @@ def approval_program():
     on_opt_in_asa = Seq(
         Assert(is_owner),
         Assert(Txn.assets.length() >= Int(1)),
-        InnerTransaction.Begin(),
-        InnerTransaction.SetFields(
+        InnerTxnBuilder.Begin(),
+        InnerTxnBuilder.SetFields(
             {
                 TxnField.type_enum: TxnType.AssetTransfer,
                 TxnField.xfer_asset: Txn.assets[0],
@@ -177,7 +177,7 @@ def approval_program():
                 TxnField.fee: Int(0),
             }
         ),
-        InnerTransaction.Submit(),
+        InnerTxnBuilder.Submit(),
         Approve(),
     )
 
