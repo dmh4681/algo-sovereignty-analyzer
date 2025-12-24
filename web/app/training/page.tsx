@@ -8,6 +8,10 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Loader2, Lock, Unlock, Brain, Shield, Zap } from 'lucide-react'
 import algosdk from 'algosdk'
 import ReactMarkdown from 'react-markdown'
+import { analyzeWallet } from '@/lib/api'
+import { AnalyzedArticle } from '@/lib/types'
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
 export default function TrainingPage() {
     const { activeAccount, signTransactions } = useWallet()
@@ -30,15 +34,8 @@ export default function TrainingPage() {
 
     const fetchAnalysis = async (address: string) => {
         try {
-            const res = await fetch(`http://localhost:8000/api/v1/analyze`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ address })
-            })
-            if (res.ok) {
-                const data = await res.json()
-                setAnalysis(data)
-            }
+            const data = await analyzeWallet({ address })
+            setAnalysis(data)
         } catch (e) {
             console.error("Failed to fetch analysis", e)
         }
@@ -46,7 +43,7 @@ export default function TrainingPage() {
 
     const fetchAdvice = async (analysisData: any) => {
         try {
-            const res = await fetch(`http://localhost:8000/api/v1/agent/advice`, {
+            const res = await fetch(`${API_BASE}/agent/advice`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -123,15 +120,8 @@ export default function TrainingPage() {
                 console.log("Analysis data missing, fetching now...")
                 // We need to fetch it and wait
                 try {
-                    const res = await fetch(`http://localhost:8000/api/v1/analyze`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ address: activeAccount.address })
-                    })
-                    if (res.ok) {
-                        currentAnalysis = await res.json()
-                        setAnalysis(currentAnalysis)
-                    }
+                    currentAnalysis = await analyzeWallet({ address: activeAccount.address })
+                    setAnalysis(currentAnalysis)
                 } catch (e) {
                     console.error("Failed to re-fetch analysis", e)
                 }
