@@ -27,7 +27,7 @@ export function usePurchaseNFT() {
     try {
       const accountInfo = await algodClient.accountInformation(address).do()
       const assets = accountInfo.assets || []
-      return assets.some((asset: { 'asset-id': number }) => asset['asset-id'] === asaId)
+      return assets.some((asset) => asset.assetId === BigInt(asaId))
     } catch {
       return false
     }
