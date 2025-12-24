@@ -51,14 +51,13 @@ export function usePurchaseNFT() {
       // Get suggested params
       const params = await algodClient.getTransactionParams().do()
 
-      const transactions: algosdk.Transaction[] = []
-
       // Check if user needs to opt-in to the ASA
       const isOptedIn = await checkAssetOptIn(address, nft.asaId)
 
+      // Step 1: Handle opt-in separately if needed (contract expects exactly 2 txns in purchase group)
       if (!isOptedIn) {
         setStatus('opting-in')
-        // Create opt-in transaction
+
         const optInTxn = algosdk.makeAssetTransferTxnWithSuggestedParamsFromObject({
           sender: address,
           receiver: address,
@@ -66,20 +65,29 @@ export function usePurchaseNFT() {
           amount: 0,
           suggestedParams: params,
         })
-        transactions.push(optInTxn)
+
+        // Sign and submit opt-in separately
+        const signedOptIn = await transactionSigner([optInTxn], [0])
+        const { txid: optInTxId } = await algodClient.sendRawTransaction(signedOptIn).do()
+        await algosdk.waitForConfirmation(algodClient, optInTxId, 4)
       }
+
+      // Step 2: Create the 2-transaction purchase group (payment + app call)
+      setStatus('signing')
+
+      // Refresh params after opt-in
+      const purchaseParams = await algodClient.getTransactionParams().do()
 
       // Payment transaction (100 ALGO to app address)
       const paymentTxn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
         sender: address,
         receiver: appAddress,
         amount: NFT_SALE_CONTRACT.priceMicroAlgo,
-        suggestedParams: params,
+        suggestedParams: purchaseParams,
       })
-      transactions.push(paymentTxn)
 
       // Application call transaction
-      const appCallParams = { ...params }
+      const appCallParams = { ...purchaseParams }
       appCallParams.fee = BigInt(2000) // Cover outer tx + inner tx fee
       appCallParams.flatFee = true
 
@@ -90,18 +98,16 @@ export function usePurchaseNFT() {
         foreignAssets: [nft.asaId],
         suggestedParams: appCallParams,
       })
-      transactions.push(appCallTxn)
 
-      // Group the transactions
-      algosdk.assignGroupID(transactions)
+      // Group exactly 2 transactions
+      const purchaseTxns = [paymentTxn, appCallTxn]
+      algosdk.assignGroupID(purchaseTxns)
 
-      setStatus('signing')
-      // Sign all transactions using transactionSigner
-      const indexesToSign = transactions.map((_, i) => i)
-      const signedTxns = await transactionSigner(transactions, indexesToSign)
+      // Sign the purchase group
+      const signedTxns = await transactionSigner(purchaseTxns, [0, 1])
 
       setStatus('submitting')
-      // Submit to network using algod client
+      // Submit to network
       const { txid } = await algodClient.sendRawTransaction(signedTxns).do()
 
       // Wait for confirmation
