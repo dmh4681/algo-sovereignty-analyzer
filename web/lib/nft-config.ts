@@ -37,7 +37,7 @@ export const PICKAXE_NFTS: PickaxeNFT[] = [
     name: 'Silver Pickaxe',
     description: 'Auto-mine SILVER$ with every deposit. Stack silver on autopilot.',
     image: '/nfts/silver_pickaxe.png',
-    price: 50,
+    price: 100,
     supply: 2000,
     targetAsset: {
       name: 'Meld Silver',
@@ -53,7 +53,7 @@ export const PICKAXE_NFTS: PickaxeNFT[] = [
     name: 'Bitcoin Pickaxe',
     description: 'Auto-mine goBTC with every deposit. Stack sats the sovereign way.',
     image: '/nfts/bitcoin_pickaxe.png',
-    price: 75,
+    price: 100,
     supply: 1500,
     targetAsset: {
       name: 'goBTC',
@@ -70,10 +70,10 @@ export const BUNDLE_DEAL = {
   name: 'Ultimate Miner Bundle',
   description: 'All 3 pickaxes at a discount. Become the ultimate hard money miner.',
   pickaxeIds: ['gold_pickaxe', 'silver_pickaxe', 'bitcoin_pickaxe'],
-  originalPrice: 225, // 100 + 50 + 75
-  bundlePrice: 200,
-  savings: 25,
-  savingsPercent: 11
+  originalPrice: 300, // 100 + 100 + 100
+  bundlePrice: 250,
+  savings: 50,
+  savingsPercent: 17
 }
 
 export const getRarityColor = (rarity: PickaxeNFT['rarity']): string => {
