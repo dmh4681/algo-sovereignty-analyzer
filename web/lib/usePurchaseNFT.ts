@@ -80,7 +80,7 @@ export function usePurchaseNFT() {
 
       // Application call transaction
       const appCallParams = { ...params }
-      appCallParams.fee = 2000 // Cover outer tx + inner tx fee
+      appCallParams.fee = BigInt(2000) // Cover outer tx + inner tx fee
       appCallParams.flatFee = true
 
       const appCallTxn = algosdk.makeApplicationNoOpTxnFromObject({
