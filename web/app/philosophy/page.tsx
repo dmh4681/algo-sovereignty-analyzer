@@ -10,7 +10,12 @@ import {
     Users,
     Shield,
     TrendingUp,
-    ArrowRight
+    ArrowRight,
+    Server,
+    Cloud,
+    Home,
+    Building2,
+    AlertTriangle
 } from 'lucide-react'
 
 export default function PhilosophyPage() {
@@ -146,6 +151,154 @@ export default function PhilosophyPage() {
                         description="The network of people who would help you without expecting payment."
                         metrics={["Crisis Contacts", "Face-to-Face Hours", "Reciprocity", "Community Role"]}
                     />
+                </div>
+            </section>
+
+            {/* Protocol of Physical Reality */}
+            <section className="space-y-12">
+                <div className="text-center max-w-3xl mx-auto">
+                    <h2 className="text-3xl font-bold text-white mb-4">The Protocol of Physical Reality</h2>
+                    <p className="text-slate-400 text-lg">
+                        "Code is Law" only holds when the code runs on hardware you control.
+                        Every smart contract, every consensus mechanism, every cryptographic proof
+                        ultimately executes on physical machines in physical locations.
+                    </p>
+                </div>
+
+                {/* The Sovereignty Stack */}
+                <div className="bg-gradient-to-br from-slate-900 to-slate-950 border border-orange-500/30 rounded-2xl p-8 space-y-6">
+                    <h3 className="text-2xl font-bold text-orange-400 flex items-center gap-3">
+                        <Server className="w-7 h-7" />
+                        The Sovereignty Stack
+                    </h3>
+                    <p className="text-slate-300">
+                        True network sovereignty requires control at every layer:
+                    </p>
+                    <div className="grid md:grid-cols-3 gap-4">
+                        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                            <div className="text-orange-400 font-bold mb-2">Layer 3: Financial</div>
+                            <p className="text-slate-400 text-sm">Assets, keys, transactions</p>
+                        </div>
+                        <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800">
+                            <div className="text-blue-400 font-bold mb-2">Layer 2: Digital</div>
+                            <p className="text-slate-400 text-sm">Software, protocols, consensus</p>
+                        </div>
+                        <div className="bg-slate-950/50 p-4 rounded-xl border border-emerald-500/30">
+                            <div className="text-emerald-400 font-bold mb-2">Layer 1: Physical</div>
+                            <p className="text-slate-400 text-sm">Hardware, location, jurisdiction</p>
+                        </div>
+                    </div>
+                    <p className="text-slate-400 text-sm italic border-l-2 border-orange-500/50 pl-4">
+                        Most "decentralized" networks obsess over Layer 3 while ignoring that
+                        their entire stack runs on three cloud providers who share the same
+                        legal obligations and kill switches.
+                    </p>
+                </div>
+
+                {/* The Cloud Feudalism Trap */}
+                <div className="bg-gradient-to-br from-red-950/30 to-slate-950 border border-red-500/30 rounded-2xl p-8 space-y-6">
+                    <h3 className="text-2xl font-bold text-red-400 flex items-center gap-3">
+                        <Cloud className="w-7 h-7" />
+                        The Cloud Feudalism Trap
+                    </h3>
+                    <div className="space-y-4 text-slate-300">
+                        <p>
+                            AWS, Google Cloud, and Azure are the new feudal lords. They own the land
+                            (data centers), and we are merely tenants. When they say "you're violating
+                            terms of service," your entire digital existence can vanish overnight.
+                        </p>
+                        <div className="bg-red-950/30 p-4 rounded-xl border border-red-500/20">
+                            <p className="text-red-300 font-medium">
+                                A network of 10,000 nodes in 1,000 different homes is infinitely more robust
+                                than a network running on 10,000 virtual machines in one Virginia data center.
+                                The former is a revolution; the latter is just a database.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* The 3-Tier Model */}
+                <div className="space-y-6">
+                    <h3 className="text-2xl font-bold text-white text-center">Infrastructure Sovereignty Tiers</h3>
+                    <div className="grid md:grid-cols-3 gap-6">
+                        <Card className="bg-emerald-950/30 border-emerald-500/30">
+                            <CardHeader>
+                                <div className="mb-2 bg-emerald-950 w-fit p-3 rounded-xl border border-emerald-500/30">
+                                    <Home className="w-8 h-8 text-emerald-400" />
+                                </div>
+                                <CardTitle className="text-xl text-emerald-400">Tier 1: Sovereign</CardTitle>
+                                <CardDescription className="text-slate-400">
+                                    Residential ISPs, home nodes, self-hosted infrastructure
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-emerald-300 font-mono text-2xl mb-2">100%</div>
+                                <p className="text-slate-400 text-sm">Full sovereignty credit</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-yellow-950/30 border-yellow-500/30">
+                            <CardHeader>
+                                <div className="mb-2 bg-yellow-950 w-fit p-3 rounded-xl border border-yellow-500/30">
+                                    <Building2 className="w-8 h-8 text-yellow-400" />
+                                </div>
+                                <CardTitle className="text-xl text-yellow-400">Tier 2: Corporate</CardTitle>
+                                <CardDescription className="text-slate-400">
+                                    Hetzner, OVH, DigitalOcean, dedicated hosting
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-yellow-300 font-mono text-2xl mb-2">50%</div>
+                                <p className="text-slate-400 text-sm">Half sovereignty credit</p>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="bg-red-950/30 border-red-500/30">
+                            <CardHeader>
+                                <div className="mb-2 bg-red-950 w-fit p-3 rounded-xl border border-red-500/30">
+                                    <AlertTriangle className="w-8 h-8 text-red-400" />
+                                </div>
+                                <CardTitle className="text-xl text-red-400">Tier 3: Hyperscale</CardTitle>
+                                <CardDescription className="text-slate-400">
+                                    AWS, Google Cloud, Azure, Oracle Cloud
+                                </CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <div className="text-red-300 font-mono text-2xl mb-2">0%</div>
+                                <p className="text-slate-400 text-sm">Kill switch zone</p>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                {/* Why We Audit */}
+                <div className="bg-slate-900/50 border border-slate-700 rounded-2xl p-8 space-y-4">
+                    <h3 className="text-2xl font-bold text-white">Why We Audit Network Infrastructure</h3>
+                    <p className="text-slate-400">
+                        The Network Sovereignty Audit exists because marketing claims don't equal reality.
+                        When a blockchain claims "thousands of nodes worldwide," we ask:
+                    </p>
+                    <ul className="space-y-2 text-slate-300">
+                        <li className="flex items-start gap-3">
+                            <Shield className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
+                            <span>How many are on hyperscale clouds vs. sovereign infrastructure?</span>
+                        </li>
+                        <li className="flex items-start gap-3">
+                            <Shield className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
+                            <span>What percentage could a single legal action disable?</span>
+                        </li>
+                        <li className="flex items-start gap-3">
+                            <Shield className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
+                            <span>Is the geographic distribution real or just IP-level theater?</span>
+                        </li>
+                    </ul>
+                    <div className="pt-4">
+                        <Link href="/network">
+                            <Button variant="outline" className="border-orange-500/50 text-orange-400 hover:bg-orange-500/10">
+                                View Network Audit <ArrowRight className="ml-2 w-4 h-4" />
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
             </section>
 
