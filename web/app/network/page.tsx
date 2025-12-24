@@ -413,52 +413,99 @@ export default function NetworkPage() {
             </CardContent>
           </Card>
 
-          {/* Cloud vs Sovereign */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-orange-400">
-                  <Cloud className="w-5 h-5" />
-                  Centralized Cloud
+          {/* 3-Tier Infrastructure Breakdown */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Tier 1: Sovereign (Green) */}
+            <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-green-400 text-lg">
+                  <Shield className="w-5 h-5" />
+                  Tier 1: Sovereign
                 </CardTitle>
-                <CardDescription>
-                  Nodes running on AWS, Google, Microsoft, etc.
+                <CardDescription className="text-xs">
+                  Residential ISPs & self-hosted
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-bold text-orange-400">{infraData.cloud_percentage}%</span>
-                  <span className="text-slate-400">({infraData.cloud_nodes} nodes)</span>
+                  <span className="text-4xl font-bold text-green-400">{infraData.sovereign_percentage}%</span>
+                  <span className="text-slate-400 text-sm">({infraData.sovereign_nodes})</span>
                 </div>
-                <p className="text-sm text-slate-500 mt-4">
-                  These nodes depend on centralized infrastructure providers who can be pressured,
-                  censored, or experience coordinated outages.
+                <p className="text-xs text-slate-500 mt-3">
+                  True decentralization. Residential connections are harder to shut down en masse.
                 </p>
               </CardContent>
             </Card>
 
-            <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-green-400">
-                  <Shield className="w-5 h-5" />
-                  Sovereign Infrastructure
+            {/* Tier 2: Corporate (Yellow) */}
+            <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-yellow-400 text-lg">
+                  <Building2 className="w-5 h-5" />
+                  Tier 2: Corporate
                 </CardTitle>
-                <CardDescription>
-                  Independent ISPs, residential, or self-hosted
+                <CardDescription className="text-xs">
+                  Data centers (OVH, Hetzner, TeraSwitch)
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-5xl font-bold text-green-400">{infraData.sovereign_percentage}%</span>
-                  <span className="text-slate-400">({infraData.sovereign_nodes} nodes)</span>
+                  <span className="text-4xl font-bold text-yellow-400">{infraData.corporate_percentage}%</span>
+                  <span className="text-slate-400 text-sm">({infraData.corporate_nodes})</span>
                 </div>
-                <p className="text-sm text-slate-500 mt-4">
-                  These nodes are harder to censor or pressure. They contribute to true network
-                  decentralization and resilience.
+                <p className="text-xs text-slate-500 mt-3">
+                  Better than hyperscale, but single points of failure. Corporate billing can shut down nodes.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Tier 3: Hyperscale (Red) */}
+            <Card className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border-red-500/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2 text-red-400 text-lg">
+                  <Cloud className="w-5 h-5" />
+                  Tier 3: Hyperscale
+                </CardTitle>
+                <CardDescription className="text-xs">
+                  AWS, Google, Microsoft Azure
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-bold text-red-400">{infraData.hyperscale_percentage}%</span>
+                  <span className="text-slate-400 text-sm">({infraData.hyperscale_nodes})</span>
+                </div>
+                <p className="text-xs text-slate-500 mt-3">
+                  &quot;Kill switch&quot; zone. Government pressure or coordinated action can disable these nodes.
                 </p>
               </CardContent>
             </Card>
           </div>
+
+          {/* Risk Assessment Banner */}
+          <Card className={`border ${
+            infraData.sovereign_percentage < 10 ? 'bg-red-500/10 border-red-500/40' :
+            infraData.sovereign_percentage < 30 ? 'bg-yellow-500/10 border-yellow-500/40' :
+            'bg-green-500/10 border-green-500/40'
+          }`}>
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className={`w-5 h-5 mt-0.5 ${
+                  infraData.sovereign_percentage < 10 ? 'text-red-400' :
+                  infraData.sovereign_percentage < 30 ? 'text-yellow-400' :
+                  'text-green-400'
+                }`} />
+                <div>
+                  <p className="font-medium text-slate-200">
+                    {infraData.interpretation.risk_assessment}
+                  </p>
+                  <p className="text-sm text-slate-400 mt-1">
+                    {infraData.interpretation.sovereign_status}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Provider & Country Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

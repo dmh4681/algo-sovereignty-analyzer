@@ -206,24 +206,39 @@ export interface InfrastructureNode {
   region: string
   city: string
   asn: string
-  classification: 'cloud' | 'sovereign'
+  classification: 'sovereign' | 'corporate' | 'hyperscale'
+  provider_normalized: string
 }
 
 export interface InfrastructureInterpretation {
   health: 'healthy' | 'moderate' | 'concerning' | 'critical'
   color: string
   message: string
-  cloud_dependency: string
+  tier_breakdown: string
+  sovereign_status: string
+  risk_assessment: string
   recommendation: string
 }
 
 export interface InfrastructureAudit {
   total_nodes: number
-  cloud_nodes: number
-  sovereign_nodes: number
-  cloud_percentage: number
+  // 3-tier breakdown
+  sovereign_nodes: number       // Tier 1: Residential (green)
+  corporate_nodes: number       // Tier 2: Data centers (yellow)
+  hyperscale_nodes: number      // Tier 3: AWS/Google/Azure (red)
   sovereign_percentage: number
+  corporate_percentage: number
+  hyperscale_percentage: number
+  // Legacy
+  cloud_nodes: number
+  cloud_percentage: number
+  // Score and distribution
   decentralization_score: number
+  by_tier: {
+    sovereign: number
+    corporate: number
+    hyperscale: number
+  }
   top_providers: Record<string, number>
   top_countries: Record<string, number>
   timestamp: string
