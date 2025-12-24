@@ -584,6 +584,72 @@ export default function NetworkPage() {
         </>
       )}
 
+      {/* Philosophy Section */}
+      <Card className="bg-gradient-to-br from-slate-900 via-slate-900 to-orange-900/20 border-orange-500/20">
+        <CardHeader>
+          <CardTitle className="text-xl text-orange-400">
+            The Protocol of Physical Reality
+          </CardTitle>
+          <CardDescription className="text-slate-400 italic">
+            &quot;Code is Law&quot; is a delusion if the hardware is rented.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6 text-slate-300">
+          <p>
+            We often measure sovereignty in cryptographic terms: keys, signatures, and ledger immutability.
+            But the digital world does not float in the ether; it lives on metal, silicon, and fiber optics.
+          </p>
+
+          {/* The Sovereignty Stack */}
+          <div className="space-y-3">
+            <h3 className="font-semibold text-slate-200">The Sovereignty Stack</h3>
+            <p className="text-sm text-slate-400">True autonomy requires ownership at every layer:</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+              <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                <div className="text-orange-400 font-bold mb-1">Layer 1: Financial</div>
+                <div className="text-xs text-slate-400">The Asset</div>
+                <p className="text-sm mt-2">Holding Bitcoin or Gold. You own the value.</p>
+              </div>
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                <div className="text-yellow-400 font-bold mb-1">Layer 2: Digital</div>
+                <div className="text-xs text-slate-400">The Keys</div>
+                <p className="text-sm mt-2">Holding your own private keys. You own the access.</p>
+              </div>
+              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                <div className="text-green-400 font-bold mb-1">Layer 3: Physical</div>
+                <div className="text-xs text-slate-400">The Node</div>
+                <p className="text-sm mt-2">Owning the hardware that validates the truth.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Cloud Feudalism */}
+          <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
+            <h3 className="font-semibold text-red-400 mb-2">The &quot;Cloud Feudalism&quot; Trap</h3>
+            <p className="text-sm">
+              If a blockchain runs primarily on Amazon AWS or Google Cloud, it is not a sovereign nation; it is a tenant.
+              It exists at the pleasure of a corporate landlord. If the landlord changes the Terms of Service,
+              the &quot;immutable&quot; ledger vanishes.
+            </p>
+          </div>
+
+          {/* Why We Audit */}
+          <div>
+            <h3 className="font-semibold text-slate-200 mb-2">Why We Audit</h3>
+            <p className="text-sm text-slate-400">
+              On this platform, we track the <span className="text-orange-400">Sovereignty Premium</span>.
+              We distinguish between networks that are merely &quot;decentralized in software&quot; (governance)
+              and those that are <span className="text-green-400">&quot;decentralized in physics&quot;</span> (hardware).
+            </p>
+            <p className="text-sm text-slate-500 mt-3 italic">
+              A network running on 1,000 Raspberry Pis in 1,000 different homes is infinitely more robust
+              than a network running on 10,000 virtual machines in one Virginia data center.
+              The former is a revolution; the latter is just a database.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Methodology & Info */}
       <Card className="bg-slate-900/30 border-slate-800/50">
         <CardHeader>
@@ -596,16 +662,19 @@ export default function NetworkPage() {
           <div>
             <strong className="text-slate-400">Relay Nodes:</strong> Discovered via DNS SRV records at{' '}
             <code className="text-cyan-500">_algobootstrap._tcp.mainnet.algorand.network</code>.
-            Each IP is analyzed to classify hosting as "cloud" (AWS, Google, etc.) or "sovereign".
+            Each IP is classified into 3 tiers: <span className="text-green-400">Sovereign</span> (residential ISPs),{' '}
+            <span className="text-yellow-400">Corporate</span> (data centers like OVH, Hetzner), or{' '}
+            <span className="text-red-400">Hyperscale</span> (AWS, Google, Azure).
           </div>
           <div>
             <strong className="text-slate-400">Participation:</strong> Online stake from algod{' '}
             <code className="text-cyan-500">/v2/ledger/supply</code>. Top validators sampled from
-            indexer accounts with {'>'}1M ALGO that are marked "Online" with valid participation keys.
+            indexer accounts with {'>'}1M ALGO that are marked &quot;Online&quot; with valid participation keys.
           </div>
           <div>
-            <strong className="text-slate-400">Scoring:</strong> Relay decentralization weighs sovereign
-            percentage (40%), provider diversity (30%), and geographic diversity (30%).
+            <strong className="text-slate-400">Scoring:</strong> Infrastructure tier (50% weight: sovereign=full,
+            corporate=half, hyperscale=zero), provider diversity (25%), and geographic diversity (25%).
+            Concentration penalties apply if any provider exceeds 15% share.
           </div>
           <div className="text-slate-600 pt-2 flex flex-wrap gap-4">
             <span>Relay data cached: 4 hours</span>
