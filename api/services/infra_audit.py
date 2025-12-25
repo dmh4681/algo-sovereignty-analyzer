@@ -123,39 +123,48 @@ RESIDENTIAL_ISPS = {
     "iiNet",
 }
 
-# Provider name consolidation (different legal entities = same company)
-PROVIDER_ALIASES = {
-    # OVH variants
-    "OVH US LLC": "OVH",
-    "OVH GmbH": "OVH",
-    "OVH Hosting, Inc": "OVH",
-    "OVH Ltd": "OVH",
-    "OVH SAS": "OVH",
-    "OVHcloud": "OVH",
-    # Hetzner variants
-    "Hetzner Online GmbH": "Hetzner",
-    "Hetzner Online AG": "Hetzner",
-    "Hetzner Finland Oy": "Hetzner",
-    # AWS variants
-    "Amazon.com, Inc.": "AWS",
-    "Amazon Technologies Inc.": "AWS",
-    "Amazon Web Services": "AWS",
-    "Amazon Data Services": "AWS",
-    # Google variants
-    "Google LLC": "Google",
-    "Google Cloud": "Google",
-    # Microsoft variants
-    "Microsoft Corporation": "Microsoft",
-    "Microsoft Azure": "Microsoft",
-    # DigitalOcean variants
-    "DigitalOcean, LLC": "DigitalOcean",
-    # Linode/Akamai
-    "Linode, LLC": "Linode",
-    "Akamai Technologies": "Linode",
-    "Akamai Connected Cloud": "Linode",
-    # Vultr
-    "The Constant Company, LLC": "Vultr",
-    "Choopa": "Vultr",
+# Provider name normalization rules (substring matching, case-insensitive)
+# This consolidates different legal entities into canonical names
+PROVIDER_NORMALIZATION = {
+    # Hyperscale cloud providers (Tier 3)
+    "amazon": "Amazon AWS",
+    "aws": "Amazon AWS",
+    "google": "Google Cloud",
+    "microsoft": "Microsoft Azure",
+    "azure": "Microsoft Azure",
+    "alibaba": "Alibaba Cloud",
+    "oracle": "Oracle Cloud",
+    "ibm cloud": "IBM Cloud",
+    "tencent": "Tencent Cloud",
+    # Corporate hosting providers (Tier 2)
+    "ovh": "OVHcloud",
+    "hetzner": "Hetzner",
+    "digitalocean": "DigitalOcean",
+    "linode": "Linode/Akamai",
+    "akamai": "Linode/Akamai",
+    "vultr": "Vultr",
+    "choopa": "Vultr",
+    "constant company": "Vultr",
+    "teraswitch": "TeraSwitch",
+    "leaseweb": "Leaseweb",
+    "contabo": "Contabo",
+    "scaleway": "Scaleway",
+    "equinix": "Equinix",
+    "rackspace": "Rackspace",
+    "softlayer": "IBM/SoftLayer",
+    "cloudflare": "Cloudflare",
+    "phoenixnap": "PhoenixNAP",
+    "quadranet": "QuadraNet",
+    "colocrossing": "ColoCrossing",
+    "hurricane electric": "Hurricane Electric",
+    "he.net": "Hurricane Electric",
+    "cogent": "Cogent",
+    "ntt": "NTT",
+    "telia": "Telia",
+    "zayo": "Zayo",
+    "lumen": "Lumen/CenturyLink",
+    "level3": "Lumen/CenturyLink",
+    "centurylink": "Lumen/CenturyLink",
 }
 
 
@@ -332,17 +341,29 @@ def batch_lookup_ips(ips: List[str]) -> Dict[str, Dict[str, Any]]:
 
 def normalize_provider(isp: str, org: str) -> str:
     """
-    Normalize provider name to consolidate variants (e.g., all OVH entities -> "OVH").
-    """
-    # First check exact matches in aliases
-    for original, normalized in PROVIDER_ALIASES.items():
-        if original.lower() in isp.lower() or original.lower() in org.lower():
-            return normalized
+    Normalize provider name to consolidate variants.
 
-    # Return org if meaningful, otherwise isp
-    if org and org != "Unknown":
+    This merges different legal entities of the same company:
+    - "OVH US LLC", "OVH GmbH", "OVH SAS" -> "OVHcloud"
+    - "Amazon.com", "AWS", "Amazon Technologies" -> "Amazon AWS"
+
+    Uses substring matching (case-insensitive) for flexibility.
+    """
+    # Combine ISP and org strings for searching
+    combined = f"{isp} {org}".lower()
+
+    # Check against normalization rules (order matters - check longer matches first)
+    # Sort by key length descending to match longer strings first
+    for pattern, canonical in sorted(PROVIDER_NORMALIZATION.items(), key=lambda x: -len(x[0])):
+        if pattern in combined:
+            return canonical
+
+    # No match found - return the most meaningful identifier
+    if org and org != "Unknown" and len(org) > 3:
         return org
-    return isp
+    if isp and isp != "Unknown":
+        return isp
+    return "Unknown"
 
 
 def classify_provider(isp: str, org: str, asn: str) -> str:
@@ -385,49 +406,55 @@ def calculate_decentralization_score(
     country_distribution: Dict[str, int]
 ) -> float:
     """
-    Calculate decentralization score (0-100) using 3-tier model.
+    Calculate decentralization score (0-100) for RELAY NODES.
 
-    Factors:
-    - Infrastructure tier score (50% weight):
-      * Sovereign (residential) = full points
-      * Corporate (data center) = half points (still centralized risk)
-      * Hyperscale (AWS/Google) = zero points (kill switch risk)
-    - Provider diversity (25% weight)
-    - Geographic diversity (25% weight)
+    KEY INSIGHT: Relay nodes REQUIRE data center hosting due to bandwidth/latency
+    requirements (TB/month, <50ms latency). Running relays on residential connections
+    is physically impossible. Therefore:
+
+    - Tier 2 (Corporate/Data Centers) is EXPECTED and ACCEPTABLE for relays
+    - Tier 3 (Hyperscale: AWS/Google/Azure) is DANGEROUS (kill switch risk)
+    - Tier 1 (Residential) is a BONUS but rare for relays
+
+    Scoring Model (starts at 100, deductions apply):
+    1. Hyperscale Penalty: -1 point per 1% in Tier 3
+    2. Concentration Penalty: -1 point per 1% that largest provider exceeds 15%
+    3. Geographic Concentration: -0.5 points per 1% that largest country exceeds 40%
+    4. Sovereign Bonus: +0.25 points per 1% in Tier 1 (rare but valuable)
     """
-    # Infrastructure tier score (0-50)
-    # Sovereign nodes get full credit, corporate gets partial, hyperscale gets none
-    tier_score = (
-        (sovereign_pct / 100) * 50 +      # Full credit for sovereign
-        (corporate_pct / 100) * 25 +       # Half credit for corporate
-        (hyperscale_pct / 100) * 0         # No credit for hyperscale
-    )
+    score = 100.0
 
-    # Provider diversity score (0-25)
-    # Uses Herfindahl-Hirschman Index (HHI) - lower is more diverse
+    # 1. HYPERSCALE PENALTY: Heavy penalty for AWS/Google/Azure
+    # These mega-corps can shut off crypto at DNS/BGP level globally
+    hyperscale_penalty = hyperscale_pct  # -1 point per 1%
+    score -= hyperscale_penalty
+
+    # 2. PROVIDER CONCENTRATION PENALTY
+    # Penalize oligopoly - if any single provider > 15%, deduct the excess
     if provider_distribution:
         total = sum(provider_distribution.values())
-        hhi = sum((count / total * 100) ** 2 for count in provider_distribution.values())
-        # HHI ranges from ~100 (many providers) to 10000 (monopoly)
-        # Penalize heavily if any provider > 15%
-        max_share = max(provider_distribution.values()) / total * 100 if total > 0 else 0
-        concentration_penalty = max(0, (max_share - 15) / 85) * 0.5 if max_share > 15 else 0
-        provider_score = max(0, 25 * (1 - hhi / 5000) * (1 - concentration_penalty))
-    else:
-        provider_score = 0
+        if total > 0:
+            max_share = max(provider_distribution.values()) / total * 100
+            if max_share > 15:
+                concentration_penalty = max_share - 15  # -1 point per 1% over 15%
+                score -= concentration_penalty
 
-    # Geographic diversity score (0-25)
+    # 3. GEOGRAPHIC CONCENTRATION PENALTY
+    # Penalize if too many nodes in one country (jurisdiction risk)
     if country_distribution:
         total = sum(country_distribution.values())
-        geo_hhi = sum((count / total * 100) ** 2 for count in country_distribution.values())
-        # Also penalize if any country > 40%
-        max_country = max(country_distribution.values()) / total * 100 if total > 0 else 0
-        geo_penalty = max(0, (max_country - 40) / 60) * 0.3 if max_country > 40 else 0
-        geo_score = max(0, 25 * (1 - geo_hhi / 5000) * (1 - geo_penalty))
-    else:
-        geo_score = 0
+        if total > 0:
+            max_country_share = max(country_distribution.values()) / total * 100
+            if max_country_share > 40:
+                geo_penalty = (max_country_share - 40) * 0.5  # -0.5 per 1% over 40%
+                score -= geo_penalty
 
-    return round(tier_score + provider_score + geo_score, 1)
+    # 4. SOVEREIGN BONUS: Reward any residential/home nodes (rare for relays)
+    sovereign_bonus = sovereign_pct * 0.25  # +0.25 per 1%
+    score += sovereign_bonus
+
+    # Clamp score to 0-100 range
+    return round(max(0, min(100, score)), 1)
 
 
 def audit_infrastructure(network: str = "mainnet", force_refresh: bool = False) -> InfrastructureAuditResult:
@@ -568,6 +595,11 @@ def audit_infrastructure(network: str = "mainnet", force_refresh: bool = False) 
 def get_infrastructure_summary(force_refresh: bool = False) -> Dict[str, Any]:
     """
     Get a simplified summary for API response.
+
+    Returns relay node infrastructure audit with proper context:
+    - Relay nodes REQUIRE data center hosting (Tier 2 is acceptable)
+    - Hyperscale cloud (Tier 3) is the real risk
+    - Provider concentration is the "oligopoly trap"
     """
     result = audit_infrastructure(force_refresh=force_refresh)
 
@@ -594,8 +626,15 @@ def get_infrastructure_summary(force_refresh: bool = False) -> Dict[str, Any]:
             result.decentralization_score,
             result.sovereign_percentage,
             result.corporate_percentage,
-            result.hyperscale_percentage
-        )
+            result.hyperscale_percentage,
+            result.by_provider  # Pass provider distribution for concentration analysis
+        ),
+        # Context for frontend
+        "audit_context": {
+            "node_type": "relay",
+            "note": "Relay nodes require data center hosting due to bandwidth/latency requirements. Tier 2 (corporate) is expected; Tier 3 (hyperscale) is the risk.",
+            "scoring_model": "100 - hyperscale% - concentration_penalty - geo_penalty + sovereign_bonus"
+        }
     }
 
 
@@ -603,57 +642,98 @@ def get_interpretation(
     score: float,
     sovereign_pct: float,
     corporate_pct: float,
-    hyperscale_pct: float
+    hyperscale_pct: float,
+    provider_distribution: Optional[Dict[str, int]] = None
 ) -> Dict[str, str]:
-    """Generate human-readable interpretation of results"""
+    """
+    Generate human-readable interpretation of relay node infrastructure audit.
 
-    # More realistic thresholds given 3-tier model
-    if score >= 60:
+    Context: Relay nodes REQUIRE data center hosting due to bandwidth requirements.
+    - Tier 2 (Corporate) is acceptable for relays
+    - Tier 3 (Hyperscale) is the real risk
+    - Provider concentration is the "oligopoly trap"
+    """
+    # Calculate largest provider share for messaging
+    largest_provider = ""
+    largest_share = 0.0
+    if provider_distribution:
+        total = sum(provider_distribution.values())
+        if total > 0:
+            largest_provider = max(provider_distribution, key=provider_distribution.get)
+            largest_share = provider_distribution[largest_provider] / total * 100
+
+    # Health assessment based on new scoring model
+    if score >= 85:
+        health = "excellent"
+        color = "green"
+        message = "Relay infrastructure is well-distributed across independent providers"
+    elif score >= 70:
         health = "healthy"
         color = "green"
-        message = "Network infrastructure shows good decentralization"
-    elif score >= 45:
+        message = "Network avoided the AWS trap with good provider diversity"
+    elif score >= 55:
         health = "moderate"
         color = "yellow"
-        message = "Network has moderate decentralization with concentration risks"
-    elif score >= 30:
+        message = "Network faces oligopoly risk from provider concentration"
+    elif score >= 40:
         health = "concerning"
         color = "orange"
-        message = "Network infrastructure shows significant centralization"
+        message = "Significant concentration risk - few providers control too much"
     else:
         health = "critical"
         color = "red"
-        message = "Network is highly centralized - sovereignty at risk"
+        message = "Critical centralization - network sovereignty at risk"
 
-    # Build detailed breakdown
-    tier_breakdown = []
-    if sovereign_pct > 0:
-        tier_breakdown.append(f"{sovereign_pct:.0f}% residential/sovereign")
+    # Build tier analysis
+    tier_analysis = []
+    if hyperscale_pct == 0:
+        tier_analysis.append("✓ No hyperscale cloud dependency (AWS/Google/Azure)")
+    else:
+        tier_analysis.append(f"⚠ {hyperscale_pct:.0f}% on hyperscale cloud (kill switch risk)")
+
     if corporate_pct > 0:
-        tier_breakdown.append(f"{corporate_pct:.0f}% corporate data centers")
-    if hyperscale_pct > 0:
-        tier_breakdown.append(f"{hyperscale_pct:.0f}% hyperscale cloud (AWS/Google/Azure)")
+        tier_analysis.append(f"• {corporate_pct:.0f}% on independent data centers (acceptable for relays)")
+
+    if sovereign_pct > 0:
+        tier_analysis.append(f"★ {sovereign_pct:.0f}% on residential/sovereign infrastructure (bonus)")
+
+    # Risk assessment focused on real relay node concerns
+    if hyperscale_pct > 20:
+        risk = "HIGH RISK: Over 20% of relays on hyperscale cloud - vulnerable to coordinated shutdown"
+    elif hyperscale_pct > 0:
+        risk = f"MODERATE RISK: {hyperscale_pct:.0f}% on hyperscale cloud - some kill switch exposure"
+    elif largest_share > 33:
+        risk = f"OLIGOPOLY RISK: {largest_provider} controls {largest_share:.0f}% of relays"
+    elif largest_share > 20:
+        risk = f"CONCENTRATION WATCH: {largest_provider} at {largest_share:.0f}% (threshold: 15%)"
+    else:
+        risk = "LOW RISK: Good distribution across independent providers"
+
+    # Contextual recommendation
+    if hyperscale_pct > 10:
+        recommendation = "Priority: Migrate relay nodes off hyperscale cloud (AWS/Google/Azure)"
+    elif largest_share > 25:
+        recommendation = f"Consider diversifying away from {largest_provider} to reduce concentration"
+    else:
+        recommendation = "Network has achieved 'Post-AWS' status - focus on maintaining provider diversity"
 
     return {
         "health": health,
         "color": color,
         "message": message,
-        "tier_breakdown": ", ".join(tier_breakdown),
+        "tier_analysis": tier_analysis,
+        "tier_breakdown": ", ".join([
+            f"{hyperscale_pct:.0f}% hyperscale" if hyperscale_pct > 0 else "",
+            f"{corporate_pct:.0f}% corporate" if corporate_pct > 0 else "",
+            f"{sovereign_pct:.0f}% sovereign" if sovereign_pct > 0 else ""
+        ]).strip(", "),
+        "risk_assessment": risk,
+        "recommendation": recommendation,
+        "largest_provider": f"{largest_provider} ({largest_share:.1f}%)" if largest_provider else "N/A",
+        # Legacy fields for backward compatibility
         "sovereign_status": (
-            f"Only {sovereign_pct:.0f}% of nodes run on truly sovereign infrastructure"
-            if sovereign_pct < 20 else
-            f"{sovereign_pct:.0f}% of nodes run on sovereign residential infrastructure"
-        ),
-        "risk_assessment": (
-            "HIGH RISK: Majority of network depends on corporate/cloud providers"
-            if sovereign_pct < 10 else
-            "MODERATE RISK: Network has some sovereign nodes but relies heavily on data centers"
-            if sovereign_pct < 30 else
-            "LOW RISK: Good distribution of sovereign infrastructure"
-        ),
-        "recommendation": (
-            "Consider running your own relay node on residential/sovereign infrastructure"
-            if sovereign_pct < 30 else
-            "Network has reasonable sovereign infrastructure coverage"
+            f"Relays are {corporate_pct:.0f}% on independent data centers (expected for relay nodes)"
+            if sovereign_pct < 5 else
+            f"{sovereign_pct:.0f}% on residential infrastructure (rare for relays)"
         )
     }

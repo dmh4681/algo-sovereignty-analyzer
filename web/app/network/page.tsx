@@ -79,6 +79,7 @@ export default function NetworkPage() {
 
   const getHealthIcon = (health: string) => {
     switch (health) {
+      case 'excellent':
       case 'healthy':
       case 'strong':
         return <CheckCircle2 className="w-6 h-6 text-green-400" />
@@ -413,9 +414,21 @@ export default function NetworkPage() {
             </CardContent>
           </Card>
 
+          {/* Context Banner */}
+          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-cyan-400 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-slate-400">
+                <span className="text-slate-200 font-medium">Why relay nodes need data centers:</span>{' '}
+                Relay nodes require massive bandwidth (TB/month) and ultra-low latency. Running a relay on residential internet is physically impossible.
+                Tier 2 (corporate data centers) is <span className="text-green-400">expected</span> for relays. The real risk is Tier 3 (hyperscale cloud).
+              </div>
+            </div>
+          </div>
+
           {/* 3-Tier Infrastructure Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Tier 1: Sovereign (Green) */}
+            {/* Tier 1: Sovereign (Green) - Rare for Relays */}
             <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-green-400 text-lg">
@@ -423,7 +436,7 @@ export default function NetworkPage() {
                   Tier 1: Sovereign
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Residential ISPs & self-hosted
+                  Residential ISPs & self-hosted (rare for relays)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -432,42 +445,42 @@ export default function NetworkPage() {
                   <span className="text-slate-400 text-sm">({infraData.sovereign_nodes})</span>
                 </div>
                 <p className="text-xs text-slate-500 mt-3">
-                  True decentralization. Residential connections are harder to shut down en masse.
+                  Bonus points. Residential infrastructure is rare for relays due to bandwidth requirements.
                 </p>
               </CardContent>
             </Card>
 
-            {/* Tier 2: Corporate (Yellow) */}
-            <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/30">
+            {/* Tier 2: Corporate (Yellow/Green) - Expected for Relays */}
+            <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-yellow-400 text-lg">
+                <CardTitle className="flex items-center gap-2 text-cyan-400 text-lg">
                   <Building2 className="w-5 h-5" />
-                  Tier 2: Corporate
+                  Tier 2: Independent Data Centers
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Data centers (OVH, Hetzner, TeraSwitch)
+                  OVHcloud, Hetzner, TeraSwitch, Vultr, etc.
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold text-yellow-400">{infraData.corporate_percentage}%</span>
+                  <span className="text-4xl font-bold text-cyan-400">{infraData.corporate_percentage}%</span>
                   <span className="text-slate-400 text-sm">({infraData.corporate_nodes})</span>
                 </div>
-                <p className="text-xs text-slate-500 mt-3">
-                  Better than hyperscale, but single points of failure. Corporate billing can shut down nodes.
+                <p className="text-xs text-green-400/80 mt-3">
+                  ✓ Expected for relay nodes. Independent providers avoid the hyperscale &quot;kill switch&quot;.
                 </p>
               </CardContent>
             </Card>
 
-            {/* Tier 3: Hyperscale (Red) */}
+            {/* Tier 3: Hyperscale (Red) - The Real Risk */}
             <Card className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border-red-500/30">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-red-400 text-lg">
                   <Cloud className="w-5 h-5" />
-                  Tier 3: Hyperscale
+                  Tier 3: Hyperscale Cloud
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  AWS, Google, Microsoft Azure
+                  AWS, Google Cloud, Microsoft Azure
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -475,8 +488,8 @@ export default function NetworkPage() {
                   <span className="text-4xl font-bold text-red-400">{infraData.hyperscale_percentage}%</span>
                   <span className="text-slate-400 text-sm">({infraData.hyperscale_nodes})</span>
                 </div>
-                <p className="text-xs text-slate-500 mt-3">
-                  &quot;Kill switch&quot; zone. Government pressure or coordinated action can disable these nodes.
+                <p className="text-xs text-red-400/80 mt-3">
+                  ⚠ Kill switch zone. Mega-corps can disable nodes via ToS or government pressure.
                 </p>
               </CardContent>
             </Card>
@@ -484,24 +497,31 @@ export default function NetworkPage() {
 
           {/* Risk Assessment Banner */}
           <Card className={`border ${
-            infraData.sovereign_percentage < 10 ? 'bg-red-500/10 border-red-500/40' :
-            infraData.sovereign_percentage < 30 ? 'bg-yellow-500/10 border-yellow-500/40' :
+            infraData.hyperscale_percentage > 20 ? 'bg-red-500/10 border-red-500/40' :
+            infraData.hyperscale_percentage > 0 ? 'bg-yellow-500/10 border-yellow-500/40' :
             'bg-green-500/10 border-green-500/40'
           }`}>
             <CardContent className="py-4">
               <div className="flex items-start gap-3">
-                <AlertTriangle className={`w-5 h-5 mt-0.5 ${
-                  infraData.sovereign_percentage < 10 ? 'text-red-400' :
-                  infraData.sovereign_percentage < 30 ? 'text-yellow-400' :
-                  'text-green-400'
-                }`} />
+                {infraData.hyperscale_percentage === 0 ? (
+                  <CheckCircle2 className="w-5 h-5 mt-0.5 text-green-400" />
+                ) : (
+                  <AlertTriangle className={`w-5 h-5 mt-0.5 ${
+                    infraData.hyperscale_percentage > 20 ? 'text-red-400' : 'text-yellow-400'
+                  }`} />
+                )}
                 <div>
                   <p className="font-medium text-slate-200">
                     {infraData.interpretation.risk_assessment}
                   </p>
                   <p className="text-sm text-slate-400 mt-1">
-                    {infraData.interpretation.sovereign_status}
+                    {infraData.interpretation.recommendation}
                   </p>
+                  {infraData.interpretation.largest_provider && (
+                    <p className="text-xs text-slate-500 mt-2">
+                      Largest provider: {infraData.interpretation.largest_provider}
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>

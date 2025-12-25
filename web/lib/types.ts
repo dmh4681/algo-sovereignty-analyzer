@@ -211,21 +211,23 @@ export interface InfrastructureNode {
 }
 
 export interface InfrastructureInterpretation {
-  health: 'healthy' | 'moderate' | 'concerning' | 'critical'
+  health: 'excellent' | 'healthy' | 'moderate' | 'concerning' | 'critical'
   color: string
   message: string
   tier_breakdown: string
+  tier_analysis?: string[]  // New: detailed tier analysis points
   sovereign_status: string
   risk_assessment: string
   recommendation: string
+  largest_provider?: string  // New: shows concentration leader
 }
 
 export interface InfrastructureAudit {
   total_nodes: number
   // 3-tier breakdown
-  sovereign_nodes: number       // Tier 1: Residential (green)
-  corporate_nodes: number       // Tier 2: Data centers (yellow)
-  hyperscale_nodes: number      // Tier 3: AWS/Google/Azure (red)
+  sovereign_nodes: number       // Tier 1: Residential (green) - rare for relays
+  corporate_nodes: number       // Tier 2: Data centers (yellow) - expected for relays
+  hyperscale_nodes: number      // Tier 3: AWS/Google/Azure (red) - kill switch risk
   sovereign_percentage: number
   corporate_percentage: number
   hyperscale_percentage: number
@@ -244,6 +246,12 @@ export interface InfrastructureAudit {
   timestamp: string
   cache_expires: string
   interpretation: InfrastructureInterpretation
+  // Audit context for relay nodes
+  audit_context?: {
+    node_type: 'relay' | 'participation'
+    note: string
+    scoring_model: string
+  }
 }
 
 // Participation Audit types
