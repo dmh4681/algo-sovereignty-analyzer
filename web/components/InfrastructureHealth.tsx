@@ -254,7 +254,7 @@ export default function InfrastructureHealth() {
               <div className="flex items-start gap-2">
                 <Info className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                 <div className="text-xs text-slate-400">
-                  <p className="mb-1">{data.interpretation.cloud_dependency}</p>
+                  <p className="mb-1">{data.interpretation.risk_assessment}</p>
                   <p className="text-cyan-400">{data.interpretation.recommendation}</p>
                 </div>
               </div>
