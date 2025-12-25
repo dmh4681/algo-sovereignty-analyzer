@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
 from core.history import SovereigntySnapshot, get_history_manager
-from core.pricing import get_hardcoded_price
+from core.pricing import get_hardcoded_price, get_gold_price_per_oz, get_silver_price_per_oz
 from .schemas import (
     AnalysisResponse,
     AnalyzeRequest,
@@ -296,20 +296,24 @@ async def get_history(
 @router.get("/gold-silver-ratio")
 async def get_gold_silver_ratio():
     """
-    Get current Gold/Silver ratio using Meld Gold/Silver prices.
+    Get current Gold/Silver ratio using live Yahoo Finance spot prices.
 
-    Uses hardcoded Meld prices (per gram) and converts to per ounce.
-    Update weekly in core/pricing.py
+    Fetches real-time COMEX futures prices for Gold (GC=F) and Silver (SI=F).
+    Falls back to hardcoded prices on API failure.
     """
-    GRAMS_PER_OZ = 31.1035
+    # Fetch live prices per troy ounce from Yahoo Finance
+    gold_price = get_gold_price_per_oz()
+    silver_price = get_silver_price_per_oz()
 
-    # Get Meld prices (per gram)
-    gold_per_gram = get_hardcoded_price('GOLD$') or 131.80
-    silver_per_gram = get_hardcoded_price('SILVER$') or 1.54
+    # Ensure we have valid prices
+    if gold_price is None:
+        gold_price = 4500.0  # Fallback
+    if silver_price is None:
+        silver_price = 70.0  # Fallback
 
-    # Convert to per ounce
-    gold_price = round(gold_per_gram * GRAMS_PER_OZ, 2)
-    silver_price = round(silver_per_gram * GRAMS_PER_OZ, 2)
+    # Round for display
+    gold_price = round(gold_price, 2)
+    silver_price = round(silver_price, 2)
 
     # Calculate ratio
     ratio = round(gold_price / silver_price, 2)

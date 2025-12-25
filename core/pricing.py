@@ -25,13 +25,13 @@ def get_hardcoded_price(ticker: str) -> Optional[float]:
     if t in ['ETH', 'WETH', 'GOETH', 'FGOETH']:
         return 3000.0 # Approximate
         
-    # Meld Silver (1g) - Update weekly
+    # Meld Silver (1g) - Fallback, live price from Yahoo Finance is preferred
     if t == 'SILVER$':
-        return 1.54  # ~$48/oz
+        return 2.25  # ~$70/oz (Dec 2024)
 
-    # Meld Gold (1g) - Update weekly
+    # Meld Gold (1g) - Fallback, live price from Yahoo Finance is preferred
     if t == 'GOLD$':
-        return 131.80  # ~$4100/oz
+        return 144.75  # ~$4500/oz (Dec 2024)
         
     return None
 
@@ -69,18 +69,95 @@ def get_ethereum_price() -> Optional[float]:
     """Fetch ETH price from CoinGecko (for goETH valuation)"""
     return _fetch_price('ethereum')
 
-def get_gold_price() -> Optional[float]:
-    """Fetch Gold price (per gram) using PAXG (per oz) as proxy"""
-    paxg_price = _fetch_price('pax-gold')
-    if paxg_price:
-        return paxg_price / 31.1035  # Convert oz to gram
+def _fetch_yahoo_finance_price(symbol: str) -> Optional[float]:
+    """
+    Fetch real-time commodity prices from Yahoo Finance.
+
+    Args:
+        symbol: Yahoo Finance symbol (e.g., 'GC=F' for gold futures, 'SI=F' for silver futures)
+
+    Returns:
+        Current market price in USD, or None on failure
+    """
+    max_retries = 3
+    base_delay = 1
+
+    for attempt in range(max_retries):
+        try:
+            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1d"
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            data = response.json()
+
+            # Extract the regularMarketPrice from the response
+            result = data.get('chart', {}).get('result', [])
+            if result and len(result) > 0:
+                price = result[0].get('meta', {}).get('regularMarketPrice')
+                if price is not None and price > 0:
+                    return float(price)
+
+            return None
+        except Exception as e:
+            if attempt == max_retries - 1:
+                print(f"⚠️  Failed to fetch {symbol} price after {max_retries} attempts: {e}")
+                return None
+
+            # Exponential backoff: 1s, 2s, 4s
+            delay = base_delay * (2 ** attempt)
+            time.sleep(delay)
     return None
 
+
+def get_gold_price_per_oz() -> Optional[float]:
+    """
+    Fetch real-time Gold spot price (per troy oz) from Yahoo Finance.
+    Uses COMEX Gold Futures (GC=F) as the price source.
+
+    Returns:
+        Gold price per troy ounce in USD, or None on failure
+    """
+    price = _fetch_yahoo_finance_price('GC=F')
+    if price:
+        return price
+
+    # Fallback to hardcoded price if API fails
+    print("⚠️  Yahoo Finance gold price failed, using hardcoded fallback")
+    return 4500.0  # Conservative fallback
+
+
+def get_silver_price_per_oz() -> Optional[float]:
+    """
+    Fetch real-time Silver spot price (per troy oz) from Yahoo Finance.
+    Uses COMEX Silver Futures (SI=F) as the price source.
+
+    Returns:
+        Silver price per troy ounce in USD, or None on failure
+    """
+    price = _fetch_yahoo_finance_price('SI=F')
+    if price:
+        return price
+
+    # Fallback to hardcoded price if API fails
+    print("⚠️  Yahoo Finance silver price failed, using hardcoded fallback")
+    return 70.0  # Conservative fallback
+
+
+def get_gold_price() -> Optional[float]:
+    """Fetch Gold price (per gram) from Yahoo Finance"""
+    oz_price = get_gold_price_per_oz()
+    if oz_price:
+        return oz_price / 31.1035  # Convert oz to gram
+    return None
+
+
 def get_silver_price() -> Optional[float]:
-    """Fetch Silver price (per gram) using KAG (per oz) as proxy"""
-    kag_price = _fetch_price('kinesis-silver')
-    if kag_price:
-        return kag_price / 31.1035  # Convert oz to gram
+    """Fetch Silver price (per gram) from Yahoo Finance"""
+    oz_price = get_silver_price_per_oz()
+    if oz_price:
+        return oz_price / 31.1035  # Convert oz to gram
     return None
 
 def fetch_vestige_price(asset_id: int) -> Optional[float]:
