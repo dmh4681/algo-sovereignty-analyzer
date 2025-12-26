@@ -1,3 +1,6 @@
+// TODO: Re-enable when auto-mining feature is ready
+// This component is part of the NFT auto-mining system that is currently disabled.
+
 'use client'
 
 import { useState } from 'react'

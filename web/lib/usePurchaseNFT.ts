@@ -1,3 +1,6 @@
+// TODO: Re-enable when auto-mining feature is ready
+// This hook is part of the NFT auto-mining system that is currently disabled.
+
 import { useState, useCallback } from 'react'
 import { useWallet } from '@txnlab/use-wallet-react'
 import algosdk from 'algosdk'

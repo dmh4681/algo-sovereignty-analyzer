@@ -1,3 +1,6 @@
+// TODO: Re-enable when auto-mining feature is ready
+// This config file is part of the NFT auto-mining system that is currently disabled.
+
 // NFT Sale Smart Contract Configuration
 export const NFT_SALE_CONTRACT = {
   appId: 3381223080,

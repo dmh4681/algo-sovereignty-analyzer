@@ -1,3 +1,7 @@
+// TODO: Re-enable when auto-mining feature is ready
+// This entire page is part of the NFT auto-mining system that is currently disabled.
+// The route still exists but is not linked from navigation.
+
 'use client'
 
 import { useState, useEffect } from 'react'
