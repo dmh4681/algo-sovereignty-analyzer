@@ -7,6 +7,7 @@ import {
     ArrowRight,
     Coins,
     Shield,
+    Server,
     Users,
     Wallet,
     FileText,
