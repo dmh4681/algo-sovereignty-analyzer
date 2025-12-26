@@ -4,59 +4,18 @@ import {
     BarChart3,
     Eye,
     GraduationCap,
-    Server,
     ArrowRight,
-    ExternalLink,
     Coins,
     Shield,
     Users,
     Wallet,
-    FileText
+    FileText,
+    ExternalLink,
+    Bitcoin
 } from 'lucide-react'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-
-interface PartnerCardProps {
-    name: string
-    description: string
-    asaId?: string
-    supply?: string
-    link: string
-    icon: React.ReactNode
-    color: string
-}
-
-function PartnerCard({ name, description, asaId, supply, link, icon, color }: PartnerCardProps) {
-    return (
-        <Card className={`bg-slate-900/50 border-slate-800 hover:border-${color}-500/50 transition-colors`}>
-            <CardHeader>
-                <div className={`mb-2 w-12 h-12 rounded-xl bg-${color}-500/10 border border-${color}-500/30 flex items-center justify-center`}>
-                    {icon}
-                </div>
-                <CardTitle className="text-xl text-white">{name}</CardTitle>
-                {asaId && (
-                    <div className="flex gap-3 text-xs text-slate-500">
-                        <span>ASA: {asaId}</span>
-                        {supply && <span>Supply: {supply}</span>}
-                    </div>
-                )}
-            </CardHeader>
-            <CardContent className="space-y-4">
-                <CardDescription className="text-slate-400">
-                    {description}
-                </CardDescription>
-                <a
-                    href={link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={`inline-flex items-center gap-2 text-sm text-${color}-400 hover:text-${color}-300 transition-colors`}
-                >
-                    Learn more <ExternalLink className="w-3 h-3" />
-                </a>
-            </CardContent>
-        </Card>
-    )
-}
+import { HardMoneyPartners } from '@/components/HardMoneyPartners'
 
 export default function AboutPage() {
     return (
@@ -311,43 +270,7 @@ export default function AboutPage() {
             </section>
 
             {/* Hard Money Partners */}
-            <section className="space-y-8">
-                <div className="text-center space-y-4">
-                    <h2 className="text-3xl font-bold text-white">Hard Money Partners</h2>
-                    <p className="text-slate-400">
-                        Projects aligned with sovereignty principles on Algorand.
-                    </p>
-                </div>
-
-                <div className="grid md:grid-cols-3 gap-6">
-                    <PartnerCard
-                        name="iGetAlgo (iGA)"
-                        description="iGA is earned by running Algorand participation nodes. It's not a token you buy—it's a token you earn by contributing to network security. This is exactly the incentive structure Algorand needs."
-                        asaId="2635992378"
-                        supply="333 (fixed)"
-                        link="https://twitter.com/iGetAlgo"
-                        icon={<Server className="w-6 h-6 text-purple-400" />}
-                        color="purple"
-                    />
-
-                    <PartnerCard
-                        name="Meld Gold & Silver"
-                        description="Tokenized precious metals on Algorand. Real gold and silver, fully backed, redeemable. Hard money that's been hard money for 5,000 years."
-                        link="https://meld.gold"
-                        icon={<Coins className="w-6 h-6 text-yellow-400" />}
-                        color="yellow"
-                    />
-
-                    <PartnerCard
-                        name="goBTC (Wrapped Bitcoin)"
-                        description="Bitcoin is the hardest money ever created. goBTC brings it to Algorand, letting you hold the apex predator of crypto assets while using Algorand's infrastructure."
-                        asaId="386192725"
-                        link="https://app.algomint.io/"
-                        icon={<Coins className="w-6 h-6 text-orange-400" />}
-                        color="orange"
-                    />
-                </div>
-            </section>
+            <HardMoneyPartners variant="full" />
 
             {/* Who Built This */}
             <section className="space-y-6">
@@ -391,7 +314,7 @@ export default function AboutPage() {
                 <h2 className="text-3xl font-bold text-white text-center">Get Involved</h2>
 
                 <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <Link href="/">
+                    <Link href="/analyze">
                         <Card className="bg-slate-900/50 border-slate-800 hover:border-orange-500/50 transition-colors cursor-pointer h-full">
                             <CardContent className="py-6 text-center space-y-3">
                                 <BarChart3 className="w-8 h-8 text-orange-400 mx-auto" />
@@ -401,34 +324,53 @@ export default function AboutPage() {
                         </Card>
                     </Link>
 
-                    <Link href="/training">
-                        <Card className="bg-slate-900/50 border-slate-800 hover:border-blue-500/50 transition-colors cursor-pointer h-full">
-                            <CardContent className="py-6 text-center space-y-3">
-                                <Server className="w-8 h-8 text-blue-400 mx-auto" />
-                                <h3 className="font-semibold text-white">Run a Node</h3>
-                                <p className="text-sm text-slate-400">Contribute to decentralization and earn iGA</p>
-                            </CardContent>
-                        </Card>
-                    </Link>
-
-                    <Card className="bg-slate-900/50 border-slate-800 hover:border-yellow-500/50 transition-colors cursor-pointer h-full">
-                        <CardContent className="py-6 text-center space-y-3">
-                            <Coins className="w-8 h-8 text-yellow-400 mx-auto" />
-                            <h3 className="font-semibold text-white">Stack Hard Money</h3>
-                            <p className="text-sm text-slate-400">Build a portfolio that can say "no"</p>
-                        </CardContent>
-                    </Card>
-
                     <a
-                        href="https://twitter.com/algosovereignty"
+                        href="https://meld.gold"
                         target="_blank"
                         rel="noopener noreferrer"
                     >
-                        <Card className="bg-slate-900/50 border-slate-800 hover:border-cyan-500/50 transition-colors cursor-pointer h-full">
+                        <Card className="bg-slate-900/50 border-slate-800 hover:border-yellow-500/50 transition-colors cursor-pointer h-full">
                             <CardContent className="py-6 text-center space-y-3">
-                                <Users className="w-8 h-8 text-cyan-400 mx-auto" />
-                                <h3 className="font-semibold text-white">Join the Community</h3>
-                                <p className="text-sm text-slate-400">Follow @algosovereignty for updates</p>
+                                <div className="relative mx-auto w-8 h-8">
+                                    <Coins className="w-8 h-8 text-yellow-400" />
+                                    <ExternalLink className="w-3 h-3 text-yellow-400 absolute -top-1 -right-1" />
+                                </div>
+                                <h3 className="font-semibold text-white">Stack Gold</h3>
+                                <p className="text-sm text-slate-400">Tokenized physical gold on Algorand</p>
+                            </CardContent>
+                        </Card>
+                    </a>
+
+                    <a
+                        href="https://meld.gold"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <Card className="bg-slate-900/50 border-slate-800 hover:border-slate-500/50 transition-colors cursor-pointer h-full">
+                            <CardContent className="py-6 text-center space-y-3">
+                                <div className="relative mx-auto w-8 h-8">
+                                    <Coins className="w-8 h-8 text-slate-300" />
+                                    <ExternalLink className="w-3 h-3 text-slate-300 absolute -top-1 -right-1" />
+                                </div>
+                                <h3 className="font-semibold text-white">Stack Silver</h3>
+                                <p className="text-sm text-slate-400">Tokenized physical silver on Algorand</p>
+                            </CardContent>
+                        </Card>
+                    </a>
+
+                    <a
+                        href="https://www.algomint.io/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <Card className="bg-slate-900/50 border-slate-800 hover:border-orange-500/50 transition-colors cursor-pointer h-full">
+                            <CardContent className="py-6 text-center space-y-3">
+                                <div className="relative mx-auto w-8 h-8">
+                                    <Bitcoin className="w-8 h-8 text-orange-500" />
+                                    <ExternalLink className="w-3 h-3 text-orange-500 absolute -top-1 -right-1" />
+                                </div>
+                                <h3 className="font-semibold text-white">Stack Bitcoin</h3>
+                                <p className="text-sm text-slate-400">Wrapped Bitcoin on Algorand</p>
                             </CardContent>
                         </Card>
                     </a>

@@ -2,8 +2,8 @@ asset_id,name,ticker,category,notes
 0,Algorand,ALGO,shitcoin,Native token (shitcoin regardless of participation)
 386192725,goBTC,goBTC,hard_money,Wrapped Bitcoin on Algorand
 386195940,goETH,goETH,shitcoin,Wrapped Ethereum (not hard money)
-2751733,Meld Silver,SILVER$,hard_money,Physical silver-backed ASA
-2722949,Meld Gold,GOLD$,hard_money,Physical gold-backed ASA
+246519683,Meld Silver,SILVER$,hard_money,Tokenized physical silver - fully backed and redeemable
+246516580,Meld Gold,GOLD$,hard_money,Tokenized physical gold - fully backed and redeemable
 312769,Tether USDt,USDt,dollars,Stablecoin
 31566704,USDC,USDC,dollars,Stablecoin
 470842789,PLANET,PLANET,shitcoin,PlanetWatch token
