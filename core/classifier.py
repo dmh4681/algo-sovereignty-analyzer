@@ -39,11 +39,12 @@ class AssetClassifier:
 
         ticker_upper = ticker.upper()
 
-        # HARD MONEY: Bitcoin, Gold, Silver ONLY
+        # HARD MONEY: Bitcoin, Gold, Silver, and iGetAlgo (earned via nodes)
         hard_money_patterns = [
             r'^WBTC$', r'^BTC$', r'^GOBTC$',           # Bitcoin
             r'GOLD', r'^XAUT$', r'^PAXG$',              # Gold
             r'SILVER',                                   # Silver
+            r'^IGA$', r'^IGETALGO$',                    # iGetAlgo (333 fixed supply)
         ]
         if any(re.search(pattern, ticker_upper) for pattern in hard_money_patterns):
             return AssetCategory.HARD_MONEY.value
