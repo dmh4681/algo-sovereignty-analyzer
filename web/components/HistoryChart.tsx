@@ -137,9 +137,8 @@ export function HistoryChart({ address, currentRatio }: HistoryChartProps) {
     )
   }
   
-  // Prepare chart data (reverse to show oldest first)
-  const chartData = [...history.snapshots]
-    .reverse()
+  // Prepare chart data (API returns oldest first, which is correct for left-to-right charts)
+  const chartData = history.snapshots
     .map(snapshot => ({
       date: new Date(snapshot.timestamp).toLocaleDateString('en-US', { 
         month: 'short', 

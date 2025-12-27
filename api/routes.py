@@ -335,8 +335,8 @@ def _calculate_progress(snapshots: list) -> dict:
             "projected_next_status": None
         }
 
-    # Snapshots are newest first
-    current = snapshots[0]
+    # Snapshots are sorted oldest first, so newest is at the end
+    current = snapshots[-1]
     current_ratio = current.sovereignty_ratio if hasattr(current, 'sovereignty_ratio') else current.get('sovereignty_ratio', 0)
 
     # Find snapshot from ~30 days ago
@@ -371,10 +371,10 @@ def _calculate_progress(snapshots: list) -> dict:
         else:
             trend = "stable"
 
-    # Calculate days tracked
+    # Calculate days tracked (snapshots sorted oldest first)
     days_tracked = 0
     if snapshots:
-        oldest = snapshots[-1]
+        oldest = snapshots[0]
         ts = oldest.timestamp if hasattr(oldest, 'timestamp') else oldest.get('timestamp', '')
         try:
             if isinstance(ts, str):
@@ -422,7 +422,7 @@ def _calculate_progress(snapshots: list) -> dict:
 
 
 def _calculate_all_time(snapshots: list) -> Optional[dict]:
-    """Calculate all-time statistics."""
+    """Calculate all-time statistics (snapshots sorted oldest first)."""
     if not snapshots:
         return None
 
@@ -431,7 +431,8 @@ def _calculate_all_time(snapshots: list) -> Optional[dict]:
         ratio = snap.sovereignty_ratio if hasattr(snap, 'sovereignty_ratio') else snap.get('sovereignty_ratio', 0)
         ratios.append(ratio)
 
-    oldest = snapshots[-1]
+    # Oldest is first element
+    oldest = snapshots[0]
     ts = oldest.timestamp if hasattr(oldest, 'timestamp') else oldest.get('timestamp', '')
 
     return {
