@@ -60,6 +60,12 @@ export function MainNav() {
       >
         News
       </Link>
+      <Link
+        href="/arbitrage"
+        className="text-sm text-slate-400 hover:text-green-500 transition-colors"
+      >
+        Arbitrage
+      </Link>
       <HeaderWalletStatus />
       <a
         href="https://github.com"
