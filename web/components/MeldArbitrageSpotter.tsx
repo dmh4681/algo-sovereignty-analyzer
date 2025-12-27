@@ -5,33 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, TrendingUp, TrendingDown, Minus, AlertTriangle, ExternalLink } from 'lucide-react'
-
-// ============================================================================
-// Types
-// ============================================================================
-
-interface ArbitrageMetalData {
-  spot_per_oz: number
-  implied_per_gram: number
-  meld_price: number
-  premium_pct: number
-  premium_usd: number
-  signal: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL'
-  signal_strength: number
-}
-
-interface ArbitrageMetalError {
-  error: string
-  spot_available: boolean
-  meld_available: boolean
-}
-
-interface MeldArbitrageResponse {
-  gold: ArbitrageMetalData | ArbitrageMetalError | null
-  silver: ArbitrageMetalData | ArbitrageMetalError | null
-  timestamp: string
-  data_complete: boolean
-}
+import { getMeldArbitrage } from '@/lib/api'
+import type { MeldArbitrageResponse, ArbitrageMetalData, ArbitrageMetalError } from '@/lib/types'
 
 // ============================================================================
 // Helper Functions
@@ -298,13 +273,7 @@ export function MeldArbitrageSpotter({
       setLoading(true)
       setError(null)
 
-      const response = await fetch('/api/v1/arbitrage/meld')
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
-      }
-
-      const result: MeldArbitrageResponse = await response.json()
+      const result = await getMeldArbitrage()
       setData(result)
       setLastUpdated(new Date())
     } catch (err) {

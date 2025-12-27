@@ -12,6 +12,7 @@ import {
   ParticipationStats,
   NetworkStatsResponse,
   WalletParticipationResponse,
+  MeldArbitrageResponse,
 } from './types'
 
 // Use direct backend URL to avoid Next.js proxy timeout issues
@@ -305,6 +306,22 @@ export async function getWalletParticipation(
 
   if (!response.ok) {
     throw new ApiError('Failed to fetch wallet participation', response.status)
+  }
+
+  return response.json()
+}
+
+// --- Meld Arbitrage API ---
+
+/**
+ * Get Meld Gold/Silver arbitrage analysis
+ * Compares on-chain Meld prices to spot precious metal prices
+ */
+export async function getMeldArbitrage(): Promise<MeldArbitrageResponse> {
+  const response = await fetch(`${API_BASE}/arbitrage/meld`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch Meld arbitrage data', response.status)
   }
 
   return response.json()

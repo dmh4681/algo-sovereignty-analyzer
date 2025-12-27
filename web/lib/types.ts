@@ -390,3 +390,27 @@ export interface WalletParticipationResponse {
   contribution_tier: string
   current_round: number
 }
+
+// Meld Arbitrage types
+export interface ArbitrageMetalData {
+  spot_per_oz: number
+  implied_per_gram: number
+  meld_price: number
+  premium_pct: number
+  premium_usd: number
+  signal: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL'
+  signal_strength: number
+}
+
+export interface ArbitrageMetalError {
+  error: string
+  spot_available: boolean
+  meld_available: boolean
+}
+
+export interface MeldArbitrageResponse {
+  gold: ArbitrageMetalData | ArbitrageMetalError | null
+  silver: ArbitrageMetalData | ArbitrageMetalError | null
+  timestamp: string
+  data_complete: boolean
+}
