@@ -716,10 +716,6 @@ export default function WhitepaperPage() {
                         <p>License: CC BY-SA 4.0</p>
                         <div className="pt-4 space-x-4">
                             <a href="https://algosovereignty.com" className="hover:text-orange-400">Website</a>
-                            <span>|</span>
-                            <a href="https://twitter.com/algosovereignty" className="hover:text-orange-400">@algosovereignty</a>
-                            <span>|</span>
-                            <a href="https://twitter.com/sovereignpath" className="hover:text-orange-400">@sovereignpath</a>
                         </div>
                     </footer>
                 </article>

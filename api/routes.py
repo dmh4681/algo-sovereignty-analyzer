@@ -2,18 +2,36 @@ from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
 from core.history import SovereigntySnapshot, get_history_manager
 from core.pricing import get_hardcoded_price, get_gold_price_per_oz, get_silver_price_per_oz
+from core.network import AlgorandNetworkStats, microalgos_to_algo
 from .schemas import (
     AnalysisResponse,
     AnalyzeRequest,
     HistorySaveRequest,
     HistorySaveResponse,
-    HistoryResponse
+    HistoryResponse,
+    NetworkStatsResponse,
+    NetworkInfo,
+    FoundationInfo,
+    CommunityInfo,
+    WalletParticipationResponse,
+    ParticipationKeyInfo
 )
 from .agent import SovereigntyCoach, AdviceRequest
 from typing import Dict, Any, Tuple, Optional, List
 from datetime import datetime, timedelta
+import asyncio
 
 router = APIRouter()
+
+# Global network stats instance (reused for caching)
+_network_stats: Optional[AlgorandNetworkStats] = None
+
+def get_network_stats_client() -> AlgorandNetworkStats:
+    """Get or create the network stats client singleton."""
+    global _network_stats
+    if _network_stats is None:
+        _network_stats = AlgorandNetworkStats()
+    return _network_stats
 
 @router.post("/agent/advice")
 async def get_agent_advice(request: AdviceRequest):
@@ -355,3 +373,160 @@ async def get_gold_silver_ratio():
             "historical_note": f"The ratio has ranged from {historical_range['low']}:1 to {historical_range['high']}:1 over the past century. The long-term mean is around {historical_mean}:1."
         }
     }
+
+
+# -----------------------------------------------------------------------------
+# Network Stats Endpoints
+# -----------------------------------------------------------------------------
+
+@router.get("/network/stats", response_model=NetworkStatsResponse)
+async def get_network_statistics():
+    """
+    Get current Algorand network participation and decentralization statistics.
+
+    Returns network-wide metrics including:
+    - Total supply and online stake
+    - Foundation stake breakdown
+    - Community stake percentage
+    - Decentralization score (0-100)
+
+    Data is cached for 5 minutes.
+    """
+    client = get_network_stats_client()
+
+    try:
+        summary = await client.get_decentralization_summary()
+
+        # Convert microalgos to ALGO for response
+        network_info = NetworkInfo(
+            total_supply_algo=round(microalgos_to_algo(summary.network.total_supply), 2),
+            online_stake_algo=round(microalgos_to_algo(summary.network.online_stake), 2),
+            participation_rate=summary.network.participation_rate,
+            current_round=summary.network.current_round
+        )
+
+        foundation_info = FoundationInfo(
+            total_balance_algo=round(microalgos_to_algo(summary.foundation.total_balance), 2),
+            online_balance_algo=round(microalgos_to_algo(summary.foundation.online_balance), 2),
+            pct_of_total_supply=summary.foundation.foundation_pct_of_supply,
+            pct_of_online_stake=summary.foundation.foundation_pct_of_online,
+            address_count=len(summary.foundation.foundation_addresses)
+        )
+
+        community_info = CommunityInfo(
+            estimated_stake_algo=round(microalgos_to_algo(summary.community_stake), 2),
+            pct_of_online_stake=summary.community_pct_of_online
+        )
+
+        # Format timestamp
+        fetched_at = datetime.utcfromtimestamp(summary.fetched_at).isoformat() + "Z"
+
+        return NetworkStatsResponse(
+            network=network_info,
+            foundation=foundation_info,
+            community=community_info,
+            decentralization_score=summary.decentralization_score,
+            estimated_node_count=3075,  # Estimate from Nodely.io
+            fetched_at=fetched_at
+        )
+
+    except ConnectionError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Unable to connect to Algorand network: {str(e)}"
+        )
+    except Exception as e:
+        print(f"Error fetching network stats: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch network statistics: {str(e)}"
+        )
+
+
+def _get_contribution_tier(balance_algo: float, is_participating: bool) -> str:
+    """
+    Classify wallet contribution tier based on balance and participation status.
+    """
+    if not is_participating:
+        if balance_algo >= 30000:
+            return "Eligible but Offline"
+        return "Observer"
+
+    # Participating wallets
+    if balance_algo >= 1_000_000:
+        return "Whale Validator"
+    elif balance_algo >= 100_000:
+        return "Major Validator"
+    elif balance_algo >= 30_000:
+        return "Active Participant"
+    elif balance_algo >= 1_000:
+        return "Community Node"
+    else:
+        return "Micro Validator"
+
+
+@router.get("/network/wallet/{address}", response_model=WalletParticipationResponse)
+async def get_wallet_participation(
+    address: str = Path(..., description="Algorand wallet address", min_length=58, max_length=58)
+):
+    """
+    Check participation status for a specific Algorand wallet.
+
+    Returns:
+    - Whether the wallet is actively participating in consensus
+    - Current balance and stake percentage
+    - Participation key details (if registered)
+    - Contribution tier classification
+
+    Data is cached for 1 minute.
+    """
+    client = get_network_stats_client()
+
+    try:
+        wallet = await client.check_wallet_participation(address)
+
+        # Convert balance to ALGO
+        balance_algo = microalgos_to_algo(wallet.balance)
+
+        # Build participation key info if available
+        participation_key = None
+        if wallet.vote_first_valid or wallet.vote_last_valid:
+            rounds_remaining = None
+            if wallet.vote_last_valid and not wallet.is_key_expired:
+                rounds_remaining = wallet.vote_last_valid - wallet.current_round
+
+            participation_key = ParticipationKeyInfo(
+                first_valid=wallet.vote_first_valid,
+                last_valid=wallet.vote_last_valid,
+                is_expired=wallet.is_key_expired,
+                rounds_remaining=rounds_remaining
+            )
+
+        # Determine contribution tier
+        contribution_tier = _get_contribution_tier(balance_algo, wallet.is_online)
+
+        return WalletParticipationResponse(
+            address=address,
+            is_participating=wallet.is_online,
+            balance_algo=round(balance_algo, 6),
+            stake_percentage=wallet.stake_percentage,
+            participation_key=participation_key,
+            contribution_tier=contribution_tier,
+            current_round=wallet.current_round
+        )
+
+    except ConnectionError as e:
+        raise HTTPException(
+            status_code=503,
+            detail=f"Unable to connect to Algorand network: {str(e)}"
+        )
+    except Exception as e:
+        print(f"Error fetching wallet participation: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to fetch wallet participation: {str(e)}"
+        )
