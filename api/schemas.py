@@ -200,3 +200,59 @@ class HistoryResponseEnhanced(BaseModel):
     count: int
     progress: ProgressData
     all_time: Optional[AllTimeData] = None
+
+
+# -----------------------------------------------------------------------------
+# Meld Arbitrage Schemas
+# -----------------------------------------------------------------------------
+
+class ArbitrageMetalData(BaseModel):
+    """Arbitrage data for a single metal (gold or silver)."""
+    spot_per_oz: float = Field(..., description="Spot price per troy ounce from Yahoo Finance")
+    implied_per_gram: float = Field(..., description="Implied price per gram (spot_per_oz / 31.1035)")
+    meld_price: float = Field(..., description="Meld token price per gram from Vestige")
+    premium_pct: float = Field(..., description="Premium percentage ((meld - implied) / implied * 100)")
+    premium_usd: float = Field(..., description="Premium in USD (meld - implied)")
+    signal: str = Field(..., description="Trading signal: STRONG_BUY, BUY, HOLD, SELL, STRONG_SELL")
+    signal_strength: float = Field(..., ge=0, le=100, description="Signal strength 0-100")
+
+
+class ArbitrageMetalError(BaseModel):
+    """Error response when price data is unavailable for a metal."""
+    error: str = Field(..., description="Error message")
+    spot_available: bool = Field(..., description="Whether spot price was available")
+    meld_available: bool = Field(..., description="Whether Meld price was available")
+
+
+class MeldArbitrageResponse(BaseModel):
+    """Complete Meld arbitrage analysis response."""
+    gold: Optional[Dict[str, Any]] = Field(None, description="Gold arbitrage data or error")
+    silver: Optional[Dict[str, Any]] = Field(None, description="Silver arbitrage data or error")
+    timestamp: str = Field(..., description="ISO timestamp of analysis")
+    data_complete: bool = Field(..., description="Whether all price data was available")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "gold": {
+                    "spot_per_oz": 2650.00,
+                    "implied_per_gram": 85.20,
+                    "meld_price": 88.50,
+                    "premium_pct": 3.87,
+                    "premium_usd": 3.30,
+                    "signal": "HOLD",
+                    "signal_strength": 0
+                },
+                "silver": {
+                    "spot_per_oz": 30.50,
+                    "implied_per_gram": 0.981,
+                    "meld_price": 1.15,
+                    "premium_pct": 17.2,
+                    "premium_usd": 0.169,
+                    "signal": "STRONG_SELL",
+                    "signal_strength": 86.0
+                },
+                "timestamp": "2024-12-27T15:30:00Z",
+                "data_complete": True
+            }
+        }

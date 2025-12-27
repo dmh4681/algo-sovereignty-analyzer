@@ -1,7 +1,14 @@
 from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
 from core.history import SovereigntySnapshot, get_history_manager
-from core.pricing import get_hardcoded_price, get_gold_price_per_oz, get_silver_price_per_oz
+from core.pricing import (
+    get_hardcoded_price,
+    get_gold_price_per_oz,
+    get_silver_price_per_oz,
+    get_meld_gold_price,
+    get_meld_silver_price,
+    GRAMS_PER_TROY_OZ
+)
 from core.network import AlgorandNetworkStats, microalgos_to_algo
 from .schemas import (
     AnalysisResponse,
@@ -15,7 +22,8 @@ from .schemas import (
     CommunityInfo,
     ScoreBreakdown,
     WalletParticipationResponse,
-    ParticipationKeyInfo
+    ParticipationKeyInfo,
+    MeldArbitrageResponse
 )
 from .agent import SovereigntyCoach, AdviceRequest
 from typing import Dict, Any, Tuple, Optional, List
@@ -681,3 +689,129 @@ async def get_wallet_participation(
             status_code=500,
             detail=f"Failed to fetch wallet participation: {str(e)}"
         )
+
+
+# -----------------------------------------------------------------------------
+# Meld Arbitrage Endpoint
+# -----------------------------------------------------------------------------
+
+def _calculate_arbitrage_signal(premium_pct: float) -> tuple:
+    """
+    Determine trading signal based on premium percentage.
+
+    Args:
+        premium_pct: The premium/discount percentage of Meld vs spot
+
+    Returns:
+        Tuple of (signal_name, signal_strength 0-100)
+    """
+    if premium_pct > 10:
+        return ('STRONG_SELL', min(100, premium_pct * 5))
+    elif premium_pct > 5:
+        return ('SELL', premium_pct * 5)
+    elif premium_pct < -10:
+        return ('STRONG_BUY', min(100, abs(premium_pct) * 5))
+    elif premium_pct < -5:
+        return ('BUY', abs(premium_pct) * 5)
+    else:
+        return ('HOLD', 0)
+
+
+@router.get("/arbitrage/meld", response_model=MeldArbitrageResponse)
+async def get_meld_arbitrage():
+    """
+    Compare Meld Gold/Silver on-chain prices to spot prices.
+
+    Returns premium/discount percentage and trading signals for arbitrage opportunities.
+
+    **Signal Interpretation:**
+    - STRONG_BUY: Meld >10% below spot (buy Meld, it's cheap)
+    - BUY: Meld 5-10% below spot
+    - HOLD: Within +/-5% of spot (fair value)
+    - SELL: Meld 5-10% above spot
+    - STRONG_SELL: Meld >10% above spot (sell Meld, buy physical)
+
+    **Data Sources:**
+    - Spot prices: Yahoo Finance (COMEX futures GC=F, SI=F)
+    - Meld prices: Vestige API (Algorand DEX aggregator)
+    """
+    result = {
+        'gold': None,
+        'silver': None,
+        'timestamp': datetime.utcnow().isoformat() + 'Z',
+        'data_complete': True
+    }
+
+    # =========== GOLD ===========
+    try:
+        spot_gold = get_gold_price_per_oz()
+        meld_gold = get_meld_gold_price()
+
+        if spot_gold and meld_gold and spot_gold > 0:
+            implied_gold = spot_gold / GRAMS_PER_TROY_OZ
+            premium_usd = meld_gold - implied_gold
+            premium_pct = (premium_usd / implied_gold) * 100
+            signal, strength = _calculate_arbitrage_signal(premium_pct)
+
+            result['gold'] = {
+                'spot_per_oz': round(spot_gold, 2),
+                'implied_per_gram': round(implied_gold, 4),
+                'meld_price': round(meld_gold, 4),
+                'premium_pct': round(premium_pct, 2),
+                'premium_usd': round(premium_usd, 4),
+                'signal': signal,
+                'signal_strength': round(strength, 1)
+            }
+        else:
+            result['data_complete'] = False
+            result['gold'] = {
+                'error': 'Unable to fetch gold prices',
+                'spot_available': spot_gold is not None,
+                'meld_available': meld_gold is not None
+            }
+    except Exception as e:
+        print(f"Error calculating gold arbitrage: {e}")
+        result['data_complete'] = False
+        result['gold'] = {
+            'error': str(e),
+            'spot_available': False,
+            'meld_available': False
+        }
+
+    # =========== SILVER ===========
+    try:
+        spot_silver = get_silver_price_per_oz()
+        meld_silver = get_meld_silver_price()
+
+        if spot_silver and meld_silver and spot_silver > 0:
+            implied_silver = spot_silver / GRAMS_PER_TROY_OZ
+            premium_usd = meld_silver - implied_silver
+            premium_pct = (premium_usd / implied_silver) * 100
+            signal, strength = _calculate_arbitrage_signal(premium_pct)
+
+            result['silver'] = {
+                'spot_per_oz': round(spot_silver, 2),
+                'implied_per_gram': round(implied_silver, 4),
+                'meld_price': round(meld_silver, 4),
+                'premium_pct': round(premium_pct, 2),
+                'premium_usd': round(premium_usd, 4),
+                'signal': signal,
+                'signal_strength': round(strength, 1)
+            }
+        else:
+            result['data_complete'] = False
+            result['silver'] = {
+                'error': 'Unable to fetch silver prices',
+                'spot_available': spot_silver is not None,
+                'meld_available': meld_silver is not None
+            }
+    except Exception as e:
+        print(f"Error calculating silver arbitrage: {e}")
+        result['data_complete'] = False
+        result['silver'] = {
+            'error': str(e),
+            'spot_available': False,
+            'meld_available': False
+        }
+
+    return result
