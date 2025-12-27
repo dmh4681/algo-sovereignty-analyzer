@@ -167,7 +167,36 @@ class HistorySaveResponse(BaseModel):
     snapshot: Optional[SovereigntySnapshot] = None
 
 
+class ProgressData(BaseModel):
+    """Progress metrics calculated from historical data."""
+    current_ratio: float
+    previous_ratio: Optional[float] = None
+    change_absolute: Optional[float] = None
+    change_pct: Optional[float] = None
+    trend: str  # "improving", "declining", "stable", "new"
+    days_tracked: int
+    snapshots_count: int
+    projected_next_status: Optional[dict] = None
+
+
+class AllTimeData(BaseModel):
+    """All-time statistics for an address."""
+    high: float
+    low: float
+    average: float
+    first_tracked: str
+
+
 class HistoryResponse(BaseModel):
     address: str
     snapshots: List[SovereigntySnapshot]
     count: int
+
+
+class HistoryResponseEnhanced(BaseModel):
+    """Enhanced history response with progress metrics."""
+    address: str
+    snapshots: List[SovereigntySnapshot]
+    count: int
+    progress: ProgressData
+    all_time: Optional[AllTimeData] = None

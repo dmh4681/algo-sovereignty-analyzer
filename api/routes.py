@@ -288,15 +288,16 @@ async def save_history_snapshot(request: HistorySaveRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/history/{address}", response_model=HistoryResponse)
+@router.get("/history/{address}")
 async def get_history(
     address: str = Path(..., description="Wallet address"),
     days: int = Query(90, description="Number of days (30, 90, or 365)")
 ):
     """
-    Get historical sovereignty snapshots for an address.
+    Get historical sovereignty snapshots for an address with progress metrics.
 
-    Returns snapshots within the specified time period.
+    Returns snapshots within the specified time period along with progress
+    tracking data for the HistoryChart component.
     """
     # Validate days parameter
     if days not in (30, 90, 365):
@@ -305,11 +306,140 @@ async def get_history(
     history_manager = get_history_manager()
     snapshots = history_manager.get_history(address, days)
 
-    return HistoryResponse(
-        address=address,
-        snapshots=snapshots,
-        count=len(snapshots)
-    )
+    # Calculate progress metrics
+    progress = _calculate_progress(snapshots)
+
+    # Calculate all-time stats
+    all_time = _calculate_all_time(snapshots) if snapshots else None
+
+    return {
+        "address": address,
+        "snapshots": snapshots,
+        "count": len(snapshots),
+        "progress": progress,
+        "all_time": all_time
+    }
+
+
+def _calculate_progress(snapshots: list) -> dict:
+    """Calculate progress metrics from snapshots."""
+    if not snapshots:
+        return {
+            "current_ratio": 0,
+            "previous_ratio": None,
+            "change_absolute": None,
+            "change_pct": None,
+            "trend": "new",
+            "days_tracked": 0,
+            "snapshots_count": 0,
+            "projected_next_status": None
+        }
+
+    # Snapshots are newest first
+    current = snapshots[0]
+    current_ratio = current.sovereignty_ratio if hasattr(current, 'sovereignty_ratio') else current.get('sovereignty_ratio', 0)
+
+    # Find snapshot from ~30 days ago
+    previous_ratio = None
+    for snap in snapshots:
+        ts = snap.timestamp if hasattr(snap, 'timestamp') else snap.get('timestamp', '')
+        try:
+            if isinstance(ts, str):
+                snap_date = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+            else:
+                snap_date = ts
+            now = datetime.now(snap_date.tzinfo) if snap_date.tzinfo else datetime.utcnow()
+            if (now - snap_date).days >= 25:
+                previous_ratio = snap.sovereignty_ratio if hasattr(snap, 'sovereignty_ratio') else snap.get('sovereignty_ratio', 0)
+                break
+        except Exception:
+            continue
+
+    # Calculate change
+    change_absolute = None
+    change_pct = None
+    trend = "new" if len(snapshots) == 1 else "stable"
+
+    if previous_ratio is not None:
+        change_absolute = round(current_ratio - previous_ratio, 2)
+        change_pct = round((change_absolute / previous_ratio) * 100, 1) if previous_ratio > 0 else 0
+
+        if change_pct > 5:
+            trend = "improving"
+        elif change_pct < -5:
+            trend = "declining"
+        else:
+            trend = "stable"
+
+    # Calculate days tracked
+    days_tracked = 0
+    if snapshots:
+        oldest = snapshots[-1]
+        ts = oldest.timestamp if hasattr(oldest, 'timestamp') else oldest.get('timestamp', '')
+        try:
+            if isinstance(ts, str):
+                oldest_date = datetime.fromisoformat(ts.replace('Z', '+00:00'))
+            else:
+                oldest_date = ts
+            now = datetime.now(oldest_date.tzinfo) if oldest_date.tzinfo else datetime.utcnow()
+            days_tracked = (now - oldest_date).days
+        except Exception:
+            pass
+
+    # Project next status
+    projected_next_status = None
+    STATUS_THRESHOLDS = [
+        (1.0, "Fragile"),
+        (3.0, "Robust"),
+        (6.0, "Antifragile"),
+        (20.0, "Generationally Sovereign")
+    ]
+
+    if trend == "improving" and change_absolute and change_absolute > 0:
+        for threshold, status in STATUS_THRESHOLDS:
+            if current_ratio < threshold:
+                gap = threshold - current_ratio
+                days_to_reach = int(gap / change_absolute * 30) if change_absolute > 0 else None
+                if days_to_reach and days_to_reach < 365:
+                    projected_date = datetime.now() + timedelta(days=days_to_reach)
+                    projected_next_status = {
+                        "status": status,
+                        "ratio_needed": threshold,
+                        "projected_date": projected_date.strftime("%Y-%m-%d")
+                    }
+                break
+
+    return {
+        "current_ratio": current_ratio,
+        "previous_ratio": previous_ratio,
+        "change_absolute": change_absolute,
+        "change_pct": change_pct,
+        "trend": trend,
+        "days_tracked": days_tracked,
+        "snapshots_count": len(snapshots),
+        "projected_next_status": projected_next_status
+    }
+
+
+def _calculate_all_time(snapshots: list) -> Optional[dict]:
+    """Calculate all-time statistics."""
+    if not snapshots:
+        return None
+
+    ratios = []
+    for snap in snapshots:
+        ratio = snap.sovereignty_ratio if hasattr(snap, 'sovereignty_ratio') else snap.get('sovereignty_ratio', 0)
+        ratios.append(ratio)
+
+    oldest = snapshots[-1]
+    ts = oldest.timestamp if hasattr(oldest, 'timestamp') else oldest.get('timestamp', '')
+
+    return {
+        "high": round(max(ratios), 2),
+        "low": round(min(ratios), 2),
+        "average": round(sum(ratios) / len(ratios), 2),
+        "first_tracked": ts if isinstance(ts, str) else ts.isoformat() if hasattr(ts, 'isoformat') else str(ts)
+    }
 
 
 @router.get("/gold-silver-ratio")

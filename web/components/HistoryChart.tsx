@@ -26,13 +26,13 @@ interface HistoryChartProps {
 }
 
 interface Snapshot {
-  id: number
+  address: string
   timestamp: string
   sovereignty_ratio: number
-  sovereignty_status: string
   hard_money_usd: number
   total_portfolio_usd: number
-  hard_money_pct: number
+  algo_price: number
+  participation_status: boolean
 }
 
 interface ProgressData {
