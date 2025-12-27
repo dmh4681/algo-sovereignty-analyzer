@@ -3,7 +3,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import './globals.css'
 import { WalletProviderWrapper } from '@/components/WalletProviderWrapper'
-import { HeaderWalletStatus } from '@/components/HeaderWalletStatus'
+import { MainNav } from '@/components/MainNav'
 
 export const viewport: Viewport = {
   themeColor: '#f97316',
@@ -68,37 +68,7 @@ export default function RootLayout({
                   />
                   <span className="font-semibold text-lg hidden sm:inline">Sovereignty Analyzer</span>
                 </Link>
-                <nav className="flex items-center gap-4">
-                  <Link href="/network" className="text-sm text-slate-400 hover:text-cyan-500 transition-colors">
-                    Network
-                  </Link>
-                  <Link href="/about" className="text-sm text-slate-400 hover:text-orange-500 transition-colors">
-                    About
-                  </Link>
-                  <Link href="/whitepaper" className="text-sm text-slate-400 hover:text-purple-500 transition-colors">
-                    Whitepaper
-                  </Link>
-                  <Link href="/training" className="text-sm text-slate-400 hover:text-blue-500 transition-colors">
-                    Training
-                  </Link>
-                  <Link href="/news" className="text-sm text-slate-400 hover:text-yellow-500 transition-colors">
-                    News
-                  </Link>
-                  {/* TODO: Re-enable when auto-mining feature is ready
-                  <Link href="/shop" className="text-sm text-slate-400 hover:text-orange-500 transition-colors">
-                    Shop
-                  </Link>
-                  */}
-                  <HeaderWalletStatus />
-                  <a
-                    href="https://github.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-slate-400 hover:text-slate-200 transition-colors"
-                  >
-                    GitHub
-                  </a>
-                </nav>
+                <MainNav />
               </div>
             </header>
 
