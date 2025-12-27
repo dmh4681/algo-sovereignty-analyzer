@@ -13,6 +13,7 @@ from .schemas import (
     NetworkInfo,
     FoundationInfo,
     CommunityInfo,
+    ScoreBreakdown,
     WalletParticipationResponse,
     ParticipationKeyInfo
 )
@@ -418,6 +419,24 @@ async def get_network_statistics():
             pct_of_online_stake=summary.community_pct_of_online
         )
 
+        # Build score breakdown if available
+        score_breakdown = None
+        if summary.score_breakdown:
+            b = summary.score_breakdown
+            score_breakdown = ScoreBreakdown(
+                community_online_pct=b.community_online_pct,
+                community_online_score=b.community_online_score,
+                participation_rate_score=b.participation_rate_score,
+                foundation_supply_pct=b.foundation_supply_pct,
+                foundation_supply_penalty=b.foundation_supply_penalty,
+                foundation_potential_control=b.foundation_potential_control,
+                potential_control_penalty=b.potential_control_penalty,
+                relay_centralization_penalty=b.relay_centralization_penalty,
+                governance_penalty=b.governance_penalty,
+                raw_score=b.raw_score,
+                final_score=b.final_score
+            )
+
         # Format timestamp
         fetched_at = datetime.utcfromtimestamp(summary.fetched_at).isoformat() + "Z"
 
@@ -426,6 +445,7 @@ async def get_network_statistics():
             foundation=foundation_info,
             community=community_info,
             decentralization_score=summary.decentralization_score,
+            score_breakdown=score_breakdown,
             estimated_node_count=3075,  # Estimate from Nodely.io
             fetched_at=fetched_at
         )

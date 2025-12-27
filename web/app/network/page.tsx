@@ -114,10 +114,17 @@ export default function NetworkPage() {
   }
 
   const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-400'
-    if (score >= 60) return 'text-yellow-400'
-    if (score >= 40) return 'text-orange-400'
+    if (score >= 75) return 'text-green-400'
+    if (score >= 45) return 'text-yellow-400'
+    if (score >= 25) return 'text-orange-400'
     return 'text-red-400'
+  }
+
+  const getScoreLabel = (score: number) => {
+    if (score >= 75) return 'Healthy'
+    if (score >= 45) return 'Moderate'
+    if (score >= 25) return 'Concerning'
+    return 'Critical'
   }
 
   const getParticipationColor = (rate: number) => {
@@ -291,13 +298,13 @@ export default function NetworkPage() {
               {networkStats?.decentralization_score || infraData?.decentralization_score || '—'}/100
             </div>
             <div className="text-sm text-slate-500 mt-1">
-              Based on stake distribution
+              {getScoreLabel(networkStats?.decentralization_score || 0)} - Risks remain
             </div>
             <div className="mt-3 h-2 bg-slate-800 rounded-full overflow-hidden">
               <div
                 className={`h-full transition-all duration-500 ${
-                  (networkStats?.decentralization_score || 0) >= 80 ? 'bg-green-500' :
-                  (networkStats?.decentralization_score || 0) >= 60 ? 'bg-yellow-500' :
+                  (networkStats?.decentralization_score || 0) >= 75 ? 'bg-green-500' :
+                  (networkStats?.decentralization_score || 0) >= 45 ? 'bg-yellow-500' :
                   'bg-orange-500'
                 }`}
                 style={{ width: `${networkStats?.decentralization_score || infraData?.decentralization_score || 0}%` }}
@@ -398,6 +405,109 @@ export default function NetworkPage() {
                 </div>
               </div>
             </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ============ SCORE BREAKDOWN ============ */}
+      {networkStats?.score_breakdown && (
+        <Card className="bg-slate-900/50 border-slate-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="w-5 h-5 text-orange-400" />
+              Decentralization Score Breakdown
+            </CardTitle>
+            <CardDescription>
+              How the score is calculated based on our strict methodology
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Positive Factors */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-green-400 flex items-center gap-2">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Positive Factors
+                </h4>
+                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Community online stake ({networkStats.score_breakdown.community_online_pct.toFixed(1)}%)</span>
+                    <span className="text-green-400 font-medium">+{networkStats.score_breakdown.community_online_score} pts</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Participation rate score</span>
+                    <span className="text-green-400 font-medium">+{networkStats.score_breakdown.participation_rate_score} pts</span>
+                  </div>
+                  <div className="border-t border-green-500/30 pt-2 flex justify-between text-sm font-medium">
+                    <span className="text-slate-300">Subtotal</span>
+                    <span className="text-green-400">+{networkStats.score_breakdown.community_online_score + networkStats.score_breakdown.participation_rate_score} pts</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Risk Penalties */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-red-400 flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Risk Penalties
+                </h4>
+                <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Foundation supply ({networkStats.score_breakdown.foundation_supply_pct.toFixed(1)}%)</span>
+                    <span className="text-red-400 font-medium">-{networkStats.score_breakdown.foundation_supply_penalty} pts</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Potential control ({networkStats.score_breakdown.foundation_potential_control.toFixed(1)}%)</span>
+                    <span className="text-red-400 font-medium">-{networkStats.score_breakdown.potential_control_penalty} pts</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Relay centralization</span>
+                    <span className="text-red-400 font-medium">-{networkStats.score_breakdown.relay_centralization_penalty} pts</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-slate-400">Governance influence</span>
+                    <span className="text-red-400 font-medium">-{networkStats.score_breakdown.governance_penalty} pts</span>
+                  </div>
+                  <div className="border-t border-red-500/30 pt-2 flex justify-between text-sm font-medium">
+                    <span className="text-slate-300">Subtotal</span>
+                    <span className="text-red-400">-{
+                      networkStats.score_breakdown.foundation_supply_penalty +
+                      networkStats.score_breakdown.potential_control_penalty +
+                      networkStats.score_breakdown.relay_centralization_penalty +
+                      networkStats.score_breakdown.governance_penalty
+                    } pts</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Final Score Summary */}
+            <div className="mt-6 bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-sm text-slate-400">Final Score</div>
+                  <div className={`text-2xl font-bold ${getScoreColor(networkStats.score_breakdown.final_score)}`}>
+                    {networkStats.score_breakdown.final_score}/100
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className={`text-sm font-medium ${getScoreColor(networkStats.score_breakdown.final_score)}`}>
+                    {getScoreLabel(networkStats.score_breakdown.final_score)}
+                  </div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    {networkStats.score_breakdown.final_score >= 45
+                      ? 'Progress being made, but risks remain'
+                      : 'Significant centralization concerns'}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-500 mt-4">
+              Our methodology penalizes Foundation supply concentration, potential control scenarios,
+              relay node centralization, and governance influence. Score improves as community
+              participation grows and infrastructure decentralizes.
+            </p>
           </CardContent>
         </Card>
       )}

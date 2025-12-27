@@ -340,11 +340,29 @@ export interface CommunityInfo {
   pct_of_online_stake: number
 }
 
+export interface ScoreBreakdown {
+  // Positive factors
+  community_online_pct: number
+  community_online_score: number
+  participation_rate_score: number
+  // Risk penalties
+  foundation_supply_pct: number
+  foundation_supply_penalty: number
+  foundation_potential_control: number
+  potential_control_penalty: number
+  relay_centralization_penalty: number
+  governance_penalty: number
+  // Totals
+  raw_score: number
+  final_score: number
+}
+
 export interface NetworkStatsResponse {
   network: NetworkInfo
   foundation: FoundationInfo
   community: CommunityInfo
   decentralization_score: number
+  score_breakdown?: ScoreBreakdown
   estimated_node_count: number
   fetched_at: string
 }

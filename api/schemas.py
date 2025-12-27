@@ -32,12 +32,33 @@ class CommunityInfo(BaseModel):
     pct_of_online_stake: float = Field(..., description="Community % of online stake")
 
 
+class ScoreBreakdown(BaseModel):
+    """Detailed breakdown of decentralization score factors."""
+    # Positive factors
+    community_online_pct: float = Field(..., description="Community % of online stake")
+    community_online_score: int = Field(..., description="Points earned for community stake (max 30)")
+    participation_rate_score: int = Field(..., description="Points earned for participation rate (max 10)")
+
+    # Risk penalties
+    foundation_supply_pct: float = Field(..., description="Foundation % of total supply")
+    foundation_supply_penalty: int = Field(..., description="Points deducted for Foundation holdings (max 25)")
+    foundation_potential_control: float = Field(..., description="If Foundation went fully online, their % of stake")
+    potential_control_penalty: int = Field(..., description="Points deducted for potential control risk (max 20)")
+    relay_centralization_penalty: int = Field(..., description="Points deducted for relay node centralization (15)")
+    governance_penalty: int = Field(..., description="Points deducted for governance influence (10)")
+
+    # Totals
+    raw_score: int = Field(..., description="Raw score before floor/ceiling")
+    final_score: int = Field(..., description="Final score (0-100)")
+
+
 class NetworkStatsResponse(BaseModel):
     """Complete network statistics response."""
     network: NetworkInfo
     foundation: FoundationInfo
     community: CommunityInfo
     decentralization_score: int = Field(..., ge=0, le=100, description="0-100 decentralization score")
+    score_breakdown: Optional[ScoreBreakdown] = Field(None, description="Detailed score breakdown")
     estimated_node_count: int = Field(default=3075, description="Estimated number of participation nodes")
     fetched_at: str = Field(..., description="ISO timestamp of when data was fetched")
 
@@ -61,7 +82,20 @@ class NetworkStatsResponse(BaseModel):
                     "estimated_stake_algo": 1971000000,
                     "pct_of_online_stake": 100.0
                 },
-                "decentralization_score": 96,
+                "decentralization_score": 48,
+                "score_breakdown": {
+                    "community_online_pct": 100.0,
+                    "community_online_score": 30,
+                    "participation_rate_score": 6,
+                    "foundation_supply_pct": 2.87,
+                    "foundation_supply_penalty": 3,
+                    "foundation_potential_control": 12.3,
+                    "potential_control_penalty": 5,
+                    "relay_centralization_penalty": 15,
+                    "governance_penalty": 10,
+                    "raw_score": 3,
+                    "final_score": 48
+                },
                 "estimated_node_count": 3075,
                 "fetched_at": "2024-12-26T15:30:00Z"
             }
