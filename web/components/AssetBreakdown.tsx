@@ -14,11 +14,13 @@ export function AssetBreakdown({ categories }: AssetBreakdownProps) {
   const goldAssets = hardMoneyAssets.filter(a => getHardMoneyType(a.ticker) === 'gold')
   const silverAssets = hardMoneyAssets.filter(a => getHardMoneyType(a.ticker) === 'silver')
   const bitcoinAssets = hardMoneyAssets.filter(a => getHardMoneyType(a.ticker) === 'bitcoin')
+  const igaAssets = hardMoneyAssets.filter(a => getHardMoneyType(a.ticker) === 'iga')
 
   const goldValue = goldAssets.reduce((sum, a) => sum + a.usd_value, 0)
   const silverValue = silverAssets.reduce((sum, a) => sum + a.usd_value, 0)
   const bitcoinValue = bitcoinAssets.reduce((sum, a) => sum + a.usd_value, 0)
-  const totalHardMoney = goldValue + silverValue + bitcoinValue
+  const igaValue = igaAssets.reduce((sum, a) => sum + a.usd_value, 0)
+  const totalHardMoney = goldValue + silverValue + bitcoinValue + igaValue
 
   return (
     <div className="space-y-4">
@@ -31,15 +33,16 @@ export function AssetBreakdown({ categories }: AssetBreakdownProps) {
                 <span className="text-orange-500">₿</span>
                 <span className="text-yellow-400">🥇</span>
                 <span className="text-slate-300">🥈</span>
+                <span className="text-purple-400">🟣</span>
               </span>
-              <span className="bg-gradient-to-r from-orange-500 via-yellow-400 to-slate-300 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-orange-500 via-yellow-400 to-purple-400 bg-clip-text text-transparent">
                 Hard Money
               </span>
             </CardTitle>
-            <p className="text-sm text-slate-400">Bitcoin, Gold, Silver</p>
+            <p className="text-sm text-slate-400">Bitcoin, Gold, Silver, iGA</p>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Gold Card */}
               <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-yellow-600/20 to-yellow-900/20 border-2 border-yellow-500/30 p-6 hover:border-yellow-400/50 transition-all">
                 <div className="absolute top-0 right-0 text-9xl opacity-10">🥇</div>
@@ -102,6 +105,28 @@ export function AssetBreakdown({ categories }: AssetBreakdownProps) {
                   </div>
                   {bitcoinAssets.length === 0 && (
                     <div className="text-orange-600/50 text-sm italic">No bitcoin holdings</div>
+                  )}
+                </div>
+              </div>
+
+              {/* iGA Card */}
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-purple-600/20 to-purple-900/20 border-2 border-purple-500/30 p-6 hover:border-purple-400/50 transition-all">
+                <div className="absolute top-0 right-0 text-9xl opacity-10">🟣</div>
+                <div className="relative z-10">
+                  <div className="text-purple-400 text-sm font-medium mb-2">iGA</div>
+                  <div className="text-4xl font-bold text-purple-300 mb-1 tabular-nums">
+                    {formatUSD(igaValue)}
+                  </div>
+                  <div className="space-y-1">
+                    {igaAssets.map((asset, idx) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span className="text-purple-200/70">{asset.ticker}</span>
+                        <span className="text-purple-100 tabular-nums">{formatNumber(asset.amount)}</span>
+                      </div>
+                    ))}
+                  </div>
+                  {igaAssets.length === 0 && (
+                    <div className="text-purple-600/50 text-sm italic">No iGA holdings</div>
                   )}
                 </div>
               </div>

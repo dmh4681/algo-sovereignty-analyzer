@@ -15,7 +15,7 @@ def get_hardcoded_price(ticker: str) -> Optional[float]:
         
     # ALGO & Derivatives
     if t in ['ALGO', 'FALGO', 'XALGO']:
-        return 0.15  # Conservative floor price
+        return 0.35  # Conservative fallback (Dec 2024/Jan 2025)
         
     # Bitcoin
     if t in ['BTC', 'WBTC', 'GOBTC', 'FGOBTC']:
@@ -58,8 +58,13 @@ def _fetch_price(coin_id: str) -> Optional[float]:
     return None
 
 def get_algo_price() -> Optional[float]:
-    """Fetch live ALGO price from CoinGecko API"""
-    return _fetch_price('algorand')
+    """Fetch live ALGO price from CoinGecko API with hardcoded fallback"""
+    price = _fetch_price('algorand')
+    if price is None:
+        # Use hardcoded fallback if API fails
+        print("⚠️  CoinGecko ALGO price failed, using hardcoded fallback")
+        return get_hardcoded_price('ALGO')
+    return price
 
 def get_bitcoin_price() -> Optional[float]:
     """Fetch BTC price from CoinGecko (for goBTC valuation)"""
