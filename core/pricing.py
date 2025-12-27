@@ -1,6 +1,19 @@
 import requests
 import time
 from typing import Optional
+from datetime import datetime, timedelta
+
+# Meld ASA IDs
+MELD_GOLD_ASA = 246516580
+MELD_SILVER_ASA = 246519683
+GRAMS_PER_TROY_OZ = 31.1035
+
+# Simple cache for Meld prices (5-minute TTL)
+_meld_price_cache: dict = {
+    'gold': {'price': None, 'expires': None},
+    'silver': {'price': None, 'expires': None}
+}
+MELD_CACHE_TTL_SECONDS = 300  # 5 minutes
 
 def get_hardcoded_price(ticker: str) -> Optional[float]:
     """
@@ -184,6 +197,129 @@ def fetch_vestige_price(asset_id: int) -> Optional[float]:
     except Exception as e:
         print(f"⚠️  Unexpected error fetching Vestige price for asset {asset_id}: {e}")
     return None
+
+
+def _fetch_meld_price_from_vestige(asset_id: int) -> Optional[float]:
+    """
+    Fetch Meld token price from Vestige API.
+
+    Tries the main API first (returns USDC price directly), then falls back
+    to the free API endpoint.
+
+    Args:
+        asset_id: The ASA ID (MELD_GOLD_ASA or MELD_SILVER_ASA)
+
+    Returns:
+        Price in USD per token (per gram for Meld), or None on error
+    """
+    # Try the main Vestige API first (same as fetch_vestige_price)
+    price = fetch_vestige_price(asset_id)
+    if price is not None and price > 0:
+        return price
+
+    # Fallback: try the free API endpoint
+    try:
+        url = f"https://free-api.vestige.fi/asset/{asset_id}/price"
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        }
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+
+        # The free API returns price in ALGO
+        price_in_algo = data.get('price')
+        if price_in_algo is None or price_in_algo <= 0:
+            return None
+
+        # Convert to USD using current ALGO price
+        algo_price = get_algo_price()
+        if algo_price is None or algo_price <= 0:
+            return None
+
+        return price_in_algo * algo_price
+
+    except requests.exceptions.Timeout:
+        print(f"[WARN] Timeout fetching Meld price from Vestige for ASA {asset_id}")
+    except requests.exceptions.RequestException as e:
+        print(f"[WARN] Network error fetching Meld price from Vestige: {e}")
+    except Exception as e:
+        print(f"[WARN] Error fetching Meld price from Vestige: {e}")
+    return None
+
+
+def get_meld_gold_price() -> Optional[float]:
+    """
+    Fetch Meld GOLD$ price from Vestige API.
+
+    Returns USD per gram. Uses 5-minute cache to avoid hammering the API.
+    Falls back to implied spot price on error.
+    """
+    global _meld_price_cache
+
+    # Check cache
+    cache_entry = _meld_price_cache['gold']
+    if cache_entry['price'] is not None and cache_entry['expires'] is not None:
+        if datetime.now() < cache_entry['expires']:
+            return cache_entry['price']
+
+    # Fetch fresh price
+    price = _fetch_meld_price_from_vestige(MELD_GOLD_ASA)
+
+    if price is not None and price > 0:
+        # Update cache
+        _meld_price_cache['gold'] = {
+            'price': price,
+            'expires': datetime.now() + timedelta(seconds=MELD_CACHE_TTL_SECONDS)
+        }
+        return price
+
+    # Fallback: use implied price from spot
+    spot_oz = get_gold_price_per_oz()
+    if spot_oz:
+        implied = spot_oz / GRAMS_PER_TROY_OZ
+        print(f"[WARN] Using implied gold price: ${implied:.4f}/g (spot fallback)")
+        return implied
+
+    # Last resort: hardcoded fallback
+    return get_hardcoded_price('GOLD$')
+
+
+def get_meld_silver_price() -> Optional[float]:
+    """
+    Fetch Meld SILVER$ price from Vestige API.
+
+    Returns USD per gram. Uses 5-minute cache to avoid hammering the API.
+    Falls back to implied spot price on error.
+    """
+    global _meld_price_cache
+
+    # Check cache
+    cache_entry = _meld_price_cache['silver']
+    if cache_entry['price'] is not None and cache_entry['expires'] is not None:
+        if datetime.now() < cache_entry['expires']:
+            return cache_entry['price']
+
+    # Fetch fresh price
+    price = _fetch_meld_price_from_vestige(MELD_SILVER_ASA)
+
+    if price is not None and price > 0:
+        # Update cache
+        _meld_price_cache['silver'] = {
+            'price': price,
+            'expires': datetime.now() + timedelta(seconds=MELD_CACHE_TTL_SECONDS)
+        }
+        return price
+
+    # Fallback: use implied price from spot
+    spot_oz = get_silver_price_per_oz()
+    if spot_oz:
+        implied = spot_oz / GRAMS_PER_TROY_OZ
+        print(f"[WARN] Using implied silver price: ${implied:.4f}/g (spot fallback)")
+        return implied
+
+    # Last resort: hardcoded fallback
+    return get_hardcoded_price('SILVER$')
 
 def get_asset_price(ticker: str, asset_id: Optional[int] = None) -> Optional[float]:
     """
