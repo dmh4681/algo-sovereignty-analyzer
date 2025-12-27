@@ -16,6 +16,7 @@
     "@blockshake/defly-connect": "^1.2.1",
     "@perawallet/connect": "^1.4.2",
     "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-progress": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@txnlab/use-wallet": "^4.3.1",
     "@txnlab/use-wallet-react": "^4.3.1",

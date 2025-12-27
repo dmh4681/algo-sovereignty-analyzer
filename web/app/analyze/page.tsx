@@ -252,9 +252,14 @@ function AnalyzeContent() {
           </section>
 
           {/* History Chart */}
-          <section>
-            <HistoryChart address={address} monthlyExpenses={expenses || undefined} />
-          </section>
+          {analysis.sovereignty_data && (
+            <section>
+              <HistoryChart
+                address={address}
+                currentRatio={analysis.sovereignty_data.sovereignty_ratio}
+              />
+            </section>
+          )}
 
           {/* Badge Section */}
           {analysis.sovereignty_data && (
