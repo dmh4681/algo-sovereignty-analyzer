@@ -1,10 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-import { getInfrastructureAudit, getParticipationStats } from '@/lib/api'
-import { InfrastructureAudit, ParticipationStats } from '@/lib/types'
+import { Button } from '@/components/ui/button'
+import { getNetworkStats, getInfrastructureAudit, getParticipationStats } from '@/lib/api'
+import { NetworkStatsResponse, InfrastructureAudit, ParticipationStats } from '@/lib/types'
 import {
   Server,
   Cloud,
@@ -20,18 +23,57 @@ import {
   Coins,
   TrendingUp,
   Award,
-  ExternalLink
+  ExternalLink,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Target,
+  Lock,
+  Scale
 } from 'lucide-react'
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+  Tooltip
+} from 'recharts'
+
+// Dynamically import wallet-dependent component
+const YourContributionSection = dynamic(
+  () => import('./YourContributionSection'),
+  { ssr: false, loading: () => <Skeleton className="h-64" /> }
+)
+
+// Format large numbers
+function formatAlgo(amount: number): string {
+  if (amount >= 1_000_000_000) {
+    return `${(amount / 1_000_000_000).toFixed(2)}B`
+  }
+  if (amount >= 1_000_000) {
+    return `${(amount / 1_000_000).toFixed(2)}M`
+  }
+  if (amount >= 1_000) {
+    return `${(amount / 1_000).toFixed(1)}K`
+  }
+  return amount.toFixed(0)
+}
 
 export default function NetworkPage() {
+  const [networkStats, setNetworkStats] = useState<NetworkStatsResponse | null>(null)
   const [infraData, setInfraData] = useState<InfrastructureAudit | null>(null)
   const [participationData, setParticipationData] = useState<ParticipationStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [showEducation, setShowEducation] = useState(false)
 
   useEffect(() => {
     fetchAllData()
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(() => fetchAllData(), 5 * 60 * 1000)
+    return () => clearInterval(interval)
   }, [])
 
   const fetchAllData = async (forceRefresh: boolean = false) => {
@@ -40,15 +82,29 @@ export default function NetworkPage() {
         setRefreshing(true)
       }
 
-      // Fetch both in parallel
-      const [infraResult, participationResult] = await Promise.all([
+      // Fetch all data in parallel
+      const [networkResult, infraResult, participationResult] = await Promise.allSettled([
+        getNetworkStats(),
         getInfrastructureAudit(forceRefresh),
         getParticipationStats(forceRefresh)
       ])
 
-      setInfraData(infraResult)
-      setParticipationData(participationResult)
-      setError(null)
+      if (networkResult.status === 'fulfilled') {
+        setNetworkStats(networkResult.value)
+      }
+      if (infraResult.status === 'fulfilled') {
+        setInfraData(infraResult.value)
+      }
+      if (participationResult.status === 'fulfilled') {
+        setParticipationData(participationResult.value)
+      }
+
+      // Only set error if all requests failed
+      if (networkResult.status === 'rejected' && infraResult.status === 'rejected' && participationResult.status === 'rejected') {
+        setError('Failed to fetch network data')
+      } else {
+        setError(null)
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch network data')
     } finally {
@@ -57,42 +113,42 @@ export default function NetworkPage() {
     }
   }
 
-  const getHealthColor = (color: string) => {
-    switch (color) {
-      case 'green': return 'text-green-400'
-      case 'yellow': return 'text-yellow-400'
-      case 'orange': return 'text-orange-400'
-      case 'red': return 'text-red-400'
-      default: return 'text-slate-400'
-    }
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-green-400'
+    if (score >= 60) return 'text-yellow-400'
+    if (score >= 40) return 'text-orange-400'
+    return 'text-red-400'
   }
 
-  const getHealthBgColor = (color: string) => {
-    switch (color) {
-      case 'green': return 'bg-green-500'
-      case 'yellow': return 'bg-yellow-500'
-      case 'orange': return 'bg-orange-500'
-      case 'red': return 'bg-red-500'
-      default: return 'bg-slate-500'
-    }
+  const getParticipationColor = (rate: number) => {
+    if (rate >= 30) return 'text-green-400'
+    if (rate >= 20) return 'text-yellow-400'
+    return 'text-red-400'
   }
 
-  const getHealthIcon = (health: string) => {
-    switch (health) {
-      case 'excellent':
-      case 'healthy':
-      case 'strong':
-        return <CheckCircle2 className="w-6 h-6 text-green-400" />
-      case 'moderate':
-        return <Activity className="w-6 h-6 text-yellow-400" />
-      case 'concerning':
-      case 'low':
-        return <AlertTriangle className="w-6 h-6 text-orange-400" />
-      case 'critical':
-        return <AlertTriangle className="w-6 h-6 text-red-400" />
-      default:
-        return <Activity className="w-6 h-6 text-slate-400" />
-    }
+  // Prepare chart data for stake distribution
+  const getStakeChartData = () => {
+    if (!networkStats) return []
+
+    const offlineStake = networkStats.network.total_supply_algo - networkStats.network.online_stake_algo
+
+    return [
+      {
+        name: 'Community Stake',
+        value: networkStats.community.estimated_stake_algo,
+        color: '#22c55e' // green
+      },
+      {
+        name: 'Foundation Stake',
+        value: networkStats.foundation.online_balance_algo,
+        color: '#f97316' // orange
+      },
+      {
+        name: 'Offline/Non-participating',
+        value: offlineStake,
+        color: '#475569' // slate
+      },
+    ]
   }
 
   if (loading) {
@@ -102,119 +158,421 @@ export default function NetworkPage() {
           <Skeleton className="h-10 w-96 mx-auto" />
           <Skeleton className="h-6 w-64 mx-auto" />
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Skeleton className="h-48" />
-          <Skeleton className="h-48" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
+          <Skeleton className="h-32" />
         </div>
-        <Skeleton className="h-64" />
+        <Skeleton className="h-80" />
         <Skeleton className="h-64" />
       </div>
     )
   }
 
-  if (error || (!infraData && !participationData)) {
+  if (error && !networkStats && !infraData && !participationData) {
     return (
       <div className="max-w-4xl mx-auto py-16 text-center space-y-6">
         <Server className="w-16 h-16 mx-auto text-red-400" />
-        <h1 className="text-3xl font-bold">Network Audit Failed</h1>
-        <p className="text-slate-400">{error || 'Failed to load network data'}</p>
-        <button
+        <h1 className="text-3xl font-bold">Network Data Unavailable</h1>
+        <p className="text-slate-400">{error}</p>
+        <Button
           onClick={() => fetchAllData(true)}
-          className="px-6 py-3 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white font-medium transition-colors"
+          className="bg-orange-600 hover:bg-orange-500"
         >
-          <RefreshCw className="w-4 h-4 inline mr-2" />
+          <RefreshCw className="w-4 h-4 mr-2" />
           Retry
-        </button>
+        </Button>
       </div>
     )
   }
+
+  const chartData = getStakeChartData()
 
   return (
     <div className="max-w-6xl mx-auto space-y-10">
       {/* Header */}
       <div className="text-center space-y-4">
         <h1 className="text-4xl font-bold flex items-center justify-center gap-3">
-          <Server className="w-10 h-10 text-cyan-400" />
-          Network Sovereignty Audit
+          <Globe className="w-10 h-10 text-orange-400" />
+          Network Health
         </h1>
         <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-          Real-time analysis of Algorand network decentralization
+          Real-time Algorand network participation and decentralization metrics
         </p>
         <button
           onClick={() => fetchAllData(true)}
           disabled={refreshing}
-          className="text-sm text-cyan-400 hover:text-cyan-300 transition-colors disabled:opacity-50 flex items-center gap-1 mx-auto"
+          className="text-sm text-orange-400 hover:text-orange-300 transition-colors disabled:opacity-50 flex items-center gap-1 mx-auto"
         >
           <RefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
           {refreshing ? 'Refreshing...' : 'Refresh Data'}
         </button>
       </div>
 
-      {/* ============ PARTICIPATION SECTION ============ */}
+      {/* ============ NETWORK HEALTH DASHBOARD (4 Cards) ============ */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Card 1: Online Stake */}
+        <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Coins className="w-5 h-5 text-green-400" />
+              <span className="text-sm text-slate-400">Online Stake</span>
+            </div>
+            <div className="text-3xl font-bold text-green-400">
+              {networkStats ? formatAlgo(networkStats.network.online_stake_algo) : '—'}
+            </div>
+            <div className="text-sm text-slate-500 mt-1">
+              ALGO securing the network
+            </div>
+            <div className="mt-3 h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-500"
+                style={{ width: `${networkStats?.network.participation_rate || 0}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 2: Participation Rate */}
+        <Card className="bg-gradient-to-br from-purple-500/10 to-indigo-500/10 border-purple-500/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="w-5 h-5 text-purple-400" />
+              <span className="text-sm text-slate-400">Participation Rate</span>
+            </div>
+            <div className={`text-3xl font-bold ${getParticipationColor(networkStats?.network.participation_rate || 0)}`}>
+              {networkStats ? `${networkStats.network.participation_rate.toFixed(1)}%` : '—'}
+            </div>
+            <div className="text-sm text-slate-500 mt-1">
+              of all ALGO participating
+            </div>
+            <div className="flex items-center gap-1 mt-2 text-xs text-slate-500">
+              <Info className="w-3 h-3" />
+              {networkStats && networkStats.network.participation_rate >= 30 ? 'Healthy' :
+               networkStats && networkStats.network.participation_rate >= 20 ? 'Moderate' : 'Low'}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Card 3: Estimated Nodes */}
+        <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Server className="w-5 h-5 text-cyan-400" />
+              <span className="text-sm text-slate-400">Estimated Nodes</span>
+            </div>
+            <div className="text-3xl font-bold text-cyan-400">
+              ~{networkStats?.estimated_node_count.toLocaleString() || '3,000'}+
+            </div>
+            <div className="text-sm text-slate-500 mt-1">
+              Independent validators
+            </div>
+            <a
+              href="https://nodely.io"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 mt-2 text-xs text-cyan-500 hover:text-cyan-400"
+            >
+              <ExternalLink className="w-3 h-3" />
+              View live count
+            </a>
+          </CardContent>
+        </Card>
+
+        {/* Card 4: Decentralization Score */}
+        <Card className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/30">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="w-5 h-5 text-orange-400" />
+              <span className="text-sm text-slate-400">Decentralization Score</span>
+            </div>
+            <div className={`text-3xl font-bold ${getScoreColor(networkStats?.decentralization_score || 0)}`}>
+              {networkStats?.decentralization_score || infraData?.decentralization_score || '—'}/100
+            </div>
+            <div className="text-sm text-slate-500 mt-1">
+              Based on stake distribution
+            </div>
+            <div className="mt-3 h-2 bg-slate-800 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all duration-500 ${
+                  (networkStats?.decentralization_score || 0) >= 80 ? 'bg-green-500' :
+                  (networkStats?.decentralization_score || 0) >= 60 ? 'bg-yellow-500' :
+                  'bg-orange-500'
+                }`}
+                style={{ width: `${networkStats?.decentralization_score || infraData?.decentralization_score || 0}%` }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ============ STAKE DISTRIBUTION CHART ============ */}
+      {networkStats && (
+        <Card className="bg-slate-900/50 border-slate-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Scale className="w-5 h-5 text-orange-400" />
+              Stake Distribution
+            </CardTitle>
+            <CardDescription>
+              How online stake is distributed between Foundation and Community
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+              {/* Chart */}
+              <div className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={chartData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={100}
+                      paddingAngle={2}
+                      dataKey="value"
+                    >
+                      {chartData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: number) => [`${formatAlgo(value)} ALGO`, '']}
+                      contentStyle={{
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '8px'
+                      }}
+                    />
+                    <Legend
+                      formatter={(value) => <span className="text-slate-300">{value}</span>}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Stats */}
+              <div className="space-y-4">
+                <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Users className="w-5 h-5 text-green-400" />
+                    <span className="font-medium text-green-400">Community Stake</span>
+                  </div>
+                  <div className="text-2xl font-bold text-slate-200">
+                    {formatAlgo(networkStats.community.estimated_stake_algo)} ALGO
+                  </div>
+                  <div className="text-sm text-slate-400 mt-1">
+                    {networkStats.community.pct_of_online_stake.toFixed(1)}% of online stake
+                  </div>
+                </div>
+
+                <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Building2 className="w-5 h-5 text-orange-400" />
+                    <span className="font-medium text-orange-400">Foundation Stake</span>
+                  </div>
+                  <div className="text-2xl font-bold text-slate-200">
+                    {formatAlgo(networkStats.foundation.online_balance_algo)} ALGO
+                  </div>
+                  <div className="text-sm text-slate-400 mt-1">
+                    {networkStats.foundation.pct_of_online_stake.toFixed(1)}% of online stake
+                    <span className="text-slate-500 ml-1">
+                      ({networkStats.foundation.address_count} addresses)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="bg-slate-700/30 border border-slate-600/30 rounded-lg p-4">
+                  <p className="text-sm text-slate-400">
+                    <span className="text-slate-200 font-medium">For true decentralization,</span> community stake should exceed 80% of online participation.
+                    {networkStats.community.pct_of_online_stake >= 80 ? (
+                      <span className="text-green-400 ml-1">This target is currently met.</span>
+                    ) : (
+                      <span className="text-orange-400 ml-1">
+                        Currently at {networkStats.community.pct_of_online_stake.toFixed(1)}%.
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ============ YOUR CONTRIBUTION SECTION ============ */}
+      <YourContributionSection />
+
+      {/* ============ THE DECENTRALIZATION IMPERATIVE ============ */}
+      <Card className="bg-gradient-to-br from-slate-900 via-slate-900 to-orange-900/20 border-orange-500/20">
+        <CardHeader
+          className="cursor-pointer"
+          onClick={() => setShowEducation(!showEducation)}
+        >
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-xl text-orange-400">
+                <Lock className="w-5 h-5" />
+                Why Decentralization Matters
+              </CardTitle>
+              <CardDescription className="text-slate-400 mt-1">
+                The case for distributed consensus
+              </CardDescription>
+            </div>
+            <Button variant="ghost" size="sm" className="text-slate-400">
+              {showEducation ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+            </Button>
+          </div>
+        </CardHeader>
+
+        {showEducation && (
+          <CardContent className="space-y-6 text-slate-300">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                  <span className="font-semibold text-red-400">Single Points of Failure</span>
+                </div>
+                <p className="text-sm text-slate-400">
+                  Centralized systems create systemic risk. One compromised server, one court order,
+                  one Terms of Service change can halt an entire network.
+                </p>
+              </div>
+
+              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Scale className="w-5 h-5 text-yellow-400" />
+                  <span className="font-semibold text-yellow-400">Regulatory Pressure</span>
+                </div>
+                <p className="text-sm text-slate-400">
+                  Centralized entities can be coerced. Governments can pressure companies to censor
+                  transactions, freeze accounts, or shut down services.
+                </p>
+              </div>
+
+              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Shield className="w-5 h-5 text-green-400" />
+                  <span className="font-semibold text-green-400">True Sovereignty</span>
+                </div>
+                <p className="text-sm text-slate-400">
+                  Real sovereignty requires distributed control. No single entity should have the power
+                  to unilaterally change the rules or deny access.
+                </p>
+              </div>
+
+              <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Zap className="w-5 h-5 text-cyan-400" />
+                  <span className="font-semibold text-cyan-400">Every Node Counts</span>
+                </div>
+                <p className="text-sm text-slate-400">
+                  Each participation node strengthens the network. Your node validates transactions,
+                  making the network more resistant to attack and censorship.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
+              <p className="text-sm text-slate-400 italic">
+                &quot;A network running on 1,000 Raspberry Pis in 1,000 different homes is infinitely more robust
+                than a network running on 10,000 virtual machines in one Virginia data center.
+                The former is a revolution; the latter is just a database.&quot;
+              </p>
+            </div>
+          </CardContent>
+        )}
+      </Card>
+
+      {/* ============ CALL TO ACTION CARDS ============ */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Run a Node */}
+        <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30 hover:border-cyan-500/50 transition-colors">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-cyan-500/20 flex items-center justify-center">
+                <Server className="w-8 h-8 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-cyan-400">Run a Node</h3>
+                <p className="text-sm text-slate-400 mt-1">
+                  Contribute to decentralization and earn rewards
+                </p>
+              </div>
+              <a
+                href="https://developer.algorand.org/docs/run-a-node/participate/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-500 rounded-lg text-white text-sm font-medium transition-colors"
+              >
+                Get Started
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Earn iGA */}
+        <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/30 hover:border-yellow-500/50 transition-colors">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center">
+                <Award className="w-8 h-8 text-yellow-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-yellow-400">Earn iGA</h3>
+                <p className="text-sm text-slate-400 mt-1">
+                  Get rewarded for participation with iGetAlgo (333 supply)
+                </p>
+              </div>
+              <a
+                href="https://twitter.com/iGetAlgo"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-white text-sm font-medium transition-colors"
+              >
+                Learn More
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Analyze Holdings */}
+        <Card className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/30 hover:border-orange-500/50 transition-colors">
+          <CardContent className="pt-6">
+            <div className="flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 rounded-full bg-orange-500/20 flex items-center justify-center">
+                <Target className="w-8 h-8 text-orange-400" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-orange-400">Stack Hard Money</h3>
+                <p className="text-sm text-slate-400 mt-1">
+                  Build your sovereignty ratio with real assets
+                </p>
+              </div>
+              <Link
+                href="/analyze"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-orange-600 hover:bg-orange-500 rounded-lg text-white text-sm font-medium transition-colors"
+              >
+                Analyze Wallet
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* ============ DETAILED PARTICIPATION DATA ============ */}
       {participationData && (
         <>
           <div className="border-t border-slate-800 pt-8">
             <h2 className="text-2xl font-bold text-center mb-6 flex items-center justify-center gap-2">
               <Users className="w-7 h-7 text-purple-400" />
-              Consensus Participation
+              Validator Details
             </h2>
           </div>
-
-          {/* Online Stake Card */}
-          <Card className="bg-gradient-to-br from-purple-500/20 via-indigo-500/10 to-blue-500/20 border-purple-500/40">
-            <CardContent className="py-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-                {/* Online Stake */}
-                <div className="text-center">
-                  <div className="text-5xl font-bold text-purple-400 mb-2">
-                    {participationData.online_stake.formatted}
-                  </div>
-                  <div className="text-slate-400">ALGO Online</div>
-                  <div className="text-sm text-purple-400/80 mt-1">
-                    {participationData.online_stake.percentage.toFixed(1)}% of supply
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div className="text-center border-x border-slate-700/50 px-4">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    {getHealthIcon(participationData.interpretation.health)}
-                    <span className={`text-2xl font-bold capitalize ${getHealthColor(participationData.interpretation.color)}`}>
-                      {participationData.interpretation.health}
-                    </span>
-                  </div>
-                  <p className="text-slate-400 text-sm">
-                    {participationData.interpretation.message}
-                  </p>
-                </div>
-
-                {/* Total Supply */}
-                <div className="text-center">
-                  <div className="text-4xl font-bold text-slate-300 mb-2">
-                    {participationData.total_supply.formatted}
-                  </div>
-                  <div className="text-slate-400">Total ALGO Supply</div>
-                  <div className="text-xs text-slate-500 mt-1">
-                    Round #{participationData.current_round.toLocaleString()}
-                  </div>
-                </div>
-              </div>
-
-              {/* Online Stake Progress */}
-              <div className="mt-6 max-w-2xl mx-auto">
-                <div className="flex justify-between text-sm mb-2">
-                  <span className="text-slate-400">Online Stake</span>
-                  <span className="text-purple-400">{participationData.online_stake.percentage.toFixed(1)}%</span>
-                </div>
-                <div className="h-4 bg-slate-700/50 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500"
-                    style={{ width: `${participationData.online_stake.percentage}%` }}
-                  />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Incentive Eligible & Top Validators */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -226,7 +584,7 @@ export default function NetworkPage() {
                   Incentive Eligible Validators
                 </CardTitle>
                 <CardDescription>
-                  Accounts eligible for consensus rewards
+                  Accounts eligible for consensus rewards (30k+ ALGO)
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -249,10 +607,10 @@ export default function NetworkPage() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2 text-indigo-400">
                   <TrendingUp className="w-5 h-5" />
-                  Stake Distribution
+                  Stake Concentration
                 </CardTitle>
                 <CardDescription>
-                  How participation is distributed
+                  How stake is distributed among validators
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -269,9 +627,7 @@ export default function NetworkPage() {
                       {(() => {
                         const top10 = participationData.validators.top_validators.slice(0, 10)
                         const sum = top10.reduce((acc, v) => acc + v.stake_algo, 0)
-                        if (sum >= 1_000_000) return `${(sum / 1_000_000).toFixed(1)}M`
-                        if (sum >= 1_000) return `${(sum / 1_000).toFixed(1)}K`
-                        return sum.toFixed(0)
+                        return formatAlgo(sum)
                       })()}
                     </span>
                   </div>
@@ -369,66 +725,9 @@ export default function NetworkPage() {
             </h2>
           </div>
 
-          {/* Main Score Card */}
-          <Card className="bg-gradient-to-br from-cyan-500/20 via-blue-500/10 to-purple-500/20 border-cyan-500/40">
-            <CardContent className="py-8">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-center">
-                {/* Score */}
-                <div className="text-center">
-                  <div className="text-6xl font-bold text-cyan-400 mb-2">
-                    {infraData.decentralization_score}
-                  </div>
-                  <div className="text-slate-400">Decentralization Score</div>
-                  <div className="h-3 bg-slate-700/50 rounded-full overflow-hidden mt-4 max-w-xs mx-auto">
-                    <div
-                      className={`h-full ${getHealthBgColor(infraData.interpretation.color)} transition-all duration-500`}
-                      style={{ width: `${infraData.decentralization_score}%` }}
-                    />
-                  </div>
-                </div>
-
-                {/* Status */}
-                <div className="text-center border-x border-slate-700/50 px-4">
-                  <div className="flex items-center justify-center gap-2 mb-2">
-                    {getHealthIcon(infraData.interpretation.health)}
-                    <span className={`text-2xl font-bold capitalize ${getHealthColor(infraData.interpretation.color)}`}>
-                      {infraData.interpretation.health}
-                    </span>
-                  </div>
-                  <p className="text-slate-400 text-sm">
-                    {infraData.interpretation.message}
-                  </p>
-                </div>
-
-                {/* Node Count */}
-                <div className="text-center">
-                  <div className="text-5xl font-bold text-slate-200 mb-2">
-                    {infraData.total_nodes}
-                  </div>
-                  <div className="text-slate-400">Relay Nodes Discovered</div>
-                  <div className="text-xs text-slate-500 mt-2">
-                    via DNS SRV records
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Context Banner */}
-          <div className="bg-slate-800/50 border border-slate-700 rounded-lg p-4">
-            <div className="flex items-start gap-3">
-              <Info className="w-5 h-5 text-cyan-400 mt-0.5 flex-shrink-0" />
-              <div className="text-sm text-slate-400">
-                <span className="text-slate-200 font-medium">Why relay nodes need data centers:</span>{' '}
-                Relay nodes require massive bandwidth (TB/month) and ultra-low latency. Running a relay on residential internet is physically impossible.
-                Tier 2 (corporate data centers) is <span className="text-green-400">expected</span> for relays. The real risk is Tier 3 (hyperscale cloud).
-              </div>
-            </div>
-          </div>
-
           {/* 3-Tier Infrastructure Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {/* Tier 1: Sovereign (Green) - Rare for Relays */}
+            {/* Tier 1: Sovereign */}
             <Card className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 border-green-500/30">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-green-400 text-lg">
@@ -436,7 +735,7 @@ export default function NetworkPage() {
                   Tier 1: Sovereign
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  Residential ISPs & self-hosted (rare for relays)
+                  Residential ISPs & self-hosted
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -444,21 +743,18 @@ export default function NetworkPage() {
                   <span className="text-4xl font-bold text-green-400">{infraData.sovereign_percentage}%</span>
                   <span className="text-slate-400 text-sm">({infraData.sovereign_nodes})</span>
                 </div>
-                <p className="text-xs text-slate-500 mt-3">
-                  Bonus points. Residential infrastructure is rare for relays due to bandwidth requirements.
-                </p>
               </CardContent>
             </Card>
 
-            {/* Tier 2: Corporate (Yellow/Green) - Expected for Relays */}
+            {/* Tier 2: Corporate */}
             <Card className="bg-gradient-to-br from-cyan-500/10 to-blue-500/10 border-cyan-500/30">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-cyan-400 text-lg">
                   <Building2 className="w-5 h-5" />
-                  Tier 2: Independent Data Centers
+                  Tier 2: Data Centers
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  OVHcloud, Hetzner, TeraSwitch, Vultr, etc.
+                  OVH, Hetzner, Vultr, etc.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -466,21 +762,18 @@ export default function NetworkPage() {
                   <span className="text-4xl font-bold text-cyan-400">{infraData.corporate_percentage}%</span>
                   <span className="text-slate-400 text-sm">({infraData.corporate_nodes})</span>
                 </div>
-                <p className="text-xs text-green-400/80 mt-3">
-                  ✓ Expected for relay nodes. Independent providers avoid the hyperscale &quot;kill switch&quot;.
-                </p>
               </CardContent>
             </Card>
 
-            {/* Tier 3: Hyperscale (Red) - The Real Risk */}
+            {/* Tier 3: Hyperscale */}
             <Card className="bg-gradient-to-br from-red-500/10 to-orange-500/10 border-red-500/30">
               <CardHeader className="pb-2">
                 <CardTitle className="flex items-center gap-2 text-red-400 text-lg">
                   <Cloud className="w-5 h-5" />
-                  Tier 3: Hyperscale Cloud
+                  Tier 3: Hyperscale
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  AWS, Google Cloud, Microsoft Azure
+                  AWS, Google, Azure
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -488,44 +781,9 @@ export default function NetworkPage() {
                   <span className="text-4xl font-bold text-red-400">{infraData.hyperscale_percentage}%</span>
                   <span className="text-slate-400 text-sm">({infraData.hyperscale_nodes})</span>
                 </div>
-                <p className="text-xs text-red-400/80 mt-3">
-                  ⚠ Kill switch zone. Mega-corps can disable nodes via ToS or government pressure.
-                </p>
               </CardContent>
             </Card>
           </div>
-
-          {/* Risk Assessment Banner */}
-          <Card className={`border ${
-            infraData.hyperscale_percentage > 20 ? 'bg-red-500/10 border-red-500/40' :
-            infraData.hyperscale_percentage > 0 ? 'bg-yellow-500/10 border-yellow-500/40' :
-            'bg-green-500/10 border-green-500/40'
-          }`}>
-            <CardContent className="py-4">
-              <div className="flex items-start gap-3">
-                {infraData.hyperscale_percentage === 0 ? (
-                  <CheckCircle2 className="w-5 h-5 mt-0.5 text-green-400" />
-                ) : (
-                  <AlertTriangle className={`w-5 h-5 mt-0.5 ${
-                    infraData.hyperscale_percentage > 20 ? 'text-red-400' : 'text-yellow-400'
-                  }`} />
-                )}
-                <div>
-                  <p className="font-medium text-slate-200">
-                    {infraData.interpretation.risk_assessment}
-                  </p>
-                  <p className="text-sm text-slate-400 mt-1">
-                    {infraData.interpretation.recommendation}
-                  </p>
-                  {infraData.interpretation.largest_provider && (
-                    <p className="text-xs text-slate-500 mt-2">
-                      Largest provider: {infraData.interpretation.largest_provider}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
 
           {/* Provider & Country Breakdown */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -536,13 +794,10 @@ export default function NetworkPage() {
                   <Building2 className="w-5 h-5 text-cyan-400" />
                   Top Infrastructure Providers
                 </CardTitle>
-                <CardDescription>
-                  Organizations hosting relay nodes
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {Object.entries(infraData.top_providers).map(([provider, count], index) => {
+                  {Object.entries(infraData.top_providers).slice(0, 5).map(([provider, count], index) => {
                     const percentage = (count / infraData.total_nodes) * 100
                     return (
                       <div key={provider}>
@@ -572,13 +827,10 @@ export default function NetworkPage() {
                   <Globe className="w-5 h-5 text-cyan-400" />
                   Geographic Distribution
                 </CardTitle>
-                <CardDescription>
-                  Countries hosting relay nodes
-                </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {Object.entries(infraData.top_countries).map(([country, count], index) => {
+                  {Object.entries(infraData.top_countries).slice(0, 5).map(([country, count], index) => {
                     const percentage = (count / infraData.total_nodes) * 100
                     return (
                       <div key={country}>
@@ -604,72 +856,6 @@ export default function NetworkPage() {
         </>
       )}
 
-      {/* Philosophy Section */}
-      <Card className="bg-gradient-to-br from-slate-900 via-slate-900 to-orange-900/20 border-orange-500/20">
-        <CardHeader>
-          <CardTitle className="text-xl text-orange-400">
-            The Protocol of Physical Reality
-          </CardTitle>
-          <CardDescription className="text-slate-400 italic">
-            &quot;Code is Law&quot; is a delusion if the hardware is rented.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6 text-slate-300">
-          <p>
-            We often measure sovereignty in cryptographic terms: keys, signatures, and ledger immutability.
-            But the digital world does not float in the ether; it lives on metal, silicon, and fiber optics.
-          </p>
-
-          {/* The Sovereignty Stack */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-slate-200">The Sovereignty Stack</h3>
-            <p className="text-sm text-slate-400">True autonomy requires ownership at every layer:</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-              <div className="bg-orange-500/10 border border-orange-500/30 rounded-lg p-4">
-                <div className="text-orange-400 font-bold mb-1">Layer 1: Financial</div>
-                <div className="text-xs text-slate-400">The Asset</div>
-                <p className="text-sm mt-2">Holding Bitcoin or Gold. You own the value.</p>
-              </div>
-              <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-lg p-4">
-                <div className="text-yellow-400 font-bold mb-1">Layer 2: Digital</div>
-                <div className="text-xs text-slate-400">The Keys</div>
-                <p className="text-sm mt-2">Holding your own private keys. You own the access.</p>
-              </div>
-              <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
-                <div className="text-green-400 font-bold mb-1">Layer 3: Physical</div>
-                <div className="text-xs text-slate-400">The Node</div>
-                <p className="text-sm mt-2">Owning the hardware that validates the truth.</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Cloud Feudalism */}
-          <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-4">
-            <h3 className="font-semibold text-red-400 mb-2">The &quot;Cloud Feudalism&quot; Trap</h3>
-            <p className="text-sm">
-              If a blockchain runs primarily on Amazon AWS or Google Cloud, it is not a sovereign nation; it is a tenant.
-              It exists at the pleasure of a corporate landlord. If the landlord changes the Terms of Service,
-              the &quot;immutable&quot; ledger vanishes.
-            </p>
-          </div>
-
-          {/* Why We Audit */}
-          <div>
-            <h3 className="font-semibold text-slate-200 mb-2">Why We Audit</h3>
-            <p className="text-sm text-slate-400">
-              On this platform, we track the <span className="text-orange-400">Sovereignty Premium</span>.
-              We distinguish between networks that are merely &quot;decentralized in software&quot; (governance)
-              and those that are <span className="text-green-400">&quot;decentralized in physics&quot;</span> (hardware).
-            </p>
-            <p className="text-sm text-slate-500 mt-3 italic">
-              A network running on 1,000 Raspberry Pis in 1,000 different homes is infinitely more robust
-              than a network running on 10,000 virtual machines in one Virginia data center.
-              The former is a revolution; the latter is just a database.
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Methodology & Info */}
       <Card className="bg-slate-900/30 border-slate-800/50">
         <CardHeader>
@@ -680,27 +866,18 @@ export default function NetworkPage() {
         </CardHeader>
         <CardContent className="text-sm text-slate-500 space-y-3">
           <div>
-            <strong className="text-slate-400">Relay Nodes:</strong> Discovered via DNS SRV records at{' '}
-            <code className="text-cyan-500">_algobootstrap._tcp.mainnet.algorand.network</code>.
-            Each IP is classified into 3 tiers: <span className="text-green-400">Sovereign</span> (residential ISPs),{' '}
-            <span className="text-yellow-400">Corporate</span> (data centers like OVH, Hetzner), or{' '}
-            <span className="text-red-400">Hyperscale</span> (AWS, Google, Azure).
+            <strong className="text-slate-400">Network Stats:</strong> Online stake and participation rate from algod{' '}
+            <code className="text-cyan-500">/v2/ledger/supply</code>. Foundation addresses are tracked separately.
           </div>
           <div>
-            <strong className="text-slate-400">Participation:</strong> Online stake from algod{' '}
-            <code className="text-cyan-500">/v2/ledger/supply</code>. Top validators sampled from
-            indexer accounts with {'>'}1M ALGO that are marked &quot;Online&quot; with valid participation keys.
-          </div>
-          <div>
-            <strong className="text-slate-400">Scoring:</strong> Infrastructure tier (50% weight: sovereign=full,
-            corporate=half, hyperscale=zero), provider diversity (25%), and geographic diversity (25%).
-            Concentration penalties apply if any provider exceeds 15% share.
+            <strong className="text-slate-400">Decentralization Score:</strong> Based on community vs foundation stake distribution,
+            infrastructure tier breakdown, and geographic diversity.
           </div>
           <div className="text-slate-600 pt-2 flex flex-wrap gap-4">
-            <span>Relay data cached: 4 hours</span>
-            <span>Participation data cached: 15 minutes</span>
-            {infraData && (
-              <span>Last updated: {new Date(infraData.timestamp).toLocaleString()}</span>
+            <span>Network stats cached: 5 minutes</span>
+            <span>Infrastructure data cached: 4 hours</span>
+            {networkStats && (
+              <span>Last updated: {new Date(networkStats.fetched_at).toLocaleString()}</span>
             )}
           </div>
         </CardContent>

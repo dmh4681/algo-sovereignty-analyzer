@@ -318,3 +318,50 @@ export interface GoldSilverRatio {
     historical_note: string
   }
 }
+
+// Network Stats types (from /api/v1/network/stats)
+export interface NetworkInfo {
+  total_supply_algo: number
+  online_stake_algo: number
+  participation_rate: number
+  current_round: number
+}
+
+export interface FoundationInfo {
+  total_balance_algo: number
+  online_balance_algo: number
+  pct_of_total_supply: number
+  pct_of_online_stake: number
+  address_count: number
+}
+
+export interface CommunityInfo {
+  estimated_stake_algo: number
+  pct_of_online_stake: number
+}
+
+export interface NetworkStatsResponse {
+  network: NetworkInfo
+  foundation: FoundationInfo
+  community: CommunityInfo
+  decentralization_score: number
+  estimated_node_count: number
+  fetched_at: string
+}
+
+export interface ParticipationKeyInfo {
+  first_valid: number | null
+  last_valid: number | null
+  is_expired: boolean
+  rounds_remaining: number | null
+}
+
+export interface WalletParticipationResponse {
+  address: string
+  is_participating: boolean
+  balance_algo: number
+  stake_percentage: number
+  participation_key: ParticipationKeyInfo | null
+  contribution_tier: string
+  current_round: number
+}

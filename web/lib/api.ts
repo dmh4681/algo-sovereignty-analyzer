@@ -10,6 +10,8 @@ import {
   GoldSilverRatio,
   InfrastructureAudit,
   ParticipationStats,
+  NetworkStatsResponse,
+  WalletParticipationResponse,
 } from './types'
 
 // Use direct backend URL to avoid Next.js proxy timeout issues
@@ -272,6 +274,37 @@ export async function getParticipationStats(
 
   if (!response.ok) {
     throw new ApiError('Failed to fetch participation stats', response.status)
+  }
+
+  return response.json()
+}
+
+// --- Network Stats API (new endpoints from core/network.py) ---
+
+/**
+ * Get Algorand network participation and decentralization statistics
+ * Returns Foundation vs Community stake breakdown
+ */
+export async function getNetworkStats(): Promise<NetworkStatsResponse> {
+  const response = await fetch(`${API_BASE}/network/stats`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch network stats', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get participation status for a specific wallet
+ */
+export async function getWalletParticipation(
+  address: string
+): Promise<WalletParticipationResponse> {
+  const response = await fetch(`${API_BASE}/network/wallet/${address}`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch wallet participation', response.status)
   }
 
   return response.json()
