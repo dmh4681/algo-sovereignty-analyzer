@@ -3,7 +3,7 @@
 import { useWallet } from '@txnlab/use-wallet-react'
 import { Button } from '@/components/ui/button'
 import { useRouter } from 'next/navigation'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { Loader2, Wallet, ChevronDown } from 'lucide-react'
+import { Loader2, Wallet, ChevronDown, ExternalLink, AlertCircle } from 'lucide-react'
 
 // Wallet metadata with colors
 const WALLET_COLORS: Record<string, string> = {
@@ -22,18 +22,33 @@ const WALLET_COLORS: Record<string, string> = {
   'lute': 'bg-green-500',
 }
 
+// Detect if user is on mobile
+function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+}
+
 export default function HeaderWalletStatusContent() {
   const { wallets, activeAccount, activeWallet, isReady } = useWallet()
   const [showModal, setShowModal] = useState(false)
   const [connecting, setConnecting] = useState<string | null>(null)
   const [showAccountMenu, setShowAccountMenu] = useState(false)
+  const [connectionError, setConnectionError] = useState<string | null>(null)
+  const [isMobile, setIsMobile] = useState(false)
   const router = useRouter()
+
+  // Detect mobile on mount
+  useEffect(() => {
+    setIsMobile(isMobileDevice())
+  }, [])
 
   const handleConnect = async (walletId: string) => {
     const wallet = wallets.find(w => w.id === walletId)
     if (!wallet) return
 
     setConnecting(walletId)
+    setConnectionError(null)
+
     try {
       const accounts = await wallet.connect()
       setShowModal(false)
@@ -43,6 +58,16 @@ export default function HeaderWalletStatusContent() {
       }
     } catch (err) {
       console.error('Connection failed:', err)
+      const errorMessage = err instanceof Error ? err.message : 'Connection failed'
+
+      // On mobile, if browser blocks the redirect, show helpful message
+      if (isMobile && (walletId === 'pera' || walletId === 'defly')) {
+        setConnectionError(
+          `If the wallet app didn't open, try opening ${wallet.metadata.name} directly and scanning a QR code, or use the wallet's built-in browser.`
+        )
+      } else {
+        setConnectionError(errorMessage)
+      }
     } finally {
       setConnecting(null)
     }
@@ -184,7 +209,33 @@ export default function HeaderWalletStatusContent() {
 
           {connecting && (
             <div className="text-center text-sm text-slate-400 mt-3">
-              Connecting... Check your wallet app.
+              <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
+              {isMobile
+                ? 'Opening wallet app... If nothing happens, check if the app is installed.'
+                : 'Connecting... Check your wallet app or browser extension.'}
+            </div>
+          )}
+
+          {connectionError && (
+            <div className="mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+              <div className="flex gap-2 text-sm text-amber-400">
+                <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                <span>{connectionError}</span>
+              </div>
+            </div>
+          )}
+
+          {/* Mobile-specific help */}
+          {isMobile && !connecting && (
+            <div className="mt-4 pt-4 border-t border-slate-700">
+              <div className="text-xs text-slate-500 mb-2">
+                Having trouble connecting?
+              </div>
+              <ul className="text-xs text-slate-400 space-y-1">
+                <li>• Make sure you have the wallet app installed</li>
+                <li>• Try using the wallet's built-in browser</li>
+                <li>• You can also enter your address manually on the home page</li>
+              </ul>
             </div>
           )}
         </DialogContent>

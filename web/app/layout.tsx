@@ -37,6 +37,10 @@ export const metadata: Metadata = {
     type: 'website',
     siteName: 'Algorand Sovereignty Analyzer',
   },
+  // Pera Wallet uses this to display the dApp name in connect drawer
+  other: {
+    'name': 'Sovereignty Analyzer',
+  },
 }
 
 export default function RootLayout({

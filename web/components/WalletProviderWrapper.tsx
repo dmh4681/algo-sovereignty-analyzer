@@ -13,8 +13,21 @@ export function WalletProviderWrapper({ children }: WalletProviderWrapperProps) 
   const walletManager = useMemo(() => {
     return new WalletManager({
       wallets: [
-        WalletId.PERA,
-        WalletId.DEFLY,
+        {
+          id: WalletId.PERA,
+          options: {
+            // Enable compact UI for mobile screens
+            compactMode: true,
+            // Show toast for transaction signing guidance
+            shouldShowSignTxnToast: true,
+          },
+        },
+        {
+          id: WalletId.DEFLY,
+          options: {
+            shouldShowSignTxnToast: true,
+          },
+        },
         WalletId.EXODUS,
         WalletId.LUTE,
         WalletId.KIBISIS,
