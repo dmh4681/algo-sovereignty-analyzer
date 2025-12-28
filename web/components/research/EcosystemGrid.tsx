@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { ExternalLink, Shield, Coins, Building, Gamepad2, Fingerprint, Server, Sparkles } from 'lucide-react'
+import { ExternalLink, Shield, Coins, Building, Gamepad2, Fingerprint, Server, Sparkles, Wallet, Layers, Image } from 'lucide-react'
 import type { EcosystemProject } from '@/lib/algorand-2025-research'
 
 // ============================================================================
@@ -23,8 +23,11 @@ type FilterType = 'all' | 'sovereignty' | EcosystemProject['category']
 // ============================================================================
 
 const CATEGORY_CONFIG: Record<EcosystemProject['category'], { icon: React.ReactNode; color: string; bgColor: string }> = {
+  'Wallets': { icon: <Wallet className="h-3 w-3" />, color: 'text-blue-400', bgColor: 'bg-blue-500/20' },
   'DeFi': { icon: <Coins className="h-3 w-3" />, color: 'text-cyan-400', bgColor: 'bg-cyan-500/20' },
+  'Staking': { icon: <Layers className="h-3 w-3" />, color: 'text-green-400', bgColor: 'bg-green-500/20' },
   'RWA': { icon: <Building className="h-3 w-3" />, color: 'text-amber-400', bgColor: 'bg-amber-500/20' },
+  'NFTs': { icon: <Image className="h-3 w-3" />, color: 'text-rose-400', bgColor: 'bg-rose-500/20' },
   'Gaming': { icon: <Gamepad2 className="h-3 w-3" />, color: 'text-purple-400', bgColor: 'bg-purple-500/20' },
   'Identity': { icon: <Fingerprint className="h-3 w-3" />, color: 'text-pink-400', bgColor: 'bg-pink-500/20' },
   'Infrastructure': { icon: <Server className="h-3 w-3" />, color: 'text-slate-400', bgColor: 'bg-slate-500/20' },
@@ -33,8 +36,11 @@ const CATEGORY_CONFIG: Record<EcosystemProject['category'], { icon: React.ReactN
 const FILTER_OPTIONS: { value: FilterType; label: string; icon?: React.ReactNode }[] = [
   { value: 'all', label: 'All' },
   { value: 'sovereignty', label: 'Sovereignty', icon: <Shield className="h-3 w-3" /> },
+  { value: 'Wallets', label: 'Wallets', icon: <Wallet className="h-3 w-3" /> },
   { value: 'DeFi', label: 'DeFi', icon: <Coins className="h-3 w-3" /> },
+  { value: 'Staking', label: 'Staking', icon: <Layers className="h-3 w-3" /> },
   { value: 'RWA', label: 'RWA', icon: <Building className="h-3 w-3" /> },
+  { value: 'NFTs', label: 'NFTs', icon: <Image className="h-3 w-3" /> },
   { value: 'Gaming', label: 'Gaming', icon: <Gamepad2 className="h-3 w-3" /> },
   { value: 'Identity', label: 'Identity', icon: <Fingerprint className="h-3 w-3" /> },
   { value: 'Infrastructure', label: 'Infra', icon: <Server className="h-3 w-3" /> },

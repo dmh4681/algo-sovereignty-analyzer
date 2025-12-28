@@ -184,12 +184,15 @@ function TimelineItem({ event }: { event: TimelineEvent }) {
 }
 
 function ProjectCard({ project }: { project: EcosystemProject }) {
-  const categoryColors = {
-    DeFi: 'border-blue-500/30',
-    RWA: 'border-green-500/30',
+  const categoryColors: Record<EcosystemProject['category'], string> = {
+    Wallets: 'border-blue-500/30',
+    DeFi: 'border-cyan-500/30',
+    Staking: 'border-green-500/30',
+    RWA: 'border-amber-500/30',
+    NFTs: 'border-rose-500/30',
     Gaming: 'border-purple-500/30',
-    Identity: 'border-teal-500/30',
-    Infrastructure: 'border-orange-500/30'
+    Identity: 'border-pink-500/30',
+    Infrastructure: 'border-slate-500/30'
   }
 
   return (
@@ -534,7 +537,7 @@ function EcosystemSection() {
     : getProjectsByCategory(filter)
 
   const categories: (EcosystemProject['category'] | 'all' | 'sovereignty')[] = [
-    'all', 'sovereignty', 'DeFi', 'RWA', 'Gaming', 'Identity', 'Infrastructure'
+    'all', 'sovereignty', 'Wallets', 'DeFi', 'Staking', 'RWA', 'NFTs', 'Gaming', 'Identity', 'Infrastructure'
   ]
 
   return (
