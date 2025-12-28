@@ -8,8 +8,9 @@ MELD_GOLD_ASA = 246516580
 MELD_SILVER_ASA = 246519683
 GRAMS_PER_TROY_OZ = 31.1035
 
-# Bitcoin ASA ID
-GOBTC_ASA = 386192725  # goBTC - wrapped Bitcoin on Algorand
+# Bitcoin ASA IDs
+GOBTC_ASA = 386192725  # goBTC - wrapped Bitcoin on Algorand (native)
+WBTC_ASA = 1058926737  # WBTC - Wormhole-bridged wrapped Bitcoin
 
 # Coinbase API for BTC spot price (free, no auth needed)
 COINBASE_BTC_URL = "https://api.coinbase.com/v2/prices/BTC-USD/spot"
@@ -20,6 +21,7 @@ _meld_price_cache: dict = {
     'silver': {'price': None, 'expires': None},
     'btc_spot': {'price': None, 'expires': None},
     'gobtc': {'price': None, 'expires': None},
+    'wbtc': {'price': None, 'expires': None},
 }
 MELD_CACHE_TTL_SECONDS = 300  # 5 minutes
 
@@ -179,6 +181,47 @@ def get_gobtc_price() -> Optional[float]:
 
     # Last resort: hardcoded fallback
     return get_hardcoded_price('GOBTC')
+
+
+def get_wbtc_price() -> Optional[float]:
+    """
+    Fetch current WBTC (Wormhole-bridged) price from Vestige API.
+
+    WBTC (ASA 1058926737) is wrapped Bitcoin bridged to Algorand via Wormhole,
+    maintaining a 1:1 peg with BTC. This fetches the on-chain trading price.
+
+    Note: WBTC has lower liquidity than goBTC (~$139K TVL vs larger goBTC pools).
+
+    Returns:
+        USD price per WBTC token, or None if unavailable
+    """
+    global _meld_price_cache
+
+    # Check cache
+    cache_entry = _meld_price_cache['wbtc']
+    if cache_entry['price'] is not None and cache_entry['expires'] is not None:
+        if datetime.now() < cache_entry['expires']:
+            return cache_entry['price']
+
+    # Fetch from Vestige
+    price = fetch_vestige_price(WBTC_ASA)
+
+    if price is not None and price > 0:
+        # Update cache
+        _meld_price_cache['wbtc'] = {
+            'price': price,
+            'expires': datetime.now() + timedelta(seconds=MELD_CACHE_TTL_SECONDS)
+        }
+        return price
+
+    # Fallback to BTC spot price (WBTC should track 1:1)
+    spot_price = get_bitcoin_spot_price()
+    if spot_price:
+        print(f"[WARN] Using BTC spot price for WBTC: ${spot_price:,.2f} (Vestige fallback)")
+        return spot_price
+
+    # Last resort: hardcoded fallback
+    return get_hardcoded_price('WBTC')
 
 
 def _fetch_yahoo_finance_price(symbol: str) -> Optional[float]:

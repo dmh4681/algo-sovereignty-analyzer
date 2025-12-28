@@ -1,6 +1,7 @@
 from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
 from core.history import SovereigntySnapshot, get_history_manager
+from core.btc_history import get_btc_history_manager, save_current_prices
 from core.pricing import (
     get_hardcoded_price,
     get_gold_price_per_oz,
@@ -9,7 +10,10 @@ from core.pricing import (
     get_meld_silver_price,
     get_bitcoin_spot_price,
     get_gobtc_price,
-    GRAMS_PER_TROY_OZ
+    get_wbtc_price,
+    GRAMS_PER_TROY_OZ,
+    GOBTC_ASA,
+    WBTC_ASA
 )
 from core.network import AlgorandNetworkStats, microalgos_to_algo
 from .schemas import (
@@ -840,31 +844,105 @@ async def get_meld_arbitrage():
             'meld_available': False
         }
 
-    # =========== BITCOIN ===========
+    # =========== BITCOIN (3-way: Spot vs goBTC vs WBTC) ===========
     try:
         spot_btc = get_bitcoin_spot_price()
         gobtc_price = get_gobtc_price()
+        wbtc_price = get_wbtc_price()
 
-        if spot_btc and gobtc_price and spot_btc > 0:
-            # goBTC should be 1:1 with BTC, so no conversion needed
-            premium_usd = gobtc_price - spot_btc
-            premium_pct = (premium_usd / spot_btc) * 100
-            signal, strength = _calculate_arbitrage_signal(premium_pct)
+        bitcoin_result = {
+            'spot_price': None,
+            'gobtc': None,
+            'wbtc': None,
+            'cross_dex_spread': None,
+            'best_opportunity': None
+        }
 
-            result['bitcoin'] = {
-                'spot_price': round(spot_btc, 2),
-                'gobtc_price': round(gobtc_price, 2),
-                'premium_pct': round(premium_pct, 2),
-                'premium_usd': round(premium_usd, 2),
-                'signal': signal,
-                'signal_strength': round(strength, 1)
-            }
+        if spot_btc and spot_btc > 0:
+            bitcoin_result['spot_price'] = round(spot_btc, 2)
+
+            # goBTC analysis
+            if gobtc_price and gobtc_price > 0:
+                gobtc_premium_usd = gobtc_price - spot_btc
+                gobtc_premium_pct = (gobtc_premium_usd / spot_btc) * 100
+                gobtc_signal, gobtc_strength = _calculate_arbitrage_signal(gobtc_premium_pct)
+
+                bitcoin_result['gobtc'] = {
+                    'price': round(gobtc_price, 2),
+                    'premium_pct': round(gobtc_premium_pct, 2),
+                    'premium_usd': round(gobtc_premium_usd, 2),
+                    'signal': gobtc_signal,
+                    'signal_strength': round(gobtc_strength, 1),
+                    'asa_id': GOBTC_ASA,
+                    'tinyman_url': f'https://app.tinyman.org/#/swap?asset_in=0&asset_out={GOBTC_ASA}'
+                }
+            else:
+                bitcoin_result['gobtc'] = {'error': 'Unable to fetch goBTC price'}
+
+            # WBTC analysis
+            if wbtc_price and wbtc_price > 0:
+                wbtc_premium_usd = wbtc_price - spot_btc
+                wbtc_premium_pct = (wbtc_premium_usd / spot_btc) * 100
+                wbtc_signal, wbtc_strength = _calculate_arbitrage_signal(wbtc_premium_pct)
+
+                bitcoin_result['wbtc'] = {
+                    'price': round(wbtc_price, 2),
+                    'premium_pct': round(wbtc_premium_pct, 2),
+                    'premium_usd': round(wbtc_premium_usd, 2),
+                    'signal': wbtc_signal,
+                    'signal_strength': round(wbtc_strength, 1),
+                    'asa_id': WBTC_ASA,
+                    'tinyman_url': f'https://app.tinyman.org/#/swap?asset_in=0&asset_out={WBTC_ASA}',
+                    'liquidity_warning': 'Lower liquidity than goBTC - higher slippage risk'
+                }
+            else:
+                bitcoin_result['wbtc'] = {'error': 'Unable to fetch WBTC price'}
+
+            # Cross-DEX spread (goBTC vs WBTC)
+            if gobtc_price and wbtc_price and gobtc_price > 0 and wbtc_price > 0:
+                cross_spread_pct = ((gobtc_price - wbtc_price) / wbtc_price) * 100
+                bitcoin_result['cross_dex_spread'] = {
+                    'gobtc_vs_wbtc_pct': round(cross_spread_pct, 2),
+                    'description': f"goBTC is {abs(cross_spread_pct):.2f}% {'more expensive' if cross_spread_pct > 0 else 'cheaper'} than WBTC"
+                }
+
+                # Determine best opportunity
+                gobtc_prem = bitcoin_result['gobtc'].get('premium_pct', 0)
+                wbtc_prem = bitcoin_result['wbtc'].get('premium_pct', 0)
+
+                if gobtc_prem < wbtc_prem:
+                    # goBTC is cheaper relative to spot
+                    bitcoin_result['best_opportunity'] = {
+                        'token': 'goBTC',
+                        'action': 'BUY' if gobtc_prem < -0.5 else 'PREFER',
+                        'reason': f"goBTC has deeper discount ({gobtc_prem:.2f}% vs {wbtc_prem:.2f}%)",
+                        'advantage_pct': round(wbtc_prem - gobtc_prem, 2)
+                    }
+                elif wbtc_prem < gobtc_prem:
+                    # WBTC is cheaper relative to spot
+                    bitcoin_result['best_opportunity'] = {
+                        'token': 'WBTC',
+                        'action': 'BUY' if wbtc_prem < -0.5 else 'PREFER',
+                        'reason': f"WBTC has deeper discount ({wbtc_prem:.2f}% vs {gobtc_prem:.2f}%)",
+                        'advantage_pct': round(gobtc_prem - wbtc_prem, 2),
+                        'liquidity_note': 'Lower liquidity - use limit orders'
+                    }
+                else:
+                    bitcoin_result['best_opportunity'] = {
+                        'token': 'goBTC',
+                        'action': 'EQUAL',
+                        'reason': 'Both tokens at same premium - prefer goBTC for better liquidity',
+                        'advantage_pct': 0
+                    }
+
+            result['bitcoin'] = bitcoin_result
         else:
             result['data_complete'] = False
             result['bitcoin'] = {
-                'error': 'Unable to fetch Bitcoin prices',
-                'spot_available': spot_btc is not None,
-                'gobtc_available': gobtc_price is not None
+                'error': 'Unable to fetch Bitcoin spot price',
+                'spot_available': False,
+                'gobtc_available': gobtc_price is not None,
+                'wbtc_available': wbtc_price is not None
             }
     except Exception as e:
         print(f"Error calculating Bitcoin arbitrage: {e}")
@@ -872,7 +950,56 @@ async def get_meld_arbitrage():
         result['bitcoin'] = {
             'error': str(e),
             'spot_available': False,
-            'gobtc_available': False
+            'gobtc_available': False,
+            'wbtc_available': False
         }
 
+    # Auto-capture price snapshot for history
+    try:
+        save_current_prices()
+    except Exception as e:
+        print(f"Warning: Failed to save BTC price snapshot: {e}")
+
     return result
+
+
+@router.get("/arbitrage/btc-history")
+async def get_btc_arbitrage_history(
+    hours: int = Query(24, ge=1, le=720, description="Hours of history (1-720, default 24)")
+):
+    """
+    Get historical Bitcoin price data for charting.
+
+    Returns time-series data of:
+    - Coinbase spot BTC price
+    - goBTC price and premium vs spot
+    - WBTC price and premium vs spot
+
+    Useful for identifying arbitrage patterns over time.
+    """
+    try:
+        history_manager = get_btc_history_manager()
+        snapshots = history_manager.get_history(hours=hours)
+        stats = history_manager.get_stats(hours=hours)
+
+        # Convert to JSON-serializable format
+        data_points = []
+        for snap in snapshots:
+            data_points.append({
+                'timestamp': snap.timestamp.isoformat() + 'Z',
+                'spot_btc': round(snap.spot_btc, 2),
+                'gobtc_price': round(snap.gobtc_price, 2),
+                'wbtc_price': round(snap.wbtc_price, 2) if snap.wbtc_price else None,
+                'gobtc_premium_pct': round(snap.gobtc_premium_pct, 2),
+                'wbtc_premium_pct': round(snap.wbtc_premium_pct, 2) if snap.wbtc_premium_pct else None
+            })
+
+        return {
+            'data_points': data_points,
+            'stats': stats,
+            'hours_requested': hours,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching BTC history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

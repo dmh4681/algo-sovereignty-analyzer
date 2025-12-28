@@ -13,6 +13,7 @@ import {
   NetworkStatsResponse,
   WalletParticipationResponse,
   MeldArbitrageResponse,
+  BTCHistoryResponse,
 } from './types'
 
 // Use direct backend URL to avoid Next.js proxy timeout issues
@@ -322,6 +323,20 @@ export async function getMeldArbitrage(): Promise<MeldArbitrageResponse> {
 
   if (!response.ok) {
     throw new ApiError('Failed to fetch Meld arbitrage data', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get Bitcoin price history for charting
+ * Returns historical data for Coinbase spot, goBTC, and WBTC
+ */
+export async function getBTCHistory(hours: number = 24): Promise<BTCHistoryResponse> {
+  const response = await fetch(`${API_BASE}/arbitrage/btc-history?hours=${hours}`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch BTC history data', response.status)
   }
 
   return response.json()

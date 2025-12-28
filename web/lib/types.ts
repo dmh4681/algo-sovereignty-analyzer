@@ -402,7 +402,8 @@ export interface ArbitrageMetalData {
   signal_strength: number
 }
 
-export interface ArbitrageBitcoinData {
+// Legacy single Bitcoin data (kept for backwards compatibility)
+export interface ArbitrageBitcoinDataLegacy {
   spot_price: number
   gobtc_price: number
   premium_pct: number
@@ -411,11 +412,46 @@ export interface ArbitrageBitcoinData {
   signal_strength: number
 }
 
+// New 3-way Bitcoin arbitrage data
+export interface BitcoinTokenData {
+  price: number
+  premium_pct: number
+  premium_usd: number
+  signal: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL'
+  signal_strength: number
+  asa_id: number
+  tinyman_url: string
+  liquidity_warning?: string
+  error?: string
+}
+
+export interface CrossDexSpread {
+  gobtc_vs_wbtc_pct: number
+  description: string
+}
+
+export interface BestOpportunity {
+  token: 'goBTC' | 'WBTC'
+  action: 'BUY' | 'SELL' | 'PREFER' | 'EQUAL'
+  reason: string
+  advantage_pct: number
+  liquidity_note?: string
+}
+
+export interface ArbitrageBitcoinData {
+  spot_price: number
+  gobtc: BitcoinTokenData | { error: string }
+  wbtc: BitcoinTokenData | { error: string }
+  cross_dex_spread: CrossDexSpread | null
+  best_opportunity: BestOpportunity | null
+}
+
 export interface ArbitrageMetalError {
   error: string
   spot_available: boolean
   meld_available?: boolean
   gobtc_available?: boolean
+  wbtc_available?: boolean
 }
 
 export interface MeldArbitrageResponse {
@@ -424,4 +460,36 @@ export interface MeldArbitrageResponse {
   bitcoin: ArbitrageBitcoinData | ArbitrageMetalError | null
   timestamp: string
   data_complete: boolean
+}
+
+// Bitcoin History types
+export interface BTCHistoryDataPoint {
+  timestamp: string
+  spot_btc: number
+  gobtc_price: number
+  wbtc_price: number | null
+  gobtc_premium_pct: number
+  wbtc_premium_pct: number | null
+}
+
+export interface BTCHistoryStats {
+  gobtc: {
+    avg_premium_pct: number
+    min_premium_pct: number
+    max_premium_pct: number
+  }
+  wbtc: {
+    avg_premium_pct: number | null
+    min_premium_pct: number | null
+    max_premium_pct: number | null
+  }
+  data_points: number
+  hours: number
+}
+
+export interface BTCHistoryResponse {
+  data_points: BTCHistoryDataPoint[]
+  stats: BTCHistoryStats
+  hours_requested: number
+  timestamp: string
 }
