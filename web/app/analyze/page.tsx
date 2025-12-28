@@ -20,8 +20,8 @@ import { LoadingSpinner, LoadingState } from '@/components/LoadingState'
 import { HistoryChart } from '@/components/HistoryChart'
 import { BadgeSection } from '@/components/BadgeSection'
 import GoldSilverRatio from '@/components/GoldSilverRatio'
-import InfrastructureHealth from '@/components/InfrastructureHealth'
 import { MeldArbitrageSpotter } from '@/components/MeldArbitrageSpotter'
+import Link from 'next/link'
 import { analyzeWallet, ApiError } from '@/lib/api'
 import { AnalysisResponse } from '@/lib/types'
 import { truncateAddress } from '@/lib/utils'
@@ -238,14 +238,22 @@ function AnalyzeContent() {
             <AssetBreakdown categories={analysis.categories} />
           </section>
 
-          {/* Network Health Widgets */}
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Gold/Silver Ratio */}
+          <section>
             <GoldSilverRatio />
-            <InfrastructureHealth />
           </section>
 
           {/* Meld Arbitrage Spotter */}
           <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Precious Metals Arbitrage</h2>
+              <Link
+                href="/arbitrage"
+                className="text-sm text-orange-500 hover:text-orange-400 transition-colors flex items-center gap-1"
+              >
+                View Full Arbitrage Dashboard →
+              </Link>
+            </div>
             <MeldArbitrageSpotter />
           </section>
 
