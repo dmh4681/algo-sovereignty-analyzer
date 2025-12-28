@@ -224,10 +224,21 @@ class ArbitrageMetalError(BaseModel):
     meld_available: bool = Field(..., description="Whether Meld price was available")
 
 
+class ArbitrageBitcoinData(BaseModel):
+    """Arbitrage data for Bitcoin/goBTC comparison."""
+    spot_price: float = Field(..., description="Coinbase BTC spot price in USD")
+    gobtc_price: float = Field(..., description="goBTC price from Vestige in USD")
+    premium_pct: float = Field(..., description="Premium percentage ((gobtc - spot) / spot * 100)")
+    premium_usd: float = Field(..., description="Premium in USD (gobtc - spot)")
+    signal: str = Field(..., description="Trading signal: STRONG_BUY, BUY, HOLD, SELL, STRONG_SELL")
+    signal_strength: float = Field(..., ge=0, le=100, description="Signal strength 0-100")
+
+
 class MeldArbitrageResponse(BaseModel):
-    """Complete Meld arbitrage analysis response."""
+    """Complete arbitrage analysis response."""
     gold: Optional[Dict[str, Any]] = Field(None, description="Gold arbitrage data or error")
     silver: Optional[Dict[str, Any]] = Field(None, description="Silver arbitrage data or error")
+    bitcoin: Optional[Dict[str, Any]] = Field(None, description="Bitcoin/goBTC arbitrage data or error")
     timestamp: str = Field(..., description="ISO timestamp of analysis")
     data_complete: bool = Field(..., description="Whether all price data was available")
 
@@ -251,6 +262,14 @@ class MeldArbitrageResponse(BaseModel):
                     "premium_usd": 0.169,
                     "signal": "STRONG_SELL",
                     "signal_strength": 86.0
+                },
+                "bitcoin": {
+                    "spot_price": 94500.00,
+                    "gobtc_price": 93800.00,
+                    "premium_pct": -0.74,
+                    "premium_usd": -700.00,
+                    "signal": "HOLD",
+                    "signal_strength": 0
                 },
                 "timestamp": "2024-12-27T15:30:00Z",
                 "data_complete": True
