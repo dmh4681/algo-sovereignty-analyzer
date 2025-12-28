@@ -61,6 +61,12 @@ export function MainNav() {
         News
       </Link>
       <Link
+        href="/research"
+        className="text-sm text-slate-400 hover:text-purple-500 transition-colors"
+      >
+        Research
+      </Link>
+      <Link
         href="/arbitrage"
         className="text-sm text-slate-400 hover:text-green-500 transition-colors"
       >

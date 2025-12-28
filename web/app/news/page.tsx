@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Loader2, Lock, Unlock, Newspaper } from 'lucide-react'
+import { Loader2, Lock, Unlock, Newspaper, BookOpen, ArrowRight } from 'lucide-react'
+import Link from 'next/link'
 import algosdk from 'algosdk'
 import { getCuratedNews } from '@/lib/api'
 import { AnalyzedArticle } from '@/lib/types'
@@ -220,6 +221,29 @@ export default function NewsPage() {
           AI-curated gold and silver news, analyzed through the sovereignty lens.
         </p>
       </div>
+
+      {/* Research Report Banner */}
+      <Card className="bg-gradient-to-r from-purple-500/10 to-orange-500/10 border-purple-500/30 mb-8">
+        <CardContent className="py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-500/20 rounded-lg">
+                <BookOpen className="h-5 w-5 text-purple-400" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-slate-200">2025 Algorand Research Report</h3>
+                <p className="text-sm text-slate-400">Comprehensive analysis: decentralization, Project King Safety, and ecosystem developments</p>
+              </div>
+            </div>
+            <Link href="/research">
+              <Button className="bg-purple-500 hover:bg-purple-600 whitespace-nowrap">
+                Read Report
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {!isUnlocked ? (
         <Card className="bg-slate-900/50 border-slate-800 max-w-md mx-auto">
