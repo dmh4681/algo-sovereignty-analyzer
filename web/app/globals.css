@@ -59,3 +59,28 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgb(71, 85, 105);
 }
+
+/* Pera Wallet Connect Modal - ensure it's above everything */
+.pera-wallet-modal {
+  z-index: 9999 !important;
+}
+
+.pera-wallet-connect-modal {
+  z-index: 9999 !important;
+}
+
+/* Fix touch events on iOS for buttons inside modals */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Ensure dialogs work properly on mobile */
+[data-radix-dialog-overlay] {
+  touch-action: none;
+}
+
+[data-radix-dialog-content] {
+  touch-action: auto;
+  -webkit-overflow-scrolling: touch;
+}
