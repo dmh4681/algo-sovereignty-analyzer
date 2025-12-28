@@ -389,6 +389,12 @@ export default function NetworkPage() {
                       ({networkStats.foundation.address_count} addresses)
                     </span>
                   </div>
+                  {networkStats.foundation.total_balance_algo > 0 && networkStats.foundation.online_balance_algo === 0 && (
+                    <div className="mt-2 text-xs text-green-400 flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Foundation holds {formatAlgo(networkStats.foundation.total_balance_algo)} ALGO but is NOT participating in consensus
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-slate-700/30 border border-slate-600/30 rounded-lg p-4">
