@@ -13,8 +13,15 @@ from dataclasses import dataclass
 from .pricing import get_bitcoin_spot_price, get_gobtc_price, get_wbtc_price
 
 
-# Database path (same directory as sovereignty history)
-DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+# Database path - uses DATA_DIR env var for Railway/production
+def _get_data_dir() -> str:
+    """Get data directory from env var or default to project data folder."""
+    env_data_dir = os.environ.get('DATA_DIR')
+    if env_data_dir:
+        return env_data_dir
+    return os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+
+DATA_DIR = _get_data_dir()
 DB_PATH = os.path.join(DATA_DIR, 'btc_price_history.db')
 
 
@@ -34,6 +41,7 @@ class BTCPriceHistory:
 
     def __init__(self, db_path: str = DB_PATH):
         self.db_path = db_path
+        print(f"[BTCPriceHistory] Using database: {self.db_path}")
         self._init_db()
 
     def _init_db(self):

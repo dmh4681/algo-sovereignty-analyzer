@@ -13,6 +13,22 @@ from typing import List, Optional
 from pydantic import BaseModel
 
 
+def get_data_directory() -> Path:
+    """
+    Get the data directory path.
+
+    Uses DATA_DIR environment variable if set (for Railway/production),
+    otherwise defaults to 'data' in project root.
+    """
+    env_data_dir = os.environ.get('DATA_DIR')
+    if env_data_dir:
+        return Path(env_data_dir)
+
+    # Default: project root's data directory
+    project_root = Path(__file__).parent.parent
+    return project_root / "data"
+
+
 class SovereigntySnapshot(BaseModel):
     """A point-in-time snapshot of sovereignty metrics."""
     address: str
@@ -39,17 +55,16 @@ class HistoryManager:
         Initialize the history manager.
 
         Args:
-            data_dir: Base data directory. Defaults to 'data' in project root.
+            data_dir: Base data directory. Defaults to DATA_DIR env var or 'data' in project root.
         """
         if data_dir is None:
-            # Default to project root's data directory
-            project_root = Path(__file__).parent.parent
-            data_dir = project_root / "data"
+            data_dir = get_data_directory()
         else:
             data_dir = Path(data_dir)
 
         self.history_dir = data_dir / "history"
         self._ensure_directory()
+        print(f"[HistoryManager] Using history directory: {self.history_dir}")
 
     def _ensure_directory(self) -> None:
         """Create history directory if it doesn't exist."""

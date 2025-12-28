@@ -116,9 +116,18 @@ Or let it populate naturally - each page visit captures a snapshot (max 1 per 10
 
 ## Environment Variables
 
-No new environment variables required. The feature uses:
-- Coinbase free API (no auth)
-- Vestige API (no auth)
+**Required for persistent storage with Railway Volume:**
+```
+DATA_DIR=/app/data
+```
+
+Set this in Railway's Variables tab. This tells the app where to store:
+- Sovereignty history JSON files (`/app/data/history/*.json`)
+- BTC price history SQLite database (`/app/data/btc_price_history.db`)
+
+**Other dependencies (no auth required):**
+- Coinbase free API
+- Vestige API
 - SQLite (local file)
 
 ---
