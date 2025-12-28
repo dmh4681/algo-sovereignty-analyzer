@@ -82,23 +82,23 @@ export default function ArbitragePage() {
               <div className="space-y-2 text-sm">
                 <div className="flex items-center justify-between p-2 rounded bg-green-500/10 border border-green-500/30">
                   <span className="text-green-400 font-medium">STRONG BUY</span>
-                  <span className="text-slate-400">&gt;10% discount (Meld underpriced)</span>
+                  <span className="text-slate-400">&gt;6% discount (underpriced)</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-green-400/10 border border-green-400/30">
                   <span className="text-green-300 font-medium">BUY</span>
-                  <span className="text-slate-400">5-10% discount</span>
+                  <span className="text-slate-400">0.5-6% discount</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-slate-500/10 border border-slate-500/30">
                   <span className="text-slate-300 font-medium">HOLD</span>
-                  <span className="text-slate-400">±5% (fair value)</span>
+                  <span className="text-slate-400">±0.5% (fair value)</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-orange-500/10 border border-orange-500/30">
                   <span className="text-orange-400 font-medium">SELL</span>
-                  <span className="text-slate-400">5-10% premium</span>
+                  <span className="text-slate-400">0.5-6% premium</span>
                 </div>
                 <div className="flex items-center justify-between p-2 rounded bg-red-500/10 border border-red-500/30">
                   <span className="text-red-400 font-medium">STRONG SELL</span>
-                  <span className="text-slate-400">&gt;10% premium (Meld overpriced)</span>
+                  <span className="text-slate-400">&gt;6% premium (overpriced)</span>
                 </div>
               </div>
             </div>

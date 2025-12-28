@@ -701,21 +701,39 @@ def _calculate_arbitrage_signal(premium_pct: float) -> tuple:
     """
     Determine trading signal based on premium percentage.
 
+    Thresholds:
+    - STRONG_BUY/SELL: >6% discount/premium
+    - BUY/SELL: 0.5% - 6%
+    - HOLD: within ±0.5% (fair value)
+
     Args:
         premium_pct: The premium/discount percentage of Meld vs spot
 
     Returns:
         Tuple of (signal_name, signal_strength 0-100)
     """
-    if premium_pct > 10:
-        return ('STRONG_SELL', min(100, premium_pct * 5))
-    elif premium_pct > 5:
-        return ('SELL', premium_pct * 5)
-    elif premium_pct < -10:
-        return ('STRONG_BUY', min(100, abs(premium_pct) * 5))
-    elif premium_pct < -5:
-        return ('BUY', abs(premium_pct) * 5)
+    # Signal strength scales from 0-100 based on how far past threshold
+    # For STRONG signals: 6% = ~50 strength, 12% = 100 strength
+    # For regular signals: 0.5% = ~10 strength, 6% = ~50 strength
+
+    if premium_pct > 6:
+        # STRONG_SELL: asset trading >6% above spot
+        strength = min(100, 50 + (premium_pct - 6) * 8.33)
+        return ('STRONG_SELL', strength)
+    elif premium_pct > 0.5:
+        # SELL: asset trading 0.5-6% above spot
+        strength = 10 + (premium_pct - 0.5) * 7.27  # scales 10-50
+        return ('SELL', strength)
+    elif premium_pct < -6:
+        # STRONG_BUY: asset trading >6% below spot
+        strength = min(100, 50 + (abs(premium_pct) - 6) * 8.33)
+        return ('STRONG_BUY', strength)
+    elif premium_pct < -0.5:
+        # BUY: asset trading 0.5-6% below spot
+        strength = 10 + (abs(premium_pct) - 0.5) * 7.27  # scales 10-50
+        return ('BUY', strength)
     else:
+        # HOLD: within ±0.5% of spot (fair value)
         return ('HOLD', 0)
 
 

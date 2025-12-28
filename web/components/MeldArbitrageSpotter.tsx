@@ -542,19 +542,19 @@ export function MeldArbitrageSpotter({
               <div className="text-xs text-slate-500 mb-2 font-medium">SIGNAL GUIDE</div>
               <div className="flex flex-wrap gap-2">
                 <Badge className="bg-green-500 text-white text-xs">STRONG BUY</Badge>
-                <span className="text-xs text-slate-400">&gt;10% discount</span>
+                <span className="text-xs text-slate-400">&gt;6% discount</span>
                 <span className="text-slate-600 mx-1">|</span>
                 <Badge className="bg-green-400 text-white text-xs">BUY</Badge>
-                <span className="text-xs text-slate-400">5-10% discount</span>
+                <span className="text-xs text-slate-400">0.5-6% discount</span>
                 <span className="text-slate-600 mx-1">|</span>
                 <Badge className="bg-slate-500 text-white text-xs">HOLD</Badge>
-                <span className="text-xs text-slate-400">±5% (fair value)</span>
+                <span className="text-xs text-slate-400">±0.5%</span>
                 <span className="text-slate-600 mx-1">|</span>
                 <Badge className="bg-orange-500 text-white text-xs">SELL</Badge>
-                <span className="text-xs text-slate-400">5-10% premium</span>
+                <span className="text-xs text-slate-400">0.5-6% premium</span>
                 <span className="text-slate-600 mx-1">|</span>
                 <Badge className="bg-red-500 text-white text-xs">STRONG SELL</Badge>
-                <span className="text-xs text-slate-400">&gt;10% premium</span>
+                <span className="text-xs text-slate-400">&gt;6% premium</span>
               </div>
             </div>
 
