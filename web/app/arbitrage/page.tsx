@@ -219,7 +219,7 @@ export default function ArbitragePage() {
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <a
-              href="https://vestige.fi/asset/246516580"
+              href="https://app.tinyman.org/#/swap?asset_in=0&asset_out=246516580"
               target="_blank"
               rel="noopener noreferrer"
               className="flex flex-col items-center gap-2 p-4 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors group"
@@ -229,7 +229,7 @@ export default function ArbitragePage() {
               <ExternalLink className="h-3 w-3 text-slate-500" />
             </a>
             <a
-              href="https://vestige.fi/asset/246519683"
+              href="https://app.tinyman.org/#/swap?asset_in=0&asset_out=246519683"
               target="_blank"
               rel="noopener noreferrer"
               className="flex flex-col items-center gap-2 p-4 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors group"
@@ -239,7 +239,7 @@ export default function ArbitragePage() {
               <ExternalLink className="h-3 w-3 text-slate-500" />
             </a>
             <a
-              href="https://vestige.fi/asset/386192725"
+              href="https://app.tinyman.org/#/swap?asset_in=0&asset_out=386192725"
               target="_blank"
               rel="noopener noreferrer"
               className="flex flex-col items-center gap-2 p-4 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors group"

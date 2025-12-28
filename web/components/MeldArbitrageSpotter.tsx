@@ -232,12 +232,12 @@ function MetalCard({ metal, data, loading }: MetalCardProps) {
         {/* Quick Links */}
         <div className="flex gap-2 pt-2">
           <a
-            href={`https://vestige.fi/asset/${meldAsa}`}
+            href={`https://app.tinyman.org/#/swap?asset_in=0&asset_out=${meldAsa}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-slate-500 hover:text-orange-400 flex items-center gap-1"
           >
-            Trade on Vestige <ExternalLink className="h-3 w-3" />
+            Trade on Tinyman <ExternalLink className="h-3 w-3" />
           </a>
           <span className="text-slate-600">|</span>
           <a
@@ -392,12 +392,12 @@ function BitcoinCard({ data, loading }: BitcoinCardProps) {
         {/* Quick Links */}
         <div className="flex gap-2 pt-2">
           <a
-            href={`https://vestige.fi/asset/${gobtcAsa}`}
+            href={`https://app.tinyman.org/#/swap?asset_in=0&asset_out=${gobtcAsa}`}
             target="_blank"
             rel="noopener noreferrer"
             className="text-xs text-slate-500 hover:text-orange-400 flex items-center gap-1"
           >
-            Trade on Vestige <ExternalLink className="h-3 w-3" />
+            Trade on Tinyman <ExternalLink className="h-3 w-3" />
           </a>
           <span className="text-slate-600">|</span>
           <a
