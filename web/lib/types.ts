@@ -402,15 +402,26 @@ export interface ArbitrageMetalData {
   signal_strength: number
 }
 
+export interface ArbitrageBitcoinData {
+  spot_price: number
+  gobtc_price: number
+  premium_pct: number
+  premium_usd: number
+  signal: 'STRONG_BUY' | 'BUY' | 'HOLD' | 'SELL' | 'STRONG_SELL'
+  signal_strength: number
+}
+
 export interface ArbitrageMetalError {
   error: string
   spot_available: boolean
-  meld_available: boolean
+  meld_available?: boolean
+  gobtc_available?: boolean
 }
 
 export interface MeldArbitrageResponse {
   gold: ArbitrageMetalData | ArbitrageMetalError | null
   silver: ArbitrageMetalData | ArbitrageMetalError | null
+  bitcoin: ArbitrageBitcoinData | ArbitrageMetalError | null
   timestamp: string
   data_complete: boolean
 }

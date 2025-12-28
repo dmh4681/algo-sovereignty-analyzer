@@ -8,10 +8,18 @@ MELD_GOLD_ASA = 246516580
 MELD_SILVER_ASA = 246519683
 GRAMS_PER_TROY_OZ = 31.1035
 
-# Simple cache for Meld prices (5-minute TTL)
+# Bitcoin ASA ID
+GOBTC_ASA = 386192725  # goBTC - wrapped Bitcoin on Algorand
+
+# Coinbase API for BTC spot price (free, no auth needed)
+COINBASE_BTC_URL = "https://api.coinbase.com/v2/prices/BTC-USD/spot"
+
+# Simple cache for prices (5-minute TTL)
 _meld_price_cache: dict = {
     'gold': {'price': None, 'expires': None},
-    'silver': {'price': None, 'expires': None}
+    'silver': {'price': None, 'expires': None},
+    'btc_spot': {'price': None, 'expires': None},
+    'gobtc': {'price': None, 'expires': None},
 }
 MELD_CACHE_TTL_SECONDS = 300  # 5 minutes
 
@@ -86,6 +94,92 @@ def get_bitcoin_price() -> Optional[float]:
 def get_ethereum_price() -> Optional[float]:
     """Fetch ETH price from CoinGecko (for goETH valuation)"""
     return _fetch_price('ethereum')
+
+
+def get_bitcoin_spot_price() -> Optional[float]:
+    """
+    Fetch current Bitcoin spot price from Coinbase.
+
+    Uses Coinbase's free public API which requires no authentication.
+    Prices are cached for 5 minutes to avoid rate limiting.
+
+    Returns:
+        USD price per BTC, or None if unavailable
+    """
+    global _meld_price_cache
+
+    # Check cache
+    cache_entry = _meld_price_cache['btc_spot']
+    if cache_entry['price'] is not None and cache_entry['expires'] is not None:
+        if datetime.now() < cache_entry['expires']:
+            return cache_entry['price']
+
+    try:
+        response = requests.get(COINBASE_BTC_URL, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        price = float(data['data']['amount'])
+
+        # Update cache
+        _meld_price_cache['btc_spot'] = {
+            'price': price,
+            'expires': datetime.now() + timedelta(seconds=MELD_CACHE_TTL_SECONDS)
+        }
+        return price
+    except requests.exceptions.Timeout:
+        print("⚠️  Timeout fetching Bitcoin price from Coinbase")
+    except requests.exceptions.RequestException as e:
+        print(f"⚠️  Network error fetching Bitcoin price from Coinbase: {e}")
+    except Exception as e:
+        print(f"⚠️  Error fetching Bitcoin price from Coinbase: {e}")
+
+    # Fallback to CoinGecko
+    cg_price = get_bitcoin_price()
+    if cg_price:
+        return cg_price
+
+    # Last resort: hardcoded fallback
+    return get_hardcoded_price('BTC')
+
+
+def get_gobtc_price() -> Optional[float]:
+    """
+    Fetch current goBTC price from Vestige API.
+
+    goBTC (ASA 386192725) is wrapped Bitcoin on Algorand, maintaining
+    a 1:1 peg with BTC. This fetches the on-chain trading price.
+
+    Returns:
+        USD price per goBTC token, or None if unavailable
+    """
+    global _meld_price_cache
+
+    # Check cache
+    cache_entry = _meld_price_cache['gobtc']
+    if cache_entry['price'] is not None and cache_entry['expires'] is not None:
+        if datetime.now() < cache_entry['expires']:
+            return cache_entry['price']
+
+    # Fetch from Vestige
+    price = fetch_vestige_price(GOBTC_ASA)
+
+    if price is not None and price > 0:
+        # Update cache
+        _meld_price_cache['gobtc'] = {
+            'price': price,
+            'expires': datetime.now() + timedelta(seconds=MELD_CACHE_TTL_SECONDS)
+        }
+        return price
+
+    # Fallback to BTC spot price (goBTC should track 1:1)
+    spot_price = get_bitcoin_spot_price()
+    if spot_price:
+        print(f"[WARN] Using BTC spot price for goBTC: ${spot_price:,.2f} (Vestige fallback)")
+        return spot_price
+
+    # Last resort: hardcoded fallback
+    return get_hardcoded_price('GOBTC')
+
 
 def _fetch_yahoo_finance_price(symbol: str) -> Optional[float]:
     """

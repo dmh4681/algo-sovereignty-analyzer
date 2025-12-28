@@ -26,10 +26,11 @@ export default function ArbitragePage() {
       {/* Hero Section */}
       <div className="text-center space-y-4 py-8">
         <h1 className="text-4xl font-bold">
-          Meld Arbitrage Spotter
+          Arbitrage Spotter
         </h1>
-        <p className="text-xl text-slate-400 max-w-2xl mx-auto">
-          Compare on-chain precious metals to spot prices and find arbitrage opportunities
+        <p className="text-lg text-slate-400 max-w-2xl mx-auto">
+          Compare on-chain asset prices to spot markets.
+          Find opportunities when Meld tokens or goBTC trade above or below fair value.
         </p>
       </div>
 
@@ -69,6 +70,10 @@ export default function ArbitragePage() {
                 <li className="flex gap-3">
                   <span className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/20 text-orange-500 flex items-center justify-center text-xs font-bold">4</span>
                   <span>We calculate the premium/discount: (Meld - Spot) / Spot × 100%</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-orange-500/20 text-orange-500 flex items-center justify-center text-xs font-bold">5</span>
+                  <span>For Bitcoin, we compare goBTC (Vestige) to Coinbase BTC spot price</span>
                 </li>
               </ol>
             </div>
@@ -162,6 +167,49 @@ export default function ArbitragePage() {
         </Card>
       </div>
 
+      {/* Bitcoin Signal */}
+      <Card className="border-orange-500/30 bg-orange-500/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-orange-400">
+            <span className="text-2xl">₿</span>
+            Bitcoin / goBTC Arbitrage
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid md:grid-cols-2 gap-6">
+            <div>
+              <h4 className="font-medium text-green-400 mb-3">If goBTC is Underpriced (Discount)</h4>
+              <ol className="space-y-2 text-sm text-slate-300">
+                <li className="flex gap-3">
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">1</span>
+                  <span>Buy goBTC on Tinyman or Vestige at a discount to spot BTC</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-green-500/20 text-green-400 flex items-center justify-center text-xs font-bold">2</span>
+                  <span>Hold as BTC exposure on Algorand, or bridge back to native BTC</span>
+                </li>
+              </ol>
+            </div>
+            <div>
+              <h4 className="font-medium text-red-400 mb-3">If goBTC is Overpriced (Premium)</h4>
+              <ol className="space-y-2 text-sm text-slate-300">
+                <li className="flex gap-3">
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-xs font-bold">1</span>
+                  <span>Sell goBTC on Algorand DEXs above spot price</span>
+                </li>
+                <li className="flex gap-3">
+                  <span className="flex-shrink-0 w-5 h-5 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center text-xs font-bold">2</span>
+                  <span>Rebuy native BTC on an exchange at spot to maintain exposure</span>
+                </li>
+              </ol>
+            </div>
+          </div>
+          <div className="pt-2 text-xs text-slate-500">
+            Note: goBTC is a wrapped Bitcoin token on Algorand. Verify bridge liquidity and fees before large trades.
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Quick Links */}
       <Card className="border-slate-700">
         <CardHeader>
@@ -169,7 +217,7 @@ export default function ArbitragePage() {
           <CardDescription>Trade and research resources</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             <a
               href="https://vestige.fi/asset/246516580"
               target="_blank"
@@ -188,6 +236,16 @@ export default function ArbitragePage() {
             >
               <span className="text-2xl">🥈</span>
               <span className="text-sm font-medium text-slate-300 group-hover:text-orange-400">Trade SILVER$</span>
+              <ExternalLink className="h-3 w-3 text-slate-500" />
+            </a>
+            <a
+              href="https://vestige.fi/asset/386192725"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-col items-center gap-2 p-4 rounded-lg bg-slate-800/50 hover:bg-slate-800 transition-colors group"
+            >
+              <span className="text-2xl">₿</span>
+              <span className="text-sm font-medium text-slate-300 group-hover:text-orange-400">Trade goBTC</span>
               <ExternalLink className="h-3 w-3 text-slate-500" />
             </a>
             <a
@@ -222,7 +280,8 @@ export default function ArbitragePage() {
             <span className="text-xs bg-slate-700 px-2 py-1 rounded">Coming Soon</span>
           </CardTitle>
           <CardDescription>
-            Track premium/discount trends over time to identify patterns and optimal entry points
+            Track premium/discount trends over time to identify patterns and optimal entry points.
+            Includes BTC dominance tracking to correlate with goBTC premiums.
           </CardDescription>
         </CardHeader>
         <CardContent>

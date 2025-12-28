@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, TrendingUp, TrendingDown, Minus, AlertTriangle, ExternalLink } from 'lucide-react'
 import { getMeldArbitrage } from '@/lib/api'
-import type { MeldArbitrageResponse, ArbitrageMetalData, ArbitrageMetalError } from '@/lib/types'
+import type { MeldArbitrageResponse, ArbitrageMetalData, ArbitrageMetalError, ArbitrageBitcoinData } from '@/lib/types'
 
 // ============================================================================
 // Helper Functions
@@ -14,6 +14,10 @@ import type { MeldArbitrageResponse, ArbitrageMetalData, ArbitrageMetalError } f
 
 function isArbitrageData(data: ArbitrageMetalData | ArbitrageMetalError | null): data is ArbitrageMetalData {
   return data !== null && 'signal' in data
+}
+
+function isBitcoinData(data: ArbitrageBitcoinData | ArbitrageMetalError | null): data is ArbitrageBitcoinData {
+  return data !== null && 'spot_price' in data
 }
 
 function getSignalColor(signal: string): string {
@@ -251,6 +255,166 @@ function MetalCard({ metal, data, loading }: MetalCardProps) {
 }
 
 // ============================================================================
+// Bitcoin Card Component
+// ============================================================================
+
+interface BitcoinCardProps {
+  data: ArbitrageBitcoinData | ArbitrageMetalError | null
+  loading: boolean
+}
+
+function BitcoinCard({ data, loading }: BitcoinCardProps) {
+  const icon = '₿'
+  const title = 'Bitcoin'
+  const gobtcAsa = '386192725'
+
+  // Loading state
+  if (loading) {
+    return (
+      <Card className="border-slate-700 animate-pulse">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2">
+            <span className="text-2xl text-orange-500">{icon}</span>
+            {title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="h-8 bg-slate-700 rounded w-24" />
+            <div className="h-4 bg-slate-700 rounded w-32" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Error state
+  if (!data || !isBitcoinData(data)) {
+    const errorData = data as ArbitrageMetalError | null
+    return (
+      <Card className="border-slate-700 border-red-500/30">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2">
+            <span className="text-2xl text-orange-500">{icon}</span>
+            {title}
+            <AlertTriangle className="h-4 w-4 text-red-400 ml-auto" />
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-sm text-red-400">
+            {errorData?.error || 'Unable to fetch price data'}
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Normal state
+  const { spot_price, gobtc_price, premium_pct, premium_usd, signal, signal_strength } = data
+  const premiumColor = premium_pct > 0 ? 'text-red-400' : premium_pct < 0 ? 'text-green-400' : 'text-slate-400'
+
+  return (
+    <Card className={`border-slate-700 transition-all duration-300 ${getSignalGlow(signal)}`}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <span className="text-2xl text-orange-500">{icon}</span>
+            {title}
+          </CardTitle>
+          <Badge className={`${getSignalColor(signal)} flex items-center gap-1`}>
+            {getSignalIcon(signal)}
+            {signal.replace('_', ' ')}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Price Comparison */}
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <div className="text-xs text-slate-400 uppercase tracking-wide">Coinbase Spot</div>
+            <div className="text-lg font-bold text-slate-200">
+              ${spot_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
+          </div>
+          <div>
+            <div className="text-xs text-slate-400 uppercase tracking-wide">goBTC (Algorand)</div>
+            <div className="text-lg font-bold text-orange-400">
+              ${gobtc_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+            </div>
+          </div>
+        </div>
+
+        {/* Premium */}
+        <div className="bg-slate-800/50 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="text-xs text-slate-400 uppercase tracking-wide">Premium/Discount</div>
+              <div className={`text-xl font-bold ${premiumColor}`}>
+                {premium_pct >= 0 ? '+' : ''}{premium_pct.toFixed(2)}%
+              </div>
+            </div>
+            <div className="text-right">
+              <div className="text-xs text-slate-400 uppercase tracking-wide">USD Diff</div>
+              <div className={`text-xl font-bold ${premiumColor}`}>
+                {premium_usd >= 0 ? '+' : ''}${Math.abs(premium_usd).toLocaleString()}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Signal Strength Bar */}
+        {signal !== 'HOLD' && (
+          <div>
+            <div className="flex justify-between text-xs text-slate-400 mb-1">
+              <span>Signal Strength</span>
+              <span>{signal_strength.toFixed(0)}%</span>
+            </div>
+            <div className="w-full bg-slate-700 rounded-full h-2">
+              <div
+                className={`h-2 rounded-full transition-all duration-500 ${
+                  signal.includes('BUY') ? 'bg-green-500' : 'bg-red-500'
+                }`}
+                style={{ width: `${Math.min(100, signal_strength)}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Signal Description */}
+        <div className="text-sm text-slate-400">
+          {signal === 'STRONG_BUY' && 'goBTC trading significantly below Coinbase. Buy opportunity.'}
+          {signal === 'BUY' && 'goBTC trading below Coinbase. Consider accumulating.'}
+          {signal === 'HOLD' && 'goBTC trading near Coinbase price. No clear arbitrage.'}
+          {signal === 'SELL' && 'goBTC trading above Coinbase. Consider selling.'}
+          {signal === 'STRONG_SELL' && 'goBTC trading significantly above Coinbase. Strong sell signal.'}
+        </div>
+
+        {/* Quick Links */}
+        <div className="flex gap-2 pt-2">
+          <a
+            href={`https://vestige.fi/asset/${gobtcAsa}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-slate-500 hover:text-orange-400 flex items-center gap-1"
+          >
+            Trade on Vestige <ExternalLink className="h-3 w-3" />
+          </a>
+          <span className="text-slate-600">|</span>
+          <a
+            href="https://www.coinbase.com/price/bitcoin"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs text-slate-500 hover:text-orange-400 flex items-center gap-1"
+          >
+            Coinbase <ExternalLink className="h-3 w-3" />
+          </a>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -300,7 +464,8 @@ export function MeldArbitrageSpotter({
   // Check for any strong signals
   const hasStrongSignal = data && (
     (isArbitrageData(data.gold) && (data.gold.signal === 'STRONG_BUY' || data.gold.signal === 'STRONG_SELL')) ||
-    (isArbitrageData(data.silver) && (data.silver.signal === 'STRONG_BUY' || data.silver.signal === 'STRONG_SELL'))
+    (isArbitrageData(data.silver) && (data.silver.signal === 'STRONG_BUY' || data.silver.signal === 'STRONG_SELL')) ||
+    (isBitcoinData(data.bitcoin) && (data.bitcoin.signal === 'STRONG_BUY' || data.bitcoin.signal === 'STRONG_SELL'))
   )
 
   return (
@@ -317,7 +482,7 @@ export function MeldArbitrageSpotter({
               )}
             </CardTitle>
             <CardDescription className="mt-1">
-              Compare Meld on-chain prices to spot precious metals
+              Compare Algorand wrapped assets to spot prices
             </CardDescription>
           </div>
           <Button
@@ -355,7 +520,7 @@ export function MeldArbitrageSpotter({
           </div>
         ) : (
           <>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="grid md:grid-cols-3 gap-4">
               <MetalCard
                 metal="gold"
                 data={data?.gold || null}
@@ -364,6 +529,10 @@ export function MeldArbitrageSpotter({
               <MetalCard
                 metal="silver"
                 data={data?.silver || null}
+                loading={loading && !data}
+              />
+              <BitcoinCard
+                data={data?.bitcoin || null}
                 loading={loading && !data}
               />
             </div>
@@ -391,7 +560,7 @@ export function MeldArbitrageSpotter({
 
             {/* Disclaimer */}
             <div className="mt-4 text-xs text-slate-600 text-center">
-              Data sources: Yahoo Finance (spot), Vestige API (Meld). Not financial advice.
+              Data sources: Yahoo Finance (metals), Coinbase (BTC), Vestige API (on-chain). Not financial advice.
             </div>
           </>
         )}

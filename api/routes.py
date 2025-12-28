@@ -7,6 +7,8 @@ from core.pricing import (
     get_silver_price_per_oz,
     get_meld_gold_price,
     get_meld_silver_price,
+    get_bitcoin_spot_price,
+    get_gobtc_price,
     GRAMS_PER_TROY_OZ
 )
 from core.network import AlgorandNetworkStats, microalgos_to_algo
@@ -720,24 +722,30 @@ def _calculate_arbitrage_signal(premium_pct: float) -> tuple:
 @router.get("/arbitrage/meld", response_model=MeldArbitrageResponse)
 async def get_meld_arbitrage():
     """
-    Compare Meld Gold/Silver on-chain prices to spot prices.
+    Compare Algorand wrapped assets to their spot prices.
+
+    Analyzes:
+    - Meld GOLD$/SILVER$ vs Yahoo Finance spot prices
+    - goBTC vs Coinbase BTC spot price
 
     Returns premium/discount percentage and trading signals for arbitrage opportunities.
 
     **Signal Interpretation:**
-    - STRONG_BUY: Meld >10% below spot (buy Meld, it's cheap)
-    - BUY: Meld 5-10% below spot
+    - STRONG_BUY: Asset >10% below spot (buy on Algorand, it's cheap)
+    - BUY: Asset 5-10% below spot
     - HOLD: Within +/-5% of spot (fair value)
-    - SELL: Meld 5-10% above spot
-    - STRONG_SELL: Meld >10% above spot (sell Meld, buy physical)
+    - SELL: Asset 5-10% above spot
+    - STRONG_SELL: Asset >10% above spot (sell on Algorand)
 
     **Data Sources:**
-    - Spot prices: Yahoo Finance (COMEX futures GC=F, SI=F)
-    - Meld prices: Vestige API (Algorand DEX aggregator)
+    - Gold/Silver spot: Yahoo Finance (COMEX futures GC=F, SI=F)
+    - Bitcoin spot: Coinbase API
+    - On-chain prices: Vestige API (Algorand DEX aggregator)
     """
     result = {
         'gold': None,
         'silver': None,
+        'bitcoin': None,
         'timestamp': datetime.utcnow().isoformat() + 'Z',
         'data_complete': True
     }
@@ -812,6 +820,41 @@ async def get_meld_arbitrage():
             'error': str(e),
             'spot_available': False,
             'meld_available': False
+        }
+
+    # =========== BITCOIN ===========
+    try:
+        spot_btc = get_bitcoin_spot_price()
+        gobtc_price = get_gobtc_price()
+
+        if spot_btc and gobtc_price and spot_btc > 0:
+            # goBTC should be 1:1 with BTC, so no conversion needed
+            premium_usd = gobtc_price - spot_btc
+            premium_pct = (premium_usd / spot_btc) * 100
+            signal, strength = _calculate_arbitrage_signal(premium_pct)
+
+            result['bitcoin'] = {
+                'spot_price': round(spot_btc, 2),
+                'gobtc_price': round(gobtc_price, 2),
+                'premium_pct': round(premium_pct, 2),
+                'premium_usd': round(premium_usd, 2),
+                'signal': signal,
+                'signal_strength': round(strength, 1)
+            }
+        else:
+            result['data_complete'] = False
+            result['bitcoin'] = {
+                'error': 'Unable to fetch Bitcoin prices',
+                'spot_available': spot_btc is not None,
+                'gobtc_available': gobtc_price is not None
+            }
+    except Exception as e:
+        print(f"Error calculating Bitcoin arbitrage: {e}")
+        result['data_complete'] = False
+        result['bitcoin'] = {
+            'error': str(e),
+            'spot_available': False,
+            'gobtc_available': False
         }
 
     return result
