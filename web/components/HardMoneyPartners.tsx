@@ -34,14 +34,13 @@ interface PartnerCardProps {
     description: string
     asaId?: string
     asaIds?: { gold: string; silver: string }
-    supply?: string
     link: string
     icon: React.ReactNode
     color: string
     variant: 'full' | 'compact'
 }
 
-function PartnerCard({ name, description, asaId, asaIds, supply, link, icon, color, variant }: PartnerCardProps) {
+function PartnerCard({ name, description, asaId, asaIds, link, icon, color, variant }: PartnerCardProps) {
     // Map colors to Tailwind classes (can't use dynamic classes)
     const colorClasses = {
         yellow: {
@@ -109,7 +108,6 @@ function PartnerCard({ name, description, asaId, asaIds, supply, link, icon, col
                     <div className="flex gap-3 text-xs text-slate-500">
                         {asaId && <span>ASA: {asaId}</span>}
                         {asaIds && <span>ASA: {asaIds.gold} (GOLD$) / {asaIds.silver} (SILVER$)</span>}
-                        {supply && <span>Supply: {supply}</span>}
                     </div>
                 )}
             </CardHeader>
@@ -167,7 +165,6 @@ export function HardMoneyPartners({ variant = 'full', showTitle = true, classNam
                             description={variant === 'compact' ? partner.shortDescription : partner.description}
                             asaId={'asaId' in partner ? partner.asaId : undefined}
                             asaIds={'asaIds' in partner ? partner.asaIds : undefined}
-                            supply={'supply' in partner ? partner.supply : undefined}
                             link={partner.link}
                             icon={<Icon className={`w-6 h-6 ${iconColor}`} />}
                             color={partner.color}
