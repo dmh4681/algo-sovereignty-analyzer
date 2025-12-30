@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { RefreshCw, TrendingUp, TrendingDown, Minus, AlertTriangle, ExternalLink } from 'lucide-react'
 import { getMeldArbitrage } from '@/lib/api'
-import type { MeldArbitrageResponse, ArbitrageMetalData, ArbitrageMetalError, ArbitrageBitcoinData, BitcoinTokenData } from '@/lib/types'
+import type { MeldArbitrageResponse, ArbitrageMetalData, ArbitrageMetalError, ArbitrageBitcoinData, BitcoinTokenData, GSRData, RotationSignal } from '@/lib/types'
 import { BitcoinArbitrageCard } from './BitcoinArbitrageCard'
+import { ArrowRightLeft, Scale } from 'lucide-react'
 
 // ============================================================================
 // Helper Functions
@@ -314,6 +315,168 @@ function BitcoinCard({ data, loading }: BitcoinCardProps) {
 }
 
 // ============================================================================
+// GSR & Rotation Card Component
+// ============================================================================
+
+interface GSRRotationCardProps {
+  gsr: GSRData | null
+  rotation: RotationSignal | null
+  loading: boolean
+}
+
+function getRotationColor(signal: string): string {
+  if (signal.includes('SILVER_TO_GOLD')) return 'bg-yellow-500 text-black'
+  if (signal.includes('GOLD_TO_SILVER')) return 'bg-slate-300 text-black'
+  return 'bg-slate-600 text-white'
+}
+
+function getRotationIcon(signal: string) {
+  if (signal === 'HOLD') return <Minus className="h-4 w-4" />
+  return <ArrowRightLeft className="h-4 w-4" />
+}
+
+function getGSRZoneColor(zone: string): string {
+  switch (zone) {
+    case 'extreme_high':
+      return 'text-red-400'
+    case 'high':
+      return 'text-orange-400'
+    case 'normal':
+      return 'text-yellow-400'
+    case 'low':
+    case 'extreme_low':
+      return 'text-green-400'
+    default:
+      return 'text-slate-400'
+  }
+}
+
+function GSRRotationCard({ gsr, rotation, loading }: GSRRotationCardProps) {
+  // Loading state
+  if (loading) {
+    return (
+      <Card className="border-slate-700 animate-pulse">
+        <CardHeader className="pb-2">
+          <CardTitle className="flex items-center gap-2">
+            <Scale className="h-5 w-5 text-slate-400" />
+            Gold/Silver Ratio
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            <div className="h-8 bg-slate-700 rounded w-24" />
+            <div className="h-4 bg-slate-700 rounded w-full" />
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // No data state
+  if (!gsr && !rotation) {
+    return null
+  }
+
+  const hasRotationSignal = rotation && rotation.signal !== 'HOLD'
+
+  return (
+    <Card className={`border-slate-700 ${hasRotationSignal ? 'border-orange-500/30' : ''}`}>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Scale className="h-5 w-5 text-slate-400" />
+            Gold/Silver Ratio & Rotation
+          </CardTitle>
+          {rotation && rotation.signal !== 'HOLD' && (
+            <Badge className={`${getRotationColor(rotation.signal)} flex items-center gap-1`}>
+              {getRotationIcon(rotation.signal)}
+              {rotation.signal.replace(/_/g, ' ')}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* GSR Display */}
+        {gsr && (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs text-slate-400 uppercase tracking-wide">Meld GSR</div>
+              <div className={`text-2xl font-bold ${getGSRZoneColor(gsr.context.zone)}`}>
+                {gsr.meld_gsr.toFixed(1)}:1
+              </div>
+              <div className="text-xs text-slate-500 mt-1">{gsr.context.message}</div>
+            </div>
+            <div>
+              <div className="text-xs text-slate-400 uppercase tracking-wide">Spot GSR</div>
+              <div className="text-2xl font-bold text-slate-300">
+                {gsr.spot_gsr ? `${gsr.spot_gsr.toFixed(1)}:1` : 'N/A'}
+              </div>
+              {gsr.gsr_spread_pct !== null && (
+                <div className={`text-xs mt-1 ${gsr.gsr_spread_pct > 0 ? 'text-red-400' : 'text-green-400'}`}>
+                  {gsr.gsr_spread_pct > 0 ? '+' : ''}{gsr.gsr_spread_pct.toFixed(2)}% vs spot
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Rotation Signal */}
+        {rotation && (
+          <div className="bg-slate-800/50 rounded-lg p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-slate-400 uppercase tracking-wide">Rotation Signal</span>
+              {rotation.signal !== 'HOLD' && (
+                <span className="text-xs text-slate-400">
+                  Strength: {rotation.strength.toFixed(0)}%
+                </span>
+              )}
+            </div>
+            <div className="text-sm text-slate-300">{rotation.description}</div>
+
+            {/* Signal Strength Bar */}
+            {rotation.signal !== 'HOLD' && (
+              <div className="mt-3">
+                <div className="w-full bg-slate-700 rounded-full h-2">
+                  <div
+                    className={`h-2 rounded-full transition-all duration-500 ${
+                      rotation.signal.includes('SILVER_TO_GOLD') ? 'bg-yellow-500' : 'bg-slate-300'
+                    }`}
+                    style={{ width: `${Math.min(100, rotation.strength)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Spread Info */}
+            <div className="mt-2 text-xs text-slate-500">
+              Premium spread: {rotation.spread_pct > 0 ? '+' : ''}{rotation.spread_pct.toFixed(2)}%
+              (Silver - Gold premiums)
+            </div>
+          </div>
+        )}
+
+        {/* GSR Context */}
+        {gsr && (
+          <div className="text-xs text-slate-500 pt-2 border-t border-slate-700">
+            <div className="flex items-center gap-2">
+              <span className="font-medium">Historical context:</span>
+              <span>GSR ranges from ~30 (silver expensive) to ~90+ (silver cheap). Modern average: ~60.</span>
+            </div>
+            {gsr.context.bias !== 'neutral' && (
+              <div className="mt-1">
+                <span className={gsr.context.bias === 'silver' ? 'text-slate-300' : 'text-yellow-400'}>
+                  Current bias: {gsr.context.bias === 'silver' ? 'Favor silver accumulation' : 'Favor gold accumulation'}
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ============================================================================
 // Main Component
 // ============================================================================
 
@@ -430,6 +593,15 @@ export function MeldArbitrageSpotter({
               <MetalCard
                 metal="silver"
                 data={data?.silver || null}
+                loading={loading && !data}
+              />
+            </div>
+
+            {/* GSR & Rotation Signal */}
+            <div className="mb-4">
+              <GSRRotationCard
+                gsr={data?.gsr || null}
+                rotation={data?.rotation || null}
                 loading={loading && !data}
               />
             </div>

@@ -447,10 +447,34 @@ export interface ArbitrageMetalError {
   wbtc_available?: boolean
 }
 
+// GSR (Gold/Silver Ratio) types
+export interface GSRContext {
+  zone: 'extreme_high' | 'high' | 'normal' | 'low' | 'extreme_low'
+  color: string
+  message: string
+  bias: 'silver' | 'gold' | 'neutral'
+}
+
+export interface GSRData {
+  meld_gsr: number
+  spot_gsr: number | null
+  gsr_spread_pct: number | null
+  context: GSRContext
+}
+
+export interface RotationSignal {
+  signal: 'HOLD' | 'CONSIDER_SILVER_TO_GOLD' | 'CONSIDER_GOLD_TO_SILVER' | 'SILVER_TO_GOLD' | 'GOLD_TO_SILVER'
+  strength: number
+  spread_pct: number
+  description: string
+}
+
 export interface MeldArbitrageResponse {
   gold: ArbitrageMetalData | ArbitrageMetalError | null
   silver: ArbitrageMetalData | ArbitrageMetalError | null
   bitcoin: ArbitrageBitcoinData | ArbitrageMetalError | null
+  gsr: GSRData | null
+  rotation: RotationSignal | null
   timestamp: string
   data_complete: boolean
 }

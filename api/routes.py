@@ -741,6 +741,115 @@ def _calculate_arbitrage_signal(premium_pct: float) -> tuple:
         return ('HOLD', 0)
 
 
+def _calculate_rotation_signal(gold_premium_pct: float, silver_premium_pct: float) -> dict:
+    """
+    Calculate rotation signal between gold and silver based on premium spread.
+
+    The spread = silver_premium - gold_premium
+    - Positive spread (silver more expensive): Signal to rotate silver → gold
+    - Negative spread (gold more expensive): Signal to rotate gold → silver
+
+    Thresholds:
+    - |spread| > 3%: Active rotation signal
+    - |spread| 1-3%: Weak signal (consider)
+    - |spread| < 1%: No signal (metals at parity)
+
+    Returns signal with strength (0-100) scaled by how far past threshold.
+    """
+    spread_pct = silver_premium_pct - gold_premium_pct
+    abs_spread = abs(spread_pct)
+
+    if abs_spread < 1.0:
+        return {
+            'signal': 'HOLD',
+            'strength': 0,
+            'spread_pct': round(spread_pct, 2),
+            'description': 'Gold and silver premiums at parity - no rotation advantage'
+        }
+    elif abs_spread < 3.0:
+        # Weak signal zone (1-3%)
+        strength = (abs_spread - 1.0) / 2.0 * 33  # Scale 0-33%
+        if spread_pct > 0:
+            return {
+                'signal': 'CONSIDER_SILVER_TO_GOLD',
+                'strength': round(strength, 1),
+                'spread_pct': round(spread_pct, 2),
+                'description': f'Silver slightly overpriced vs gold ({spread_pct:.2f}% spread) - weak rotation signal'
+            }
+        else:
+            return {
+                'signal': 'CONSIDER_GOLD_TO_SILVER',
+                'strength': round(strength, 1),
+                'spread_pct': round(spread_pct, 2),
+                'description': f'Gold slightly overpriced vs silver ({abs_spread:.2f}% spread) - weak rotation signal'
+            }
+    else:
+        # Strong signal zone (>3%)
+        # Strength scales from 33% at 3% spread to 100% at 9%+ spread
+        strength = min(100, 33 + (abs_spread - 3.0) / 6.0 * 67)
+        if spread_pct > 0:
+            return {
+                'signal': 'SILVER_TO_GOLD',
+                'strength': round(strength, 1),
+                'spread_pct': round(spread_pct, 2),
+                'description': f'Silver overpriced vs gold by {spread_pct:.2f}% - rotate silver to gold'
+            }
+        else:
+            return {
+                'signal': 'GOLD_TO_SILVER',
+                'strength': round(strength, 1),
+                'spread_pct': round(spread_pct, 2),
+                'description': f'Gold overpriced vs silver by {abs_spread:.2f}% - rotate gold to silver'
+            }
+
+
+def _get_gsr_context(gsr: float) -> dict:
+    """
+    Provide historical context for the Gold/Silver Ratio (GSR).
+
+    Historical ranges:
+    - Modern era average: ~60:1
+    - Historical (pre-1900): ~15:1
+    - Extreme high: 120:1 (March 2020)
+    - Extreme low: 30:1 (1980, 2011)
+    """
+    if gsr >= 80:
+        return {
+            'zone': 'extreme_high',
+            'color': 'red',
+            'message': f'GSR at {gsr:.1f} - silver historically cheap vs gold (buy silver)',
+            'bias': 'silver'
+        }
+    elif gsr >= 70:
+        return {
+            'zone': 'high',
+            'color': 'orange',
+            'message': f'GSR at {gsr:.1f} - silver undervalued vs gold',
+            'bias': 'silver'
+        }
+    elif gsr >= 50:
+        return {
+            'zone': 'normal',
+            'color': 'yellow',
+            'message': f'GSR at {gsr:.1f} - normal range, no strong bias',
+            'bias': 'neutral'
+        }
+    elif gsr >= 40:
+        return {
+            'zone': 'low',
+            'color': 'green',
+            'message': f'GSR at {gsr:.1f} - gold undervalued vs silver',
+            'bias': 'gold'
+        }
+    else:
+        return {
+            'zone': 'extreme_low',
+            'color': 'green',
+            'message': f'GSR at {gsr:.1f} - gold historically cheap vs silver (buy gold)',
+            'bias': 'gold'
+        }
+
+
 @router.get("/arbitrage/meld", response_model=MeldArbitrageResponse)
 async def get_meld_arbitrage():
     """
@@ -749,6 +858,7 @@ async def get_meld_arbitrage():
     Analyzes:
     - Meld GOLD$/SILVER$ vs Yahoo Finance spot prices
     - goBTC vs Coinbase BTC spot price
+    - Gold/Silver Ratio (GSR) with rotation signals
 
     Returns premium/discount percentage and trading signals for arbitrage opportunities.
 
@@ -768,6 +878,8 @@ async def get_meld_arbitrage():
         'gold': None,
         'silver': None,
         'bitcoin': None,
+        'gsr': None,
+        'rotation': None,
         'timestamp': datetime.utcnow().isoformat() + 'Z',
         'data_complete': True
     }
@@ -953,6 +1065,47 @@ async def get_meld_arbitrage():
             'gobtc_available': False,
             'wbtc_available': False
         }
+
+    # =========== GSR & ROTATION SIGNAL ===========
+    try:
+        # Calculate GSR if we have both gold and silver data
+        gold_data = result.get('gold')
+        silver_data = result.get('silver')
+
+        if (gold_data and 'meld_price' in gold_data and
+            silver_data and 'meld_price' in silver_data):
+
+            meld_gold = gold_data['meld_price']
+            meld_silver = silver_data['meld_price']
+
+            # Calculate Meld GSR (gold price / silver price in same units - per gram)
+            meld_gsr = meld_gold / meld_silver if meld_silver > 0 else None
+
+            if meld_gsr:
+                # Get spot GSR for comparison
+                spot_gold_per_gram = gold_data['implied_per_gram']
+                spot_silver_per_gram = silver_data['implied_per_gram']
+                spot_gsr = spot_gold_per_gram / spot_silver_per_gram if spot_silver_per_gram > 0 else None
+
+                gsr_context = _get_gsr_context(meld_gsr)
+
+                result['gsr'] = {
+                    'meld_gsr': round(meld_gsr, 2),
+                    'spot_gsr': round(spot_gsr, 2) if spot_gsr else None,
+                    'gsr_spread_pct': round(((meld_gsr - spot_gsr) / spot_gsr) * 100, 2) if spot_gsr else None,
+                    'context': gsr_context
+                }
+
+                # Calculate rotation signal based on premium spreads
+                gold_premium = gold_data.get('premium_pct', 0)
+                silver_premium = silver_data.get('premium_pct', 0)
+
+                rotation_signal = _calculate_rotation_signal(gold_premium, silver_premium)
+                result['rotation'] = rotation_signal
+
+    except Exception as e:
+        print(f"Error calculating GSR/rotation: {e}")
+        # GSR is optional, don't fail the whole response
 
     # Auto-capture price snapshot for history
     try:
