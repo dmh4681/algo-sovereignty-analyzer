@@ -234,11 +234,37 @@ class ArbitrageBitcoinData(BaseModel):
     signal_strength: float = Field(..., ge=0, le=100, description="Signal strength 0-100")
 
 
+class GSRContext(BaseModel):
+    """Historical context for Gold/Silver Ratio."""
+    zone: str = Field(..., description="Zone: extreme_high, high, normal, low, extreme_low")
+    color: str = Field(..., description="Color indicator for UI")
+    message: str = Field(..., description="Human-readable context message")
+    bias: str = Field(..., description="Accumulation bias: silver, gold, or neutral")
+
+
+class GSRData(BaseModel):
+    """Gold/Silver Ratio data."""
+    meld_gsr: float = Field(..., description="GSR calculated from Meld prices")
+    spot_gsr: Optional[float] = Field(None, description="GSR calculated from spot prices")
+    gsr_spread_pct: Optional[float] = Field(None, description="Spread between Meld and spot GSR")
+    context: GSRContext = Field(..., description="Historical context for the GSR")
+
+
+class RotationSignal(BaseModel):
+    """Rotation signal between gold and silver."""
+    signal: str = Field(..., description="Signal: HOLD, CONSIDER_*, SILVER_TO_GOLD, GOLD_TO_SILVER")
+    strength: float = Field(..., ge=0, le=100, description="Signal strength 0-100")
+    spread_pct: float = Field(..., description="Premium spread (silver - gold)")
+    description: str = Field(..., description="Human-readable signal description")
+
+
 class MeldArbitrageResponse(BaseModel):
     """Complete arbitrage analysis response."""
     gold: Optional[Dict[str, Any]] = Field(None, description="Gold arbitrage data or error")
     silver: Optional[Dict[str, Any]] = Field(None, description="Silver arbitrage data or error")
     bitcoin: Optional[Dict[str, Any]] = Field(None, description="Bitcoin/goBTC arbitrage data or error")
+    gsr: Optional[Dict[str, Any]] = Field(None, description="Gold/Silver Ratio data")
+    rotation: Optional[Dict[str, Any]] = Field(None, description="Rotation signal between gold and silver")
     timestamp: str = Field(..., description="ISO timestamp of analysis")
     data_complete: bool = Field(..., description="Whether all price data was available")
 
