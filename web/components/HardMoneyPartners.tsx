@@ -1,22 +1,10 @@
 'use client'
 
-import { Server, Coins, ExternalLink } from 'lucide-react'
+import { Coins, ExternalLink } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 
 // Hard money partner data - centralized for consistency
 const HARD_MONEY_PARTNERS = [
-    {
-        id: 'iga',
-        name: 'iGetAlgo (iGA)',
-        shortName: 'iGA',
-        description: "iGA is earned by running Algorand participation nodes. It's not a token you buy—it's a token you earn by contributing to network security. This is exactly the incentive structure Algorand needs.",
-        shortDescription: 'Earned by running participation nodes. Rewards decentralization.',
-        asaId: '2635992378',
-        supply: '333 (fixed)',
-        link: 'https://twitter.com/iGetAlgo',
-        icon: Server,
-        color: 'purple',
-    },
     {
         id: 'meld',
         name: 'Meld Gold & Silver',
@@ -56,13 +44,6 @@ interface PartnerCardProps {
 function PartnerCard({ name, description, asaId, asaIds, supply, link, icon, color, variant }: PartnerCardProps) {
     // Map colors to Tailwind classes (can't use dynamic classes)
     const colorClasses = {
-        purple: {
-            border: 'hover:border-purple-500/50',
-            bg: 'bg-purple-500/10',
-            borderBg: 'border-purple-500/30',
-            text: 'text-purple-400',
-            link: 'text-purple-400 hover:text-purple-300',
-        },
         yellow: {
             border: 'hover:border-yellow-500/50',
             bg: 'bg-yellow-500/10',
@@ -157,8 +138,8 @@ interface HardMoneyPartnersProps {
 
 export function HardMoneyPartners({ variant = 'full', showTitle = true, className = '' }: HardMoneyPartnersProps) {
     const gridCols = variant === 'full'
-        ? 'grid-cols-1 md:grid-cols-3'
-        : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+        ? 'grid-cols-1 md:grid-cols-2'
+        : 'grid-cols-1 sm:grid-cols-2'
 
     return (
         <section className={`space-y-8 ${className}`}>
@@ -175,7 +156,6 @@ export function HardMoneyPartners({ variant = 'full', showTitle = true, classNam
                 {HARD_MONEY_PARTNERS.map((partner) => {
                     const Icon = partner.icon
                     const iconColor = {
-                        purple: 'text-purple-400',
                         yellow: 'text-yellow-400',
                         orange: 'text-orange-400',
                     }[partner.color] || 'text-slate-400'
