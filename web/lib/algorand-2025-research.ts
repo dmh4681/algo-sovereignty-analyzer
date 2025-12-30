@@ -1,5 +1,5 @@
 // Algorand 2025 Research Data
-// Sources: Gemini Deep Research + iGetAlgo Ecosystem Resources
+// Sources: Gemini Deep Research
 // Last Updated: December 27, 2025
 
 export interface ResearchStat {
@@ -51,7 +51,7 @@ export interface ResearchSource {
 
 export const ALGORAND_2025_RESEARCH = {
   lastUpdated: '2025-12-27',
-  source: 'Gemini Deep Research + iGetAlgo Ecosystem',
+  source: 'Gemini Deep Research',
 
   // ---------------------------------------------------------------------------
   // EXECUTIVE SUMMARY
@@ -431,17 +431,6 @@ For sovereignty-focused investors, the outcome of this vote determines whether A
       hardMoneyPartner: false,
       url: 'https://valar.fi'
     },
-    {
-      name: 'iGetAlgo',
-      category: 'Staking',
-      status: 'Growing',
-      description: 'Node participation rewards. 333 fixed supply iGA token earned by running nodes.',
-      keyFeature: 'Ultra-scarce rewards for node runners',
-      sovereigntyRelevant: true,
-      hardMoneyPartner: true,
-      twitter: '@iGetAlgo'
-    },
-
     // ===== REAL WORLD ASSETS =====
     {
       name: 'Meld Gold',
@@ -756,13 +745,6 @@ For sovereignty-focused investors, the outcome of this vote determines whether A
   // HARD MONEY PARTNERS (For Sovereignty Analyzer)
   // ---------------------------------------------------------------------------
   hardMoneyPartners: [
-    {
-      name: 'iGetAlgo (iGA)',
-      asaId: 2635992378,
-      supply: '333 fixed',
-      description: 'Earned through node participation. Ultra-scarce.',
-      sovereigntyRationale: 'Fixed supply, earned through contribution to decentralization'
-    },
     {
       name: 'Meld Gold (GOLD$)',
       asaId: 246516580,

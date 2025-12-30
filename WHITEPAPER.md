@@ -70,7 +70,6 @@ We classify the following assets as hard money on Algorand:
 | **goBTC** | 386192725 | BTC-backed | Wrapped Bitcoin, inherits BTC's properties |
 | **GOLD$ (Meld)** | 246516580 | Gold-backed | Tokenized physical gold, redeemable |
 | **SILVER$ (Meld)** | 246519683 | Silver-backed | Tokenized physical silver, redeemable |
-| **iGetAlgo (iGA)** | 2635992378 | 333 fixed | Earned through node participation, ultra-scarce |
 
 ### 2.3 Exclusion Criteria
 
@@ -83,12 +82,6 @@ Assets are **not** classified as hard money if they:
 - Have concentrated ownership that enables manipulation
 
 This excludes most DeFi governance tokens, memecoins, NFTs, and unbacked stablecoins from hard money classification.
-
-### 2.4 The iGetAlgo Exception
-
-iGetAlgo (iGA) deserves special mention. With only 333 tokens in existence, it represents the scarcest asset on Algorand. More importantly, iGA is **earned** by running participation nodes—directly tying its distribution to network decentralization.
-
-iGA embodies the incentive structure Algorand needs: contribute to decentralization, earn hard money. We consider iGA a model for sovereignty-aligned tokenomics.
 
 ---
 
@@ -145,7 +138,7 @@ We recommend users treat the ratio as a directional indicator, not a precise pre
 We classify all Algorand assets into four tiers:
 
 **Tier 1: Hard Money** 💎
-- Bitcoin (goBTC), Gold (GOLD$), Silver (SILVER$), iGA
+- Bitcoin (goBTC), Gold (GOLD$), Silver (SILVER$)
 - ALGO (when participating in consensus)
 - Counts toward Sovereignty Ratio
 
@@ -215,7 +208,7 @@ The Sovereignty Analyzer contributes by:
 
 - **Education** - Teaching users how to run participation nodes
 - **Measurement** - Tracking decentralization metrics publicly
-- **Incentive alignment** - Promoting iGA and other participation rewards
+- **Incentive alignment** - Promoting staking rewards and participation
 - **Community building** - Connecting sovereignty-minded Algorand users
 
 ---
@@ -266,7 +259,6 @@ We're building those alternatives.
 | goBTC | 386192725 | Hard Money | Wrapped Bitcoin |
 | GOLD$ | 246516580 | Hard Money | Tokenized gold |
 | SILVER$ | 246519683 | Hard Money | Tokenized silver |
-| iGA | 2635992378 | Hard Money | 333 fixed supply, earned via nodes |
 | USDC | 31566704 | Productive | Stablecoin, centralized issuer |
 | USDt | 312769 | Productive | Stablecoin, centralized issuer |
 | xALGO | Various | Productive | Liquid staking derivative |

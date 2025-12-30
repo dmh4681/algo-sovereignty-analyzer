@@ -630,32 +630,6 @@ export default function NetworkPage() {
           </CardContent>
         </Card>
 
-        {/* Earn iGA */}
-        <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/30 hover:border-yellow-500/50 transition-colors">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center text-center space-y-4">
-              <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center">
-                <Award className="w-8 h-8 text-yellow-400" />
-              </div>
-              <div>
-                <h3 className="text-lg font-semibold text-yellow-400">Earn iGA</h3>
-                <p className="text-sm text-slate-400 mt-1">
-                  Get rewarded for participation with iGetAlgo (333 supply)
-                </p>
-              </div>
-              <a
-                href="https://twitter.com/iGetAlgo"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-500 rounded-lg text-white text-sm font-medium transition-colors"
-              >
-                Learn More
-                <ExternalLink className="w-4 h-4" />
-              </a>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Analyze Holdings */}
         <Card className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/30 hover:border-orange-500/50 transition-colors">
           <CardContent className="pt-6">

@@ -57,7 +57,7 @@ Despite the centralization concerns, we're building on Algorand because:
 - **Pure Proof of Stake** - Your stake secures the network, not warehouses of mining rigs
 - **Participation nodes are accessible** - You can run one on a Raspberry Pi
 - **The technical foundation is sound** - Fast, cheap, carbon negative
-- **The community gets it** - Projects like iGetAlgo are already incentivizing decentralization
+- **The community gets it** - Growing number of independent validators strengthening decentralization
 
 Algorand's problem isn't technical—it's political. And political problems can be solved by building alternatives to Foundation dependency.
 
@@ -66,13 +66,6 @@ Algorand's problem isn't technical—it's political. And political problems can 
 ## Hard Money Partners
 
 We recognize these projects as aligned with sovereignty principles:
-
-### iGetAlgo (iGA)
-**ASA ID:** 2635992378 | **Supply:** 333 tokens (fixed)
-
-iGA is earned by running Algorand participation nodes. It's not a token you buy—it's a token you earn by contributing to network security. This is exactly the incentive structure Algorand needs.
-
-[Learn more about iGetAlgo →](https://twitter.com/iGetAlgo)
 
 ### Meld Gold (GOLD$) & Meld Silver (SILVER$)
 Tokenized precious metals on Algorand. Real gold and silver, fully backed, redeemable. Hard money that's been hard money for 5,000 years.
@@ -88,7 +81,7 @@ Bitcoin is the hardest money ever created. goBTC brings it to Algorand, letting 
 
 This project was built by [Dylan Heiney](https://twitter.com/sovereignpath) at Sovereign Path LLC.
 
-I run my own Algorand participation node. I hold ALGO, iGA, and other hard money assets. I'm building this because I need it myself—and because Algorand needs more people building for decentralization rather than waiting for the Foundation to solve everything.
+I run my own Algorand participation node. I hold ALGO and other hard money assets. I'm building this because I need it myself—and because Algorand needs more people building for decentralization rather than waiting for the Foundation to solve everything.
 
 **Sovereignty over status. Decentralization over convenience. Hard money over hype.**
 
@@ -98,7 +91,7 @@ I run my own Algorand participation node. I hold ALGO, iGA, and other hard money
 
 **Analyze your wallet** - See where you stand on the sovereignty spectrum
 
-**Run a node** - Contribute to decentralization and earn iGA
+**Run a node** - Contribute to decentralization and earn staking rewards
 
 **Stack hard money** - Build a portfolio that can say "no"
 

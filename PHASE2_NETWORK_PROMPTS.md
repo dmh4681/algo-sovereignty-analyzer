@@ -320,12 +320,7 @@ Grid of action cards:
    - "Contribute to decentralization and earn rewards"
    - Link: /network/run-a-node (or https://developer.algorand.org/docs/run-a-node/participate/ for now)
 
-2. "Earn iGA"
-   - Icon: Token/Coin
-   - "Get rewarded for participation with iGetAlgo"
-   - Link: https://twitter.com/iGetAlgo (external)
-
-3. "Stack Hard Money"
+2. "Stack Hard Money"
    - Icon: Gold bars
    - "Build your sovereignty ratio"
    - Link: /analyze
@@ -375,12 +370,7 @@ Benefits cards:
    - 30,000+ ALGO stake earns protocol rewards
    - Rewards paid automatically for valid block proposals
 
-3. **Earn iGA Tokens**
-   - iGetAlgo rewards participation node runners
-   - 333 total supply - ultra-scarce
-   - Link: https://twitter.com/iGetAlgo
-
-4. **True Sovereignty**
+3. **True Sovereignty**
    - Verify transactions yourself
    - Don't trust third parties
    - Be part of the solution, not the problem
@@ -415,12 +405,6 @@ Even small participants strengthen decentralization!"
 - Block proposers earn transaction fees
 - Stakers with 30k+ ALGO receive ongoing rewards
 - Rewards distributed automatically - no claiming needed
-
-**iGetAlgo (iGA)**
-- Community-run incentive program
-- Earn iGA tokens for running nodes
-- Only 333 iGA exist - extremely scarce
-- Qualifies as "hard money" in our classification
 
 **Governance**
 - Node runners can participate in Algorand governance
@@ -547,53 +531,7 @@ A: Yes! Even without rewards, you're strengthening decentralization.
 
 ---
 
-## Prompt 5: Add iGA to Hard Money Classification
-
-```
-Update the asset classification system to include iGetAlgo (iGA) as a hard money asset.
-
-## Task 1: Update data/asset_classification.csv
-
-Add this line:
-```csv
-2635992378,iGetAlgo,iGA,hard_money,"333 fixed supply, earned through node participation"
-```
-
-## Task 2: Verify core/classifier.py
-
-Ensure the classifier:
-1. Reads from the CSV file
-2. Recognizes ASA 2635992378 as hard money
-3. Falls back to pattern matching for "iGetAlgo" or "iGA" names
-
-Add pattern if needed:
-```python
-# In HARD_MONEY_PATTERNS or equivalent
-r"(?i)^igetAlgo$",
-r"(?i)^iGA$",
-```
-
-## Task 3: Update pricing (core/pricing.py)
-
-Verify iGA can get a price from Vestige or other sources.
-- ASA ID: 2635992378
-- If no price available, handle gracefully (show quantity, note "price unavailable")
-- iGA is traded on Tinyman, so Vestige should have pricing
-
-## Task 4: Test
-
-Run analyzer against a wallet known to hold iGA and verify:
-1. iGA appears in hard_money category, not shitcoin
-2. USD value is calculated (if price available)
-3. Sovereignty ratio includes iGA value
-
-## Context
-iGA represents the scarcest asset on Algorand (333 total supply) and is earned by running participation nodes. It's the perfect hard money classification - scarce, earned through contribution, not speculative.
-```
-
----
-
-## Prompt 6: Verify Meld & goBTC Classifications  
+## Prompt 5: Verify Meld & goBTC Classifications  
 
 ```
 Verify that all precious metal and Bitcoin assets are properly classified as hard money.
@@ -637,7 +575,7 @@ If prices seem wrong, check Vestige API configuration.
 
 1. **Prompt 1**: Create `core/network.py` - Backend module for fetching network stats
 2. **Prompt 2**: Add API endpoints `/api/v1/network/stats` and `/api/v1/network/wallet/{address}`
-3. **Prompt 5 & 6**: Update asset classifications (quick wins, do alongside backend work)
+3. **Prompt 5**: Verify asset classifications (quick wins, do alongside backend work)
 4. **Prompt 3**: Build enhanced Network page UI (after API is ready)
 5. **Prompt 4**: Create Node Runner Guide page (can be done in parallel with UI)
 
@@ -648,7 +586,6 @@ If prices seem wrong, check Vestige API configuration.
 - Algorand Developer Docs: https://developer.algorand.org/docs/run-a-node/participate/
 - Foundation Addresses: https://algorand.foundation/updated-wallet-addresses
 - Node Setup Guide: https://nodely.io/blog/algorand-key-reg/
-- iGetAlgo: https://twitter.com/iGetAlgo
 
 ## Notes
 

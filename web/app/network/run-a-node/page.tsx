@@ -216,32 +216,6 @@ export default function RunANodePage() {
             </CardContent>
           </Card>
 
-          {/* Earn iGA Tokens */}
-          <Card className="bg-gradient-to-br from-yellow-500/10 to-amber-500/10 border-yellow-500/30">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-lg bg-yellow-500/20 flex items-center justify-center flex-shrink-0">
-                  <Award className="w-6 h-6 text-yellow-400" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-yellow-400">Earn iGA Tokens</h3>
-                  <p className="text-sm text-slate-400 mt-1">
-                    iGetAlgo rewards participation node runners.
-                    333 total supply - ultra-scarce hard money.
-                  </p>
-                  <a
-                    href="https://twitter.com/iGetAlgo"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-yellow-500 hover:text-yellow-400 mt-2"
-                  >
-                    Learn more <ExternalLink className="w-3 h-3" />
-                  </a>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
           {/* True Sovereignty */}
           <Card className="bg-gradient-to-br from-orange-500/10 to-red-500/10 border-orange-500/30">
             <CardContent className="pt-6">
@@ -403,23 +377,6 @@ export default function RunANodePage() {
                 <li>• Block proposers earn transaction fees</li>
                 <li>• Stakers with 30k+ ALGO receive ongoing rewards</li>
                 <li>• Rewards distributed automatically - no claiming needed</li>
-              </ul>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-slate-900/50 border-slate-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Award className="w-5 h-5 text-yellow-400" />
-                iGetAlgo (iGA)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm text-slate-400">
-              <ul className="space-y-2">
-                <li>• Community-run incentive program</li>
-                <li>• Earn iGA tokens for running nodes</li>
-                <li>• Only 333 iGA exist - extremely scarce</li>
-                <li>• Qualifies as &quot;hard money&quot;</li>
               </ul>
             </CardContent>
           </Card>
@@ -860,7 +817,7 @@ wsl -d Ubuntu -u root -- service algorand start`}
           <CardContent className="pt-6">
             <FAQItem
               question="How much ALGO do I need to start?"
-              answer="Any amount works for running a node, but 30,000+ ALGO is required to receive protocol staking rewards. Even with less, you're still contributing to decentralization and can earn iGA tokens."
+              answer="Any amount works for running a node, but 30,000+ ALGO is required to receive protocol staking rewards. Even with less, you're still contributing to decentralization."
             />
             <FAQItem
               question="Will I lose my ALGO if my node goes offline?"
@@ -876,7 +833,7 @@ wsl -d Ubuntu -u root -- service algorand start`}
             />
             <FAQItem
               question="Is it worth it for small holders?"
-              answer="Yes! Even without protocol rewards (under 30k ALGO), you're strengthening decentralization, can earn iGA tokens, and gain valuable experience running infrastructure. Every node matters."
+              answer="Yes! Even without protocol rewards (under 30k ALGO), you're strengthening decentralization and gaining valuable experience running infrastructure. Every node matters."
             />
             <FAQItem
               question="How often do I need to renew my participation keys?"

@@ -257,7 +257,7 @@ export default function AboutPage() {
                                 <Users className="w-5 h-5 text-orange-400 mt-0.5 flex-shrink-0" />
                                 <div>
                                     <p className="font-medium text-white">The Community Gets It</p>
-                                    <p className="text-sm text-slate-400">Projects like iGetAlgo are already incentivizing decentralization</p>
+                                    <p className="text-sm text-slate-400">Growing number of independent validators strengthening decentralization</p>
                                 </div>
                             </div>
                         </div>
@@ -289,7 +289,7 @@ export default function AboutPage() {
                                     <p className="text-slate-400">Sovereign Path LLC</p>
                                 </div>
                                 <p className="text-slate-300">
-                                    I run my own Algorand participation node. I hold ALGO, iGA, and other hard money assets.
+                                    I run my own Algorand participation node. I hold ALGO and other hard money assets.
                                     I'm building this because I need it myself—and because Algorand needs more people building
                                     for decentralization rather than waiting for the Foundation to solve everything.
                                 </p>

@@ -8,7 +8,7 @@
 ## Strategic Goals
 
 1. **Educate users about sovereignty principles** - Apply them to Algorand specifically, framing decentralization from the Foundation as existential for the chain's survival
-2. **Expand hard money tracking** - Include all limited-supply, sovereignty-aligned assets (iGetAlgo, Meld Gold/Silver, ORA, goBTC)
+2. **Expand hard money tracking** - Include all limited-supply, sovereignty-aligned assets (Meld Gold/Silver, ORA, goBTC)
 3. **Incentivize decentralization** - Onboard ALGO participation node runners, build tools that make sovereignty practical
 
 ---
@@ -22,7 +22,7 @@
 - [ ] Who built this and why
 - [ ] The sovereignty thesis in plain language
 - [ ] Why Algorand specifically (PPoS, carbon negative, but centralization risk)
-- [ ] Partner ecosystem (iGetAlgo, Meld, ORA - with logos/links)
+- [ ] Partner ecosystem (Meld, ORA, goBTC - with logos/links)
 - [ ] Call to action: Run a node, stack hard money
 
 **Whitepaper Page** (`/whitepaper`)
@@ -30,7 +30,7 @@
 - [ ] Hard money definition and criteria on Algorand
 - [ ] The decentralization imperative (Foundation dependency = single point of failure)
 - [ ] Sovereignty Ratio methodology explained
-- [ ] Asset classification framework (why iGA qualifies, why random memecoins don't)
+- [ ] Asset classification framework (why certain assets qualify, why random memecoins don't)
 - [ ] Roadmap/vision for the ecosystem
 
 ### 1.2 Expand Hard Money Classifications
@@ -39,7 +39,6 @@
 
 | Asset | ASA ID | Rationale |
 |-------|--------|-----------|
-| iGetAlgo (iGA) | 2635992378 | 333 fixed supply, earned through participation |
 | ORA (Oranges) | TBD | Fixed supply, commodity-backed philosophy |
 | GOLD$ (Meld) | Already included | Tokenized gold |
 | SILVER$ (Meld) | Already included | Tokenized silver |
@@ -121,7 +120,7 @@ Weave these themes throughout:
 ### 4.1 News Page Enhancement (`/news`)
 
 **Curated Sovereignty News:**
-- [ ] RSS feeds from hard money partners (iGetAlgo, Meld, etc.)
+- [ ] RSS feeds from hard money partners (Meld, etc.)
 - [ ] Algorand governance updates
 - [ ] Decentralization metrics changes
 - [ ] Your own announcements
@@ -134,12 +133,12 @@ Weave these themes throughout:
 
 **Ecosystem Map:**
 - [ ] Visual representation of sovereignty-aligned projects
-- [ ] iGetAlgo, Meld, ORA, and others
+- [ ] Meld, ORA, goBTC, and others
 - [ ] How they interconnect
 
 **Join the Movement:**
 - [ ] Discord/Telegram links
-- [ ] Twitter follows (your account, iGetAlgo, partners)
+- [ ] Twitter follows (your account, partners)
 - [ ] Newsletter signup
 
 ---
@@ -188,15 +187,6 @@ Weave these themes throughout:
 
 ## Partner Integration Strategy
 
-### iGetAlgo (@iGetAlgo)
-- **Their value prop:** Earn iGA by running participation nodes
-- **Your value prop:** Track sovereignty including iGA holdings
-- **Synergy:** Your app shows iGA as hard money, drives users to participate, they earn iGA, they track it with you
-- **ASA ID:** 2635992378
-- **Supply:** 333 tokens (fixed)
-
-**Outreach angle:** "We're building the sovereignty tracking layer for Algorand - iGA is a core hard money asset in our classification. Would love to explore integration."
-
 ### Meld Gold/Silver
 - Already classified as hard money
 - Add prominent partner section
@@ -214,8 +204,7 @@ Weave these themes throughout:
 ### Immediate (This Week)
 1. ✅ Create `/about` page - split from Philosophy
 2. ✅ Create `/whitepaper` page - formal thesis document
-3. [ ] Add iGA (ASA 2635992378) to hard money classification
-4. [ ] Add partner links section
+3. [ ] Add partner links section
 
 ### Short-term (Next 2 Weeks)
 5. [ ] Enhance `/network` with real decentralization metrics
@@ -235,7 +224,7 @@ Weave these themes throughout:
 
 **Phase 1-2:**
 - About/Whitepaper pages live
-- iGA and partners integrated
+- Partners integrated
 - Network page showing real metrics
 
 **Phase 3-4:**
@@ -246,7 +235,6 @@ Weave these themes throughout:
 **Phase 5+:**
 - X wallets analyzed
 - Y participation nodes attributed to our education
-- Z iGA holders using the tracker
 - Partner acknowledgment/collaboration
 
 ---
@@ -255,7 +243,7 @@ Weave these themes throughout:
 
 - [ ] About page copy
 - [ ] Whitepaper document
-- [ ] Partner logos (iGetAlgo, Meld, ORA)
+- [ ] Partner logos (Meld, ORA)
 - [ ] Training module content
 - [ ] Node runner guide
 - [ ] Social media assets

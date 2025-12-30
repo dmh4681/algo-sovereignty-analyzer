@@ -20,7 +20,6 @@ const tocItems: TOCItem[] = [
     { id: 'what-makes-money-hard', title: '2.1 What Makes Money "Hard"?', level: 2 },
     { id: 'hard-money-algorand', title: '2.2 Hard Money on Algorand', level: 2 },
     { id: 'exclusion-criteria', title: '2.3 Exclusion Criteria', level: 2 },
-    { id: 'iga-exception', title: '2.4 The iGetAlgo Exception', level: 2 },
     { id: 'sovereignty-ratio', title: '3. The Sovereignty Ratio', level: 1 },
     { id: 'ratio-definition', title: '3.1 Definition', level: 2 },
     { id: 'ratio-interpretation', title: '3.2 Interpretation', level: 2 },
@@ -267,12 +266,6 @@ export default function WhitepaperPage() {
                                             <td className="py-3 px-4">Silver-backed</td>
                                             <td className="py-3 px-4">Tokenized physical silver, redeemable</td>
                                         </tr>
-                                        <tr className="border-b border-slate-800">
-                                            <td className="py-3 px-4 font-medium text-purple-400">iGA</td>
-                                            <td className="py-3 px-4">2635992378</td>
-                                            <td className="py-3 px-4">333 fixed</td>
-                                            <td className="py-3 px-4">Earned through node participation, ultra-scarce</td>
-                                        </tr>
                                     </tbody>
                                 </table>
                             </div>
@@ -294,18 +287,6 @@ export default function WhitepaperPage() {
                             </p>
                         </div>
 
-                        <div id="iga-exception" className="scroll-mt-24">
-                            <h3 className="text-2xl font-semibold text-white mb-4">2.4 The iGetAlgo Exception</h3>
-                            <p className="text-slate-300 mb-4">
-                                iGetAlgo (iGA) deserves special mention. With only 333 tokens in existence, it represents the
-                                scarcest asset on Algorand. More importantly, iGA is <strong className="text-purple-400">earned</strong> by
-                                running participation nodes—directly tying its distribution to network decentralization.
-                            </p>
-                            <p className="text-slate-300">
-                                iGA embodies the incentive structure Algorand needs: contribute to decentralization, earn hard
-                                money. We consider iGA a model for sovereignty-aligned tokenomics.
-                            </p>
-                        </div>
                     </section>
 
                     {/* 3. Sovereignty Ratio */}
@@ -412,7 +393,7 @@ export default function WhitepaperPage() {
                                 <div className="bg-orange-500/10 border border-orange-500/30 rounded-xl p-4">
                                     <h4 className="font-bold text-orange-400 mb-2">Tier 1: Hard Money</h4>
                                     <ul className="text-slate-300 text-sm space-y-1">
-                                        <li>Bitcoin (goBTC), Gold (GOLD$), Silver (SILVER$), iGA</li>
+                                        <li>Bitcoin (goBTC), Gold (GOLD$), Silver (SILVER$)</li>
                                         <li>ALGO (when participating in consensus)</li>
                                         <li className="text-orange-400">Counts toward Sovereignty Ratio</li>
                                     </ul>
@@ -509,7 +490,7 @@ export default function WhitepaperPage() {
                             <ul className="text-slate-300 space-y-2 list-disc list-inside">
                                 <li><strong className="text-orange-400">Education</strong> - Teaching users how to run participation nodes</li>
                                 <li><strong className="text-orange-400">Measurement</strong> - Tracking decentralization metrics publicly</li>
-                                <li><strong className="text-orange-400">Incentive alignment</strong> - Promoting iGA and other participation rewards</li>
+                                <li><strong className="text-orange-400">Incentive alignment</strong> - Promoting staking rewards and participation</li>
                                 <li><strong className="text-orange-400">Community building</strong> - Connecting sovereignty-minded Algorand users</li>
                             </ul>
                         </div>
@@ -620,12 +601,6 @@ export default function WhitepaperPage() {
                                         <td className="py-3 px-4">246519683</td>
                                         <td className="py-3 px-4 text-orange-400">Hard Money</td>
                                         <td className="py-3 px-4">Tokenized silver</td>
-                                    </tr>
-                                    <tr className="border-b border-slate-800">
-                                        <td className="py-3 px-4 font-medium text-purple-400">iGA</td>
-                                        <td className="py-3 px-4">2635992378</td>
-                                        <td className="py-3 px-4 text-orange-400">Hard Money</td>
-                                        <td className="py-3 px-4">333 fixed supply, earned via nodes</td>
                                     </tr>
                                     <tr className="border-b border-slate-800">
                                         <td className="py-3 px-4 font-medium text-white">USDC</td>
