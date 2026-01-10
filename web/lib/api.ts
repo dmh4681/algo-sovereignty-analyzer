@@ -341,3 +341,126 @@ export async function getBTCHistory(hours: number = 24): Promise<BTCHistoryRespo
 
   return response.json()
 }
+
+// --- Gold Miner Metrics API ---
+
+export interface MinerMetric {
+  id: number | null
+  company: string
+  ticker: string
+  period: string
+  aisc: number
+  production: number
+  revenue: number
+  fcf: number
+  dividend_yield: number
+  market_cap: number
+  tier1: number
+  tier2: number
+  tier3: number
+  timestamp: string | null
+}
+
+export interface MinerMetricsResponse {
+  metrics: MinerMetric[]
+  count: number
+  timestamp: string
+}
+
+export interface SectorStats {
+  avg_aisc: number
+  total_production: number
+  avg_yield: number
+  tier1_exposure: number
+  company_count: number
+}
+
+export interface SectorStatsResponse {
+  stats: SectorStats
+  timestamp: string
+}
+
+export interface CreateMinerMetricRequest {
+  company: string
+  ticker: string
+  period: string
+  aisc: number
+  production: number
+  revenue: number
+  fcf: number
+  dividend_yield: number
+  market_cap: number
+  tier1?: number
+  tier2?: number
+  tier3?: number
+}
+
+/**
+ * Get all gold miner quarterly metrics
+ */
+export async function getMinerMetrics(limit: number = 100): Promise<MinerMetricsResponse> {
+  const response = await fetch(`${API_BASE}/gold/miners?limit=${limit}`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch miner metrics', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get the most recent metrics for each gold mining company
+ */
+export async function getLatestMinerMetrics(): Promise<MinerMetricsResponse> {
+  const response = await fetch(`${API_BASE}/gold/miners/latest`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch latest miner metrics', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get sector-wide statistics
+ */
+export async function getSectorStats(): Promise<SectorStatsResponse> {
+  const response = await fetch(`${API_BASE}/gold/miners/stats`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch sector stats', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get all metrics for a specific company by ticker
+ */
+export async function getMinerByTicker(ticker: string): Promise<MinerMetricsResponse & { ticker: string; company: string }> {
+  const response = await fetch(`${API_BASE}/gold/miners/${ticker}`)
+
+  if (!response.ok) {
+    throw new ApiError(`Failed to fetch metrics for ${ticker}`, response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Submit a new quarterly report for a gold miner
+ */
+export async function createMinerMetric(data: CreateMinerMetricRequest): Promise<{ success: boolean; id: number; message: string }> {
+  const response = await fetch(`${API_BASE}/gold/miners`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new ApiError(errorData.detail || 'Failed to create miner metric', response.status)
+  }
+
+  return response.json()
+}

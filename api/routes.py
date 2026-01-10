@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
 from core.history import SovereigntySnapshot, get_history_manager
 from core.btc_history import get_btc_history_manager, save_current_prices
+from core.miner_metrics import get_miner_metrics_db, MinerMetric
 from core.pricing import (
     get_hardcoded_price,
     get_gold_price_per_oz,
@@ -1155,4 +1156,177 @@ async def get_btc_arbitrage_history(
         }
     except Exception as e:
         print(f"Error fetching BTC history: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# -----------------------------------------------------------------------------
+# Gold Miner Metrics Endpoints
+# -----------------------------------------------------------------------------
+
+@router.get("/gold/miners")
+async def get_miner_metrics(
+    limit: int = Query(100, ge=1, le=500, description="Maximum records to return")
+):
+    """
+    Get all gold miner quarterly metrics.
+
+    Returns metrics ordered by period (newest first), then by ticker.
+    Used for historical trend analysis and data tables.
+    """
+    try:
+        db = get_miner_metrics_db()
+        metrics = db.get_all_metrics(limit=limit)
+
+        return {
+            'metrics': [m.to_dict() for m in metrics],
+            'count': len(metrics),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching miner metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/gold/miners/latest")
+async def get_latest_miner_metrics():
+    """
+    Get the most recent metrics for each gold mining company.
+
+    Returns one record per company (their latest quarterly report).
+    Used for dashboard KPIs and efficiency frontier chart.
+    """
+    try:
+        db = get_miner_metrics_db()
+        metrics = db.get_latest_by_company()
+
+        return {
+            'metrics': [m.to_dict() for m in metrics],
+            'count': len(metrics),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching latest miner metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/gold/miners/stats")
+async def get_sector_stats():
+    """
+    Get sector-wide statistics from the latest data.
+
+    Returns aggregated metrics:
+    - Average AISC across sector
+    - Total quarterly production
+    - Average dividend yield
+    - Weighted Tier 1 jurisdiction exposure
+    """
+    try:
+        db = get_miner_metrics_db()
+        stats = db.get_sector_stats()
+
+        return {
+            'stats': stats,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching sector stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/gold/miners/{ticker}")
+async def get_miner_by_ticker(
+    ticker: str = Path(..., description="Company ticker symbol (e.g., NEM, GOLD, AEM)")
+):
+    """
+    Get all quarterly metrics for a specific company.
+
+    Returns historical data for trend analysis of a single miner.
+    """
+    try:
+        db = get_miner_metrics_db()
+        metrics = db.get_metrics_by_ticker(ticker.upper())
+
+        if not metrics:
+            raise HTTPException(status_code=404, detail=f"No data found for ticker: {ticker}")
+
+        return {
+            'ticker': ticker.upper(),
+            'company': metrics[0].company if metrics else None,
+            'metrics': [m.to_dict() for m in metrics],
+            'count': len(metrics),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching metrics for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/gold/miners")
+async def create_miner_metric(data: Dict[str, Any]):
+    """
+    Submit a new quarterly report for a gold miner.
+
+    Required fields:
+    - company: Company name (e.g., "Newmont")
+    - ticker: Stock ticker (e.g., "NEM")
+    - period: Reporting period (e.g., "2024-Q1")
+    - aisc: All-In Sustaining Cost ($/oz)
+    - production: Quarterly production (Moz)
+    - revenue: Revenue (Billions USD)
+    - fcf: Free Cash Flow (Billions USD)
+    - dividend_yield: Dividend yield (%)
+    - market_cap: Market capitalization (Billions USD)
+
+    Optional fields:
+    - tier1, tier2, tier3: Jurisdiction exposure percentages
+    """
+    try:
+        # Validate required fields
+        required = ['company', 'ticker', 'period', 'aisc', 'production',
+                    'revenue', 'fcf', 'dividend_yield', 'market_cap']
+        missing = [f for f in required if f not in data or data[f] is None]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required fields: {', '.join(missing)}"
+            )
+
+        # Create metric object
+        metric = MinerMetric(
+            id=None,
+            company=data['company'],
+            ticker=data['ticker'].upper(),
+            period=data['period'],
+            aisc=float(data['aisc']),
+            production=float(data['production']),
+            revenue=float(data['revenue']),
+            fcf=float(data['fcf']),
+            dividend_yield=float(data['dividend_yield']),
+            market_cap=float(data['market_cap']),
+            tier1=int(data.get('tier1', 0)),
+            tier2=int(data.get('tier2', 0)),
+            tier3=int(data.get('tier3', 0))
+        )
+
+        db = get_miner_metrics_db()
+        new_id = db.create_metric(metric)
+
+        if new_id is None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Duplicate entry: {metric.ticker} for {metric.period} already exists"
+            )
+
+        return {
+            'success': True,
+            'id': new_id,
+            'message': f"Created metric for {metric.ticker} ({metric.period})",
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error creating miner metric: {e}")
         raise HTTPException(status_code=500, detail=str(e))
