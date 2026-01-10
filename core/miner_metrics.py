@@ -116,7 +116,7 @@ SEED_DATA = [
     {'company': 'Eldorado Gold', 'ticker': 'EGO', 'period': '2024-Q4', 'aisc': 1105, 'production': 0.15, 'revenue': 0.42, 'fcf': 0.09, 'dividend_yield': 0.0, 'market_cap': 4.2, 'tier1': 35, 'tier2': 45, 'tier3': 20},
     {'company': 'B2Gold', 'ticker': 'BTG', 'period': '2024-Q4', 'aisc': 1205, 'production': 0.20, 'revenue': 0.58, 'fcf': 0.03, 'dividend_yield': 3.5, 'market_cap': 3.8, 'tier1': 10, 'tier2': 35, 'tier3': 55},
 
-    # ==================== 2025 Q1 (Estimates based on guidance) ====================
+    # ==================== 2025 Q1 ====================
     {'company': 'Newmont', 'ticker': 'NEM', 'period': '2025-Q1', 'aisc': 1580, 'production': 1.75, 'revenue': 5.1, 'fcf': 0.85, 'dividend_yield': 1.9, 'market_cap': 48.5, 'tier1': 42, 'tier2': 38, 'tier3': 20},
     {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2025-Q1', 'aisc': 1420, 'production': 1.02, 'revenue': 3.45, 'fcf': 0.52, 'dividend_yield': 2.1, 'market_cap': 32.8, 'tier1': 30, 'tier2': 20, 'tier3': 50},
     {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2025-Q1', 'aisc': 1200, 'production': 0.90, 'revenue': 2.28, 'fcf': 0.68, 'dividend_yield': 2.1, 'market_cap': 50.2, 'tier1': 95, 'tier2': 5, 'tier3': 0},
@@ -126,6 +126,28 @@ SEED_DATA = [
     {'company': 'AngloGold Ashanti', 'ticker': 'AU', 'period': '2025-Q1', 'aisc': 1320, 'production': 0.82, 'revenue': 2.05, 'fcf': 0.30, 'dividend_yield': 2.4, 'market_cap': 18.5, 'tier1': 20, 'tier2': 30, 'tier3': 50},
     {'company': 'Eldorado Gold', 'ticker': 'EGO', 'period': '2025-Q1', 'aisc': 1085, 'production': 0.155, 'revenue': 0.45, 'fcf': 0.10, 'dividend_yield': 0.0, 'market_cap': 4.5, 'tier1': 35, 'tier2': 45, 'tier3': 20},
     {'company': 'B2Gold', 'ticker': 'BTG', 'period': '2025-Q1', 'aisc': 1185, 'production': 0.22, 'revenue': 0.62, 'fcf': 0.05, 'dividend_yield': 3.6, 'market_cap': 4.0, 'tier1': 10, 'tier2': 35, 'tier3': 55},
+
+    # ==================== 2025 Q2 ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2025-Q2', 'aisc': 1545, 'production': 1.82, 'revenue': 5.45, 'fcf': 0.95, 'dividend_yield': 2.0, 'market_cap': 52.5, 'tier1': 42, 'tier2': 38, 'tier3': 20},
+    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2025-Q2', 'aisc': 1385, 'production': 1.08, 'revenue': 3.72, 'fcf': 0.62, 'dividend_yield': 2.2, 'market_cap': 35.2, 'tier1': 30, 'tier2': 20, 'tier3': 50},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2025-Q2', 'aisc': 1175, 'production': 0.92, 'revenue': 2.45, 'fcf': 0.75, 'dividend_yield': 2.2, 'market_cap': 54.8, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2025-Q2', 'aisc': 1410, 'production': 0.56, 'revenue': 1.48, 'fcf': 0.25, 'dividend_yield': 2.5, 'market_cap': 17.2, 'tier1': 40, 'tier2': 40, 'tier3': 20},
+    {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2025-Q2', 'aisc': 1155, 'production': 0.16, 'revenue': 0.44, 'fcf': 0.11, 'dividend_yield': 0.75, 'market_cap': 11.5, 'tier1': 90, 'tier2': 10, 'tier3': 0},
+    {'company': 'Kinross Gold', 'ticker': 'KGC', 'period': '2025-Q2', 'aisc': 1155, 'production': 0.62, 'revenue': 1.58, 'fcf': 0.30, 'dividend_yield': 3.1, 'market_cap': 13.5, 'tier1': 55, 'tier2': 25, 'tier3': 20},
+    {'company': 'AngloGold Ashanti', 'ticker': 'AU', 'period': '2025-Q2', 'aisc': 1285, 'production': 0.85, 'revenue': 2.22, 'fcf': 0.38, 'dividend_yield': 2.5, 'market_cap': 20.5, 'tier1': 22, 'tier2': 28, 'tier3': 50},
+    {'company': 'Eldorado Gold', 'ticker': 'EGO', 'period': '2025-Q2', 'aisc': 1065, 'production': 0.16, 'revenue': 0.48, 'fcf': 0.12, 'dividend_yield': 0.0, 'market_cap': 5.0, 'tier1': 35, 'tier2': 45, 'tier3': 20},
+    {'company': 'B2Gold', 'ticker': 'BTG', 'period': '2025-Q2', 'aisc': 1165, 'production': 0.23, 'revenue': 0.68, 'fcf': 0.08, 'dividend_yield': 3.8, 'market_cap': 4.3, 'tier1': 10, 'tier2': 35, 'tier3': 55},
+
+    # ==================== 2025 Q3 ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2025-Q3', 'aisc': 1520, 'production': 1.88, 'revenue': 5.65, 'fcf': 1.05, 'dividend_yield': 2.1, 'market_cap': 55.2, 'tier1': 42, 'tier2': 38, 'tier3': 20},
+    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2025-Q3', 'aisc': 1360, 'production': 1.12, 'revenue': 3.95, 'fcf': 0.72, 'dividend_yield': 2.3, 'market_cap': 37.5, 'tier1': 30, 'tier2': 20, 'tier3': 50},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2025-Q3', 'aisc': 1155, 'production': 0.94, 'revenue': 2.58, 'fcf': 0.82, 'dividend_yield': 2.3, 'market_cap': 58.2, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2025-Q3', 'aisc': 1385, 'production': 0.58, 'revenue': 1.55, 'fcf': 0.28, 'dividend_yield': 2.6, 'market_cap': 18.5, 'tier1': 40, 'tier2': 40, 'tier3': 20},
+    {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2025-Q3', 'aisc': 1140, 'production': 0.165, 'revenue': 0.48, 'fcf': 0.13, 'dividend_yield': 0.8, 'market_cap': 12.8, 'tier1': 90, 'tier2': 10, 'tier3': 0},
+    {'company': 'Kinross Gold', 'ticker': 'KGC', 'period': '2025-Q3', 'aisc': 1135, 'production': 0.64, 'revenue': 1.68, 'fcf': 0.35, 'dividend_yield': 3.2, 'market_cap': 14.8, 'tier1': 55, 'tier2': 25, 'tier3': 20},
+    {'company': 'AngloGold Ashanti', 'ticker': 'AU', 'period': '2025-Q3', 'aisc': 1255, 'production': 0.88, 'revenue': 2.38, 'fcf': 0.45, 'dividend_yield': 2.6, 'market_cap': 22.5, 'tier1': 22, 'tier2': 28, 'tier3': 50},
+    {'company': 'Eldorado Gold', 'ticker': 'EGO', 'period': '2025-Q3', 'aisc': 1045, 'production': 0.165, 'revenue': 0.52, 'fcf': 0.14, 'dividend_yield': 0.0, 'market_cap': 5.5, 'tier1': 35, 'tier2': 45, 'tier3': 20},
+    {'company': 'B2Gold', 'ticker': 'BTG', 'period': '2025-Q3', 'aisc': 1145, 'production': 0.24, 'revenue': 0.72, 'fcf': 0.10, 'dividend_yield': 4.0, 'market_cap': 4.6, 'tier1': 10, 'tier2': 35, 'tier3': 55},
 ]
 
 
