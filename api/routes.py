@@ -1330,3 +1330,25 @@ async def create_miner_metric(data: Dict[str, Any]):
     except Exception as e:
         print(f"Error creating miner metric: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/gold/miners/reseed")
+async def reseed_miner_metrics():
+    """
+    Clear all miner metrics and reseed with built-in seed data.
+    Use this to reset the database to the latest seed data (2023-2025).
+
+    WARNING: This deletes all existing data!
+    """
+    try:
+        db = get_miner_metrics_db()
+        count = db.reseed()
+        return {
+            'success': True,
+            'message': f"Database reseeded with {count} records",
+            'count': count,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error reseeding miner metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

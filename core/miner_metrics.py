@@ -187,6 +187,16 @@ class MinerMetricsDB:
         conn.commit()
         print(f"[MinerMetricsDB] Seeded {len(SEED_DATA)} records")
 
+    def reseed(self) -> int:
+        """
+        Clear existing data and reseed with SEED_DATA.
+        Returns the number of records inserted.
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute('DELETE FROM miner_metrics')
+            self._seed_data(conn)
+        return len(SEED_DATA)
+
     def create_metric(self, metric: MinerMetric) -> Optional[int]:
         """
         Create a new miner metric entry.
