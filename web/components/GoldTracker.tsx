@@ -16,7 +16,7 @@ import {
   RadialLinearScale,
   Filler
 } from 'chart.js'
-import { Line, Bar, Bubble, Radar } from 'react-chartjs-2'
+import { Line, Bar, Bubble, Radar, Doughnut } from 'react-chartjs-2'
 import {
   LayoutDashboard,
   TrendingUp,
@@ -34,7 +34,12 @@ import {
   Coins,
   GitCompare,
   Check,
-  X
+  X,
+  Briefcase,
+  Newspaper,
+  PieChart,
+  Minus,
+  Plus
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -44,6 +49,7 @@ import {
   type MinerMetric,
   type SectorStats
 } from '@/lib/api'
+import NewsCurator from './NewsCurator'
 
 // Register ChartJS components
 ChartJS.register(
@@ -515,7 +521,7 @@ function TrendLineChart({ historicalData, metric, title, yAxisTitle }: TrendLine
 
 // --- Main Component ---
 
-type ViewType = 'dashboard' | 'scores' | 'calculator' | 'compare' | 'trends'
+type ViewType = 'dashboard' | 'scores' | 'calculator' | 'compare' | 'portfolio' | 'news' | 'trends'
 
 export function GoldTracker() {
   const [view, setView] = useState<ViewType>('dashboard')
@@ -525,6 +531,7 @@ export function GoldTracker() {
   const [error, setError] = useState<string | null>(null)
   const [goldPrice, setGoldPrice] = useState(CURRENT_GOLD_PRICE)
   const [selectedMiners, setSelectedMiners] = useState<string[]>([])
+  const [portfolioAllocations, setPortfolioAllocations] = useState<Record<string, number>>({})
 
   // Fetch data on mount
   useEffect(() => {
@@ -594,6 +601,66 @@ export function GoldTracker() {
     return sovereigntyScores.filter(s => selectedMiners.includes(s.ticker))
   }, [sovereigntyScores, selectedMiners])
 
+  // Portfolio allocation helpers
+  const updateAllocation = (ticker: string, value: number) => {
+    setPortfolioAllocations(prev => ({
+      ...prev,
+      [ticker]: Math.max(0, Math.min(100, value))
+    }))
+  }
+
+  const totalAllocation = useMemo(() => {
+    return Object.values(portfolioAllocations).reduce((sum, val) => sum + val, 0)
+  }, [portfolioAllocations])
+
+  const normalizedAllocations = useMemo(() => {
+    if (totalAllocation === 0) return {}
+    const normalized: Record<string, number> = {}
+    for (const [ticker, value] of Object.entries(portfolioAllocations)) {
+      normalized[ticker] = (value / totalAllocation) * 100
+    }
+    return normalized
+  }, [portfolioAllocations, totalAllocation])
+
+  // Blended portfolio metrics
+  const portfolioMetrics = useMemo(() => {
+    const allocatedMiners = latestData.filter(m => (portfolioAllocations[m.ticker] || 0) > 0)
+    if (allocatedMiners.length === 0 || totalAllocation === 0) return null
+
+    let blendedAisc = 0
+    let blendedTier1 = 0
+    let blendedDividend = 0
+    let blendedFcfYield = 0
+    let blendedSovereigntyScore = 0
+    let totalMarketCap = 0
+
+    allocatedMiners.forEach(miner => {
+      const weight = (portfolioAllocations[miner.ticker] || 0) / totalAllocation
+      const score = sovereigntyScores.find(s => s.ticker === miner.ticker)
+
+      blendedAisc += miner.aisc * weight
+      blendedTier1 += miner.tier1 * weight
+      blendedDividend += miner.dividend_yield * weight
+      blendedFcfYield += (miner.fcf / miner.market_cap) * 100 * weight
+      blendedSovereigntyScore += (score?.totalScore || 50) * weight
+      totalMarketCap += miner.market_cap * weight
+    })
+
+    const blendedMargin = CURRENT_GOLD_PRICE - blendedAisc
+    const blendedMarginOfSafety = ((CURRENT_GOLD_PRICE - blendedAisc) / CURRENT_GOLD_PRICE) * 100
+
+    return {
+      aisc: Math.round(blendedAisc),
+      tier1: Math.round(blendedTier1),
+      dividend: Math.round(blendedDividend * 100) / 100,
+      fcfYield: Math.round(blendedFcfYield * 100) / 100,
+      sovereigntyScore: Math.round(blendedSovereigntyScore),
+      margin: Math.round(blendedMargin),
+      marginOfSafety: Math.round(blendedMarginOfSafety),
+      minerCount: allocatedMiners.length
+    }
+  }, [latestData, portfolioAllocations, totalAllocation, sovereigntyScores])
+
   // Navigation
   const Navigation = () => (
     <nav className="flex items-center space-x-2 bg-slate-800 p-1 rounded-lg">
@@ -641,6 +708,26 @@ export function GoldTracker() {
             {selectedMiners.length}
           </span>
         )}
+      </button>
+      <button
+        onClick={() => setView('portfolio')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          view === 'portfolio'
+            ? 'bg-amber-500 text-white shadow-sm'
+            : 'text-slate-400 hover:text-white'
+        }`}
+      >
+        <Briefcase size={16} /> Portfolio
+      </button>
+      <button
+        onClick={() => setView('news')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          view === 'news'
+            ? 'bg-amber-500 text-white shadow-sm'
+            : 'text-slate-400 hover:text-white'
+        }`}
+      >
+        <Newspaper size={16} /> News
       </button>
       <button
         onClick={() => setView('trends')}
@@ -1593,6 +1680,266 @@ export function GoldTracker() {
               </Card>
             </>
           )}
+        </div>
+      )}
+
+      {/* Portfolio View */}
+      {view === 'portfolio' && (
+        <div className="space-y-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-slate-100">
+              Portfolio <span className="text-amber-500">Builder</span>
+            </h2>
+            <p className="text-slate-400 max-w-2xl mx-auto mt-2">
+              Model your ideal gold miner portfolio and see blended metrics
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Allocation Controls */}
+            <div className="lg:col-span-2 space-y-4">
+              <Card className="border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-slate-100">Set Allocations</CardTitle>
+                  <p className="text-sm text-slate-400">
+                    Adjust weights for each miner (will be normalized to 100%)
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {latestData.map(miner => {
+                    const allocation = portfolioAllocations[miner.ticker] || 0
+                    const normalized = normalizedAllocations[miner.ticker] || 0
+                    const score = sovereigntyScores.find(s => s.ticker === miner.ticker)
+
+                    return (
+                      <div key={miner.ticker} className="flex items-center gap-4 p-3 bg-slate-800/50 rounded-lg">
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-2">
+                            <div>
+                              <span className="font-bold text-slate-200">{miner.ticker}</span>
+                              <span className="text-xs text-slate-500 ml-2">{miner.company}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {score && (
+                                <span className={`text-xs px-2 py-0.5 rounded ${score.badgeColor}`}>
+                                  {score.totalScore}
+                                </span>
+                              )}
+                              <span className="text-sm font-mono text-amber-400 w-16 text-right">
+                                {normalized.toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <button
+                              onClick={() => updateAllocation(miner.ticker, allocation - 5)}
+                              className="p-1 bg-slate-700 rounded hover:bg-slate-600 text-slate-400"
+                            >
+                              <Minus size={14} />
+                            </button>
+                            <input
+                              type="range"
+                              min={0}
+                              max={100}
+                              value={allocation}
+                              onChange={(e) => updateAllocation(miner.ticker, Number(e.target.value))}
+                              className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                            />
+                            <button
+                              onClick={() => updateAllocation(miner.ticker, allocation + 5)}
+                              className="p-1 bg-slate-700 rounded hover:bg-slate-600 text-slate-400"
+                            >
+                              <Plus size={14} />
+                            </button>
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              value={allocation}
+                              onChange={(e) => updateAllocation(miner.ticker, Number(e.target.value))}
+                              className="w-16 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-center text-sm font-mono text-slate-200"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+
+                  {/* Quick Actions */}
+                  <div className="flex gap-2 pt-4 border-t border-slate-700">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const equal: Record<string, number> = {}
+                        latestData.forEach(m => { equal[m.ticker] = 20 })
+                        setPortfolioAllocations(equal)
+                      }}
+                    >
+                      Equal Weight
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        const byScore: Record<string, number> = {}
+                        sovereigntyScores.forEach(s => { byScore[s.ticker] = s.totalScore })
+                        setPortfolioAllocations(byScore)
+                      }}
+                    >
+                      Score Weighted
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPortfolioAllocations({})}
+                    >
+                      Clear All
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Portfolio Summary */}
+            <div className="space-y-4">
+              {/* Pie Chart */}
+              <Card className="border-slate-700">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-slate-100 text-lg flex items-center gap-2">
+                    <PieChart size={18} /> Allocation
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {totalAllocation > 0 ? (
+                    <div className="h-48">
+                      <Doughnut
+                        data={{
+                          labels: Object.keys(normalizedAllocations),
+                          datasets: [{
+                            data: Object.values(normalizedAllocations),
+                            backgroundColor: [
+                              '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ef4444'
+                            ],
+                            borderColor: '#1e293b',
+                            borderWidth: 2
+                          }]
+                        }}
+                        options={{
+                          responsive: true,
+                          maintainAspectRatio: false,
+                          plugins: {
+                            legend: {
+                              position: 'bottom',
+                              labels: { color: '#94a3b8', padding: 8, font: { size: 11 } }
+                            }
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <div className="h-48 flex items-center justify-center text-slate-500">
+                      <p className="text-center">
+                        <PieChart className="mx-auto mb-2 opacity-50" size={32} />
+                        Set allocations to see chart
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Blended Metrics */}
+              <Card className="border-slate-700">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-slate-100 text-lg">Blended Metrics</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {portfolioMetrics ? (
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center p-2 bg-slate-800 rounded">
+                        <span className="text-slate-400 text-sm">Sovereignty Score</span>
+                        <span className="font-bold text-xl text-amber-400">{portfolioMetrics.sovereigntyScore}</span>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-slate-800 rounded">
+                        <span className="text-slate-400 text-sm">Blended AISC</span>
+                        <span className="font-mono font-bold text-slate-200">${portfolioMetrics.aisc}/oz</span>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-slate-800 rounded">
+                        <span className="text-slate-400 text-sm">Profit Margin</span>
+                        <span className={`font-mono font-bold ${portfolioMetrics.margin > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                          ${portfolioMetrics.margin}/oz
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-slate-800 rounded">
+                        <span className="text-slate-400 text-sm">Margin of Safety</span>
+                        <span className={`font-mono font-bold ${portfolioMetrics.marginOfSafety >= 40 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {portfolioMetrics.marginOfSafety}%
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-slate-800 rounded">
+                        <span className="text-slate-400 text-sm">Tier 1 Exposure</span>
+                        <span className="font-mono font-bold text-emerald-400">{portfolioMetrics.tier1}%</span>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-slate-800 rounded">
+                        <span className="text-slate-400 text-sm">Dividend Yield</span>
+                        <span className="font-mono font-bold text-slate-200">{portfolioMetrics.dividend}%</span>
+                      </div>
+                      <div className="flex justify-between items-center p-2 bg-slate-800 rounded">
+                        <span className="text-slate-400 text-sm">FCF Yield</span>
+                        <span className="font-mono font-bold text-slate-200">{portfolioMetrics.fcfYield}%</span>
+                      </div>
+                      <div className="pt-2 border-t border-slate-700 text-center">
+                        <span className="text-xs text-slate-500">
+                          {portfolioMetrics.minerCount} miner{portfolioMetrics.minerCount > 1 ? 's' : ''} in portfolio
+                        </span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center text-slate-500">
+                      <Briefcase className="mx-auto mb-2 opacity-50" size={32} />
+                      <p>Set allocations to see blended metrics</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Info Card */}
+          <Card className="border-slate-700 bg-slate-800/50">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="text-amber-500 flex-shrink-0 mt-0.5" size={20} />
+                <div className="text-sm text-slate-400">
+                  <p className="font-medium text-slate-300 mb-1">About the Portfolio Builder</p>
+                  <p>
+                    This tool helps you model a hypothetical gold miner portfolio. Blended metrics are weighted
+                    averages based on your allocation percentages. The Sovereignty Score is a proprietary ranking
+                    considering jurisdiction safety, cost efficiency, FCF yield, and production trends.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* News View */}
+      {view === 'news' && (
+        <div className="space-y-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-slate-100">
+              Gold Mining <span className="text-amber-500">News</span>
+            </h2>
+            <p className="text-slate-400 max-w-2xl mx-auto mt-2">
+              AI-curated precious metals news analyzed through a sovereignty lens
+            </p>
+          </div>
+
+          {/* NewsCurator Component */}
+          <NewsCurator />
         </div>
       )}
 
