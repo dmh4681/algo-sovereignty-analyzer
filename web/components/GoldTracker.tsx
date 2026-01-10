@@ -26,7 +26,10 @@ import {
   Award,
   Crown,
   Target,
-  Zap
+  Zap,
+  Calculator,
+  AlertTriangle,
+  Coins
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -174,6 +177,63 @@ function calculateSovereigntyScores(
 
   // Sort by total score descending
   return scores.sort((a, b) => b.totalScore - a.totalScore)
+}
+
+// --- Gold Price Sensitivity Calculation ---
+
+const CURRENT_GOLD_PRICE = 4400 // Current gold price per oz
+const MIN_GOLD_PRICE = 1500
+const MAX_GOLD_PRICE = 15000
+
+interface MinerSensitivity {
+  ticker: string
+  company: string
+  aisc: number
+  production: number // Quarterly Moz
+  currentMargin: number // $ per oz at current price
+  projectedMargin: number // $ per oz at slider price
+  marginChange: number // % change in margin
+  breakEvenPrice: number // Gold price where margin = 0 (equals AISC)
+  marginOfSafety: number // % gold can drop before unprofitable
+  quarterlyProfit: number // Projected profit in $M at slider price
+  profitChange: number // % change in quarterly profit
+}
+
+function calculateSensitivity(
+  latestData: MinerMetric[],
+  goldPrice: number
+): MinerSensitivity[] {
+  return latestData.map(miner => {
+    const currentMargin = CURRENT_GOLD_PRICE - miner.aisc
+    const projectedMargin = goldPrice - miner.aisc
+    const marginChange = currentMargin > 0
+      ? ((projectedMargin - currentMargin) / currentMargin) * 100
+      : projectedMargin > 0 ? 100 : 0
+
+    const breakEvenPrice = miner.aisc
+    const marginOfSafety = ((goldPrice - miner.aisc) / goldPrice) * 100
+
+    // Quarterly profit = margin * production (in Moz) * 1,000,000 / 1,000,000 = margin * production in $M
+    const quarterlyProfit = projectedMargin * miner.production
+    const currentProfit = currentMargin * miner.production
+    const profitChange = currentProfit > 0
+      ? ((quarterlyProfit - currentProfit) / currentProfit) * 100
+      : quarterlyProfit > 0 ? 100 : 0
+
+    return {
+      ticker: miner.ticker,
+      company: miner.company,
+      aisc: miner.aisc,
+      production: miner.production,
+      currentMargin,
+      projectedMargin,
+      marginChange,
+      breakEvenPrice,
+      marginOfSafety,
+      quarterlyProfit,
+      profitChange
+    }
+  }).sort((a, b) => b.marginOfSafety - a.marginOfSafety)
 }
 
 // --- Score Display Components ---
@@ -448,7 +508,7 @@ function TrendLineChart({ historicalData, metric, title, yAxisTitle }: TrendLine
 
 // --- Main Component ---
 
-type ViewType = 'dashboard' | 'scores' | 'trends'
+type ViewType = 'dashboard' | 'scores' | 'calculator' | 'trends'
 
 export function GoldTracker() {
   const [view, setView] = useState<ViewType>('dashboard')
@@ -456,6 +516,7 @@ export function GoldTracker() {
   const [stats, setStats] = useState<SectorStats | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [goldPrice, setGoldPrice] = useState(CURRENT_GOLD_PRICE)
 
   // Fetch data on mount
   useEffect(() => {
@@ -497,6 +558,11 @@ export function GoldTracker() {
     return calculateSovereigntyScores(latestData, rawData)
   }, [latestData, rawData])
 
+  // Price Sensitivity Analysis
+  const sensitivityData = useMemo(() => {
+    return calculateSensitivity(latestData, goldPrice)
+  }, [latestData, goldPrice])
+
   // Navigation
   const Navigation = () => (
     <nav className="flex items-center space-x-2 bg-slate-800 p-1 rounded-lg">
@@ -519,6 +585,16 @@ export function GoldTracker() {
         }`}
       >
         <Target size={16} /> Scores
+      </button>
+      <button
+        onClick={() => setView('calculator')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          view === 'calculator'
+            ? 'bg-amber-500 text-white shadow-sm'
+            : 'text-slate-400 hover:text-white'
+        }`}
+      >
+        <Calculator size={16} /> Calculator
       </button>
       <button
         onClick={() => setView('trends')}
@@ -812,6 +888,313 @@ export function GoldTracker() {
                     Speculative
                   </span>
                   <p className="text-xs text-slate-500 mt-2">Score 0-34</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Calculator View */}
+      {view === 'calculator' && (
+        <div className="space-y-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-slate-100">
+              Gold Price <span className="text-amber-500">Calculator</span>
+            </h2>
+            <p className="text-slate-400 max-w-2xl mx-auto mt-2">
+              Explore how gold price changes affect miner profitability and margins
+            </p>
+          </div>
+
+          {/* Gold Price Slider */}
+          <Card className="border-slate-700 bg-gradient-to-br from-amber-900/20 to-slate-900">
+            <CardContent className="py-6">
+              <div className="flex flex-col items-center space-y-4">
+                <div className="flex items-center gap-3">
+                  <Coins className="text-amber-500" size={28} />
+                  <span className="text-4xl font-bold text-amber-400">
+                    ${goldPrice.toLocaleString()}
+                  </span>
+                  <span className="text-slate-400">/oz</span>
+                </div>
+
+                <div className="w-full max-w-2xl px-4">
+                  <input
+                    type="range"
+                    min={MIN_GOLD_PRICE}
+                    max={MAX_GOLD_PRICE}
+                    step={50}
+                    value={goldPrice}
+                    onChange={(e) => setGoldPrice(Number(e.target.value))}
+                    className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                  />
+                  <div className="flex justify-between text-xs text-slate-500 mt-2">
+                    <span>${MIN_GOLD_PRICE.toLocaleString()}</span>
+                    <span className="text-amber-500 font-medium">Current: ${CURRENT_GOLD_PRICE.toLocaleString()}</span>
+                    <span>${MAX_GOLD_PRICE.toLocaleString()}</span>
+                  </div>
+                </div>
+
+                {/* Quick Presets */}
+                <div className="flex gap-2 flex-wrap justify-center mt-4">
+                  {[2500, 4400, 6000, 8000, 10000, 15000].map(price => (
+                    <button
+                      key={price}
+                      onClick={() => setGoldPrice(price)}
+                      className={`px-3 py-1 text-sm rounded-full transition-colors ${
+                        goldPrice === price
+                          ? 'bg-amber-500 text-white'
+                          : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                      }`}
+                    >
+                      ${price.toLocaleString()}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Price Change Indicator */}
+                <div className={`flex items-center gap-2 text-sm ${
+                  goldPrice > CURRENT_GOLD_PRICE ? 'text-emerald-400' :
+                  goldPrice < CURRENT_GOLD_PRICE ? 'text-red-400' : 'text-slate-400'
+                }`}>
+                  {goldPrice !== CURRENT_GOLD_PRICE && (
+                    <>
+                      {goldPrice > CURRENT_GOLD_PRICE ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                      <span>
+                        {goldPrice > CURRENT_GOLD_PRICE ? '+' : ''}
+                        {(((goldPrice - CURRENT_GOLD_PRICE) / CURRENT_GOLD_PRICE) * 100).toFixed(1)}% from current
+                      </span>
+                    </>
+                  )}
+                  {goldPrice === CURRENT_GOLD_PRICE && <span>Current market price</span>}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Sector Summary Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <Card className="border-slate-700">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-400">Avg Margin</p>
+                    <h3 className={`text-2xl font-bold mt-1 ${
+                      sensitivityData.length > 0 && sensitivityData.reduce((s, d) => s + d.projectedMargin, 0) / sensitivityData.length > 0
+                        ? 'text-emerald-400' : 'text-red-400'
+                    }`}>
+                      ${sensitivityData.length > 0
+                        ? Math.round(sensitivityData.reduce((s, d) => s + d.projectedMargin, 0) / sensitivityData.length).toLocaleString()
+                        : 0}/oz
+                    </h3>
+                  </div>
+                  <div className="p-3 rounded-lg bg-emerald-600">
+                    <DollarSign size={20} className="text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-700">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-400">Profitable Miners</p>
+                    <h3 className="text-2xl font-bold text-slate-100 mt-1">
+                      {sensitivityData.filter(d => d.projectedMargin > 0).length} / {sensitivityData.length}
+                    </h3>
+                  </div>
+                  <div className="p-3 rounded-lg bg-blue-600">
+                    <Pickaxe size={20} className="text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-700">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-400">Total Sector Profit</p>
+                    <h3 className={`text-2xl font-bold mt-1 ${
+                      sensitivityData.reduce((s, d) => s + d.quarterlyProfit, 0) > 0 ? 'text-emerald-400' : 'text-red-400'
+                    }`}>
+                      ${sensitivityData.length > 0
+                        ? Math.round(sensitivityData.reduce((s, d) => s + d.quarterlyProfit, 0)).toLocaleString()
+                        : 0}M
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Quarterly estimate</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-amber-500">
+                    <Coins size={20} className="text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-700">
+              <CardContent className="pt-6">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-400">At Risk</p>
+                    <h3 className="text-2xl font-bold text-orange-400 mt-1">
+                      {sensitivityData.filter(d => d.marginOfSafety < 20).length}
+                    </h3>
+                    <p className="text-xs text-slate-500 mt-1">Margin of safety &lt;20%</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-orange-600">
+                    <AlertTriangle size={20} className="text-white" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Sensitivity Table */}
+          <Card className="border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-slate-100">Miner Profitability Analysis</CardTitle>
+              <p className="text-sm text-slate-400">
+                Sorted by margin of safety (how far gold can drop before unprofitable)
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-slate-700">
+                      <th className="text-left py-3 px-2 text-slate-400 font-medium">Miner</th>
+                      <th className="text-right py-3 px-2 text-slate-400 font-medium">AISC</th>
+                      <th className="text-right py-3 px-2 text-slate-400 font-medium">Margin/oz</th>
+                      <th className="text-right py-3 px-2 text-slate-400 font-medium">Margin Δ</th>
+                      <th className="text-right py-3 px-2 text-slate-400 font-medium">Safety</th>
+                      <th className="text-right py-3 px-2 text-slate-400 font-medium">Qtr Profit</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sensitivityData.map((miner) => (
+                      <tr key={miner.ticker} className="border-b border-slate-800 hover:bg-slate-800/50">
+                        <td className="py-3 px-2">
+                          <div>
+                            <p className="font-bold text-slate-200">{miner.ticker}</p>
+                            <p className="text-xs text-slate-500">{miner.company}</p>
+                          </div>
+                        </td>
+                        <td className="text-right py-3 px-2 font-mono text-slate-300">
+                          ${miner.aisc.toLocaleString()}
+                        </td>
+                        <td className={`text-right py-3 px-2 font-mono font-bold ${
+                          miner.projectedMargin > 0 ? 'text-emerald-400' : 'text-red-400'
+                        }`}>
+                          ${miner.projectedMargin.toLocaleString()}
+                        </td>
+                        <td className={`text-right py-3 px-2 font-mono ${
+                          miner.marginChange > 0 ? 'text-emerald-400' :
+                          miner.marginChange < 0 ? 'text-red-400' : 'text-slate-400'
+                        }`}>
+                          {miner.marginChange > 0 ? '+' : ''}{miner.marginChange.toFixed(1)}%
+                        </td>
+                        <td className="text-right py-3 px-2">
+                          <div className="flex items-center justify-end gap-2">
+                            <div className="w-16 h-2 bg-slate-700 rounded-full overflow-hidden">
+                              <div
+                                className={`h-full transition-all ${
+                                  miner.marginOfSafety >= 60 ? 'bg-emerald-500' :
+                                  miner.marginOfSafety >= 40 ? 'bg-blue-500' :
+                                  miner.marginOfSafety >= 20 ? 'bg-amber-500' :
+                                  miner.marginOfSafety > 0 ? 'bg-orange-500' : 'bg-red-500'
+                                }`}
+                                style={{ width: `${Math.max(0, Math.min(100, miner.marginOfSafety))}%` }}
+                              />
+                            </div>
+                            <span className={`font-mono text-xs ${
+                              miner.marginOfSafety >= 40 ? 'text-emerald-400' :
+                              miner.marginOfSafety >= 20 ? 'text-amber-400' :
+                              miner.marginOfSafety > 0 ? 'text-orange-400' : 'text-red-400'
+                            }`}>
+                              {miner.marginOfSafety.toFixed(1)}%
+                            </span>
+                          </div>
+                        </td>
+                        <td className={`text-right py-3 px-2 font-mono ${
+                          miner.quarterlyProfit > 0 ? 'text-emerald-400' : 'text-red-400'
+                        }`}>
+                          ${Math.round(miner.quarterlyProfit).toLocaleString()}M
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Margin Bar Chart */}
+          <Card className="border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-slate-100">Profit Margins by Miner</CardTitle>
+              <p className="text-sm text-slate-400">
+                $ per ounce profit at ${goldPrice.toLocaleString()}/oz gold
+              </p>
+            </CardHeader>
+            <CardContent className="h-80">
+              <Bar
+                data={{
+                  labels: sensitivityData.map(d => d.ticker),
+                  datasets: [
+                    {
+                      label: 'Margin ($/oz)',
+                      data: sensitivityData.map(d => d.projectedMargin),
+                      backgroundColor: sensitivityData.map(d =>
+                        d.projectedMargin > 2000 ? '#10b981' :
+                        d.projectedMargin > 1000 ? '#3b82f6' :
+                        d.projectedMargin > 0 ? '#f59e0b' : '#ef4444'
+                      ),
+                    }
+                  ]
+                }}
+                options={{
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                      callbacks: {
+                        label: (ctx) => `Margin: $${ctx.raw?.toLocaleString()}/oz`
+                      }
+                    }
+                  },
+                  scales: {
+                    y: {
+                      title: { display: true, text: 'Margin ($/oz)', color: '#94a3b8' },
+                      ticks: { color: '#94a3b8' },
+                      grid: { color: '#334155' }
+                    },
+                    x: {
+                      ticks: { color: '#94a3b8' },
+                      grid: { color: '#334155' }
+                    }
+                  }
+                }}
+              />
+            </CardContent>
+          </Card>
+
+          {/* Info Card */}
+          <Card className="border-slate-700 bg-slate-800/50">
+            <CardContent className="py-4">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="text-amber-500 flex-shrink-0 mt-0.5" size={20} />
+                <div className="text-sm text-slate-400">
+                  <p className="font-medium text-slate-300 mb-1">About This Calculator</p>
+                  <p>
+                    Margin of Safety shows the percentage gold prices can fall before a miner becomes unprofitable.
+                    Quarterly profit estimates are based on production × margin. AISC (All-In Sustaining Cost) includes
+                    mining, processing, G&A, and sustaining capital expenditures. Actual results may vary due to hedging,
+                    by-product credits, and operational changes.
+                  </p>
                 </div>
               </div>
             </CardContent>
