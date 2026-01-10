@@ -12,9 +12,11 @@ import {
   Tooltip,
   Legend,
   BubbleController,
-  ArcElement
+  ArcElement,
+  RadialLinearScale,
+  Filler
 } from 'chart.js'
-import { Line, Bar, Bubble } from 'react-chartjs-2'
+import { Line, Bar, Bubble, Radar } from 'react-chartjs-2'
 import {
   LayoutDashboard,
   TrendingUp,
@@ -29,7 +31,10 @@ import {
   Zap,
   Calculator,
   AlertTriangle,
-  Coins
+  Coins,
+  GitCompare,
+  Check,
+  X
 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -51,7 +56,9 @@ ChartJS.register(
   Tooltip,
   Legend,
   BubbleController,
-  ArcElement
+  ArcElement,
+  RadialLinearScale,
+  Filler
 )
 
 // --- Sovereignty Score Calculation ---
@@ -508,7 +515,7 @@ function TrendLineChart({ historicalData, metric, title, yAxisTitle }: TrendLine
 
 // --- Main Component ---
 
-type ViewType = 'dashboard' | 'scores' | 'calculator' | 'trends'
+type ViewType = 'dashboard' | 'scores' | 'calculator' | 'compare' | 'trends'
 
 export function GoldTracker() {
   const [view, setView] = useState<ViewType>('dashboard')
@@ -517,6 +524,7 @@ export function GoldTracker() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [goldPrice, setGoldPrice] = useState(CURRENT_GOLD_PRICE)
+  const [selectedMiners, setSelectedMiners] = useState<string[]>([])
 
   // Fetch data on mount
   useEffect(() => {
@@ -563,6 +571,29 @@ export function GoldTracker() {
     return calculateSensitivity(latestData, goldPrice)
   }, [latestData, goldPrice])
 
+  // Toggle miner selection for comparison
+  const toggleMinerSelection = (ticker: string) => {
+    setSelectedMiners(prev => {
+      if (prev.includes(ticker)) {
+        return prev.filter(t => t !== ticker)
+      }
+      if (prev.length >= 3) {
+        return [...prev.slice(1), ticker] // Replace oldest selection
+      }
+      return [...prev, ticker]
+    })
+  }
+
+  // Get comparison data for selected miners
+  const comparisonData = useMemo(() => {
+    return latestData.filter(m => selectedMiners.includes(m.ticker))
+  }, [latestData, selectedMiners])
+
+  // Get sovereignty scores for selected miners
+  const comparisonScores = useMemo(() => {
+    return sovereigntyScores.filter(s => selectedMiners.includes(s.ticker))
+  }, [sovereigntyScores, selectedMiners])
+
   // Navigation
   const Navigation = () => (
     <nav className="flex items-center space-x-2 bg-slate-800 p-1 rounded-lg">
@@ -595,6 +626,21 @@ export function GoldTracker() {
         }`}
       >
         <Calculator size={16} /> Calculator
+      </button>
+      <button
+        onClick={() => setView('compare')}
+        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+          view === 'compare'
+            ? 'bg-amber-500 text-white shadow-sm'
+            : 'text-slate-400 hover:text-white'
+        }`}
+      >
+        <GitCompare size={16} /> Compare
+        {selectedMiners.length > 0 && (
+          <span className="bg-slate-600 px-1.5 py-0.5 rounded-full text-xs">
+            {selectedMiners.length}
+          </span>
+        )}
       </button>
       <button
         onClick={() => setView('trends')}
@@ -1199,6 +1245,354 @@ export function GoldTracker() {
               </div>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Compare View */}
+      {view === 'compare' && (
+        <div className="space-y-8">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-slate-100">
+              Peer <span className="text-amber-500">Comparison</span>
+            </h2>
+            <p className="text-slate-400 max-w-2xl mx-auto mt-2">
+              Select up to 3 miners to compare side-by-side across key metrics
+            </p>
+          </div>
+
+          {/* Miner Selection */}
+          <Card className="border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-slate-100">Select Miners to Compare</CardTitle>
+              <p className="text-sm text-slate-400">
+                Click to select/deselect. Maximum 3 miners.
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-3">
+                {latestData.map(miner => {
+                  const isSelected = selectedMiners.includes(miner.ticker)
+                  return (
+                    <button
+                      key={miner.ticker}
+                      onClick={() => toggleMinerSelection(miner.ticker)}
+                      className={`flex items-center gap-2 px-4 py-2 rounded-lg border transition-all ${
+                        isSelected
+                          ? 'bg-amber-500 border-amber-400 text-white'
+                          : 'bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500'
+                      }`}
+                    >
+                      {isSelected ? <Check size={16} /> : <div className="w-4" />}
+                      <span className="font-bold">{miner.ticker}</span>
+                      <span className="text-xs opacity-75">{miner.company}</span>
+                    </button>
+                  )
+                })}
+              </div>
+              {selectedMiners.length > 0 && (
+                <button
+                  onClick={() => setSelectedMiners([])}
+                  className="mt-4 text-sm text-slate-400 hover:text-slate-200 flex items-center gap-1"
+                >
+                  <X size={14} /> Clear selection
+                </button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Comparison Content */}
+          {selectedMiners.length === 0 ? (
+            <Card className="border-slate-700 border-dashed">
+              <CardContent className="py-16 text-center">
+                <GitCompare className="mx-auto text-slate-600 mb-4" size={48} />
+                <p className="text-slate-400">Select miners above to start comparing</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              {/* Radar Chart */}
+              <Card className="border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-slate-100">Multi-Dimensional Comparison</CardTitle>
+                  <p className="text-sm text-slate-400">
+                    Normalized scores across key dimensions (higher is better)
+                  </p>
+                </CardHeader>
+                <CardContent className="h-96">
+                  <Radar
+                    data={{
+                      labels: ['Jurisdiction Safety', 'Cost Efficiency', 'FCF Yield', 'Production Trend', 'Scale'],
+                      datasets: comparisonScores.map((score, idx) => {
+                        const miner = comparisonData.find(m => m.ticker === score.ticker)
+                        const colors = [
+                          { bg: 'rgba(245, 158, 11, 0.2)', border: '#f59e0b' },
+                          { bg: 'rgba(16, 185, 129, 0.2)', border: '#10b981' },
+                          { bg: 'rgba(59, 130, 246, 0.2)', border: '#3b82f6' },
+                        ]
+                        const color = colors[idx % colors.length]
+                        // Normalize scale (production) to 0-100
+                        const maxProd = Math.max(...latestData.map(m => m.production))
+                        const scaleScore = miner ? (miner.production / maxProd) * 100 : 0
+
+                        return {
+                          label: score.ticker,
+                          data: [
+                            score.jurisdictionScore,
+                            score.aiscScore,
+                            score.fcfYieldScore,
+                            score.productionTrendScore,
+                            scaleScore
+                          ],
+                          backgroundColor: color.bg,
+                          borderColor: color.border,
+                          borderWidth: 2,
+                          pointBackgroundColor: color.border,
+                          pointBorderColor: '#fff',
+                          pointHoverBackgroundColor: '#fff',
+                          pointHoverBorderColor: color.border
+                        }
+                      })
+                    }}
+                    options={{
+                      responsive: true,
+                      maintainAspectRatio: false,
+                      plugins: {
+                        legend: {
+                          position: 'top',
+                          labels: { color: '#94a3b8' }
+                        }
+                      },
+                      scales: {
+                        r: {
+                          beginAtZero: true,
+                          max: 100,
+                          ticks: { color: '#64748b', backdropColor: 'transparent' },
+                          grid: { color: '#334155' },
+                          pointLabels: { color: '#94a3b8', font: { size: 12 } },
+                          angleLines: { color: '#334155' }
+                        }
+                      }
+                    }}
+                  />
+                </CardContent>
+              </Card>
+
+              {/* Side-by-Side Cards */}
+              <div className={`grid gap-6 ${
+                selectedMiners.length === 1 ? 'grid-cols-1 max-w-xl mx-auto' :
+                selectedMiners.length === 2 ? 'grid-cols-1 md:grid-cols-2' :
+                'grid-cols-1 md:grid-cols-3'
+              }`}>
+                {comparisonData.map(miner => {
+                  const score = comparisonScores.find(s => s.ticker === miner.ticker)
+                  const margin = CURRENT_GOLD_PRICE - miner.aisc
+                  const marginOfSafety = ((CURRENT_GOLD_PRICE - miner.aisc) / CURRENT_GOLD_PRICE) * 100
+
+                  return (
+                    <Card key={miner.ticker} className="border-slate-700">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <CardTitle className="text-slate-100 text-xl">{miner.ticker}</CardTitle>
+                            <p className="text-sm text-slate-500">{miner.company}</p>
+                          </div>
+                          {score && (
+                            <div className="text-right">
+                              <p className="text-3xl font-bold text-amber-400">{score.totalScore}</p>
+                              <p className="text-xs text-slate-500">Sov. Score</p>
+                            </div>
+                          )}
+                        </div>
+                        {score && (
+                          <span className={`inline-block mt-2 px-2 py-1 rounded-full text-xs font-bold ${score.badgeColor}`}>
+                            {score.badge}
+                          </span>
+                        )}
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        {/* Key Metrics */}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-slate-800 rounded-lg p-3">
+                            <p className="text-xs text-slate-500">AISC</p>
+                            <p className="font-mono font-bold text-lg text-slate-200">${miner.aisc}</p>
+                            <p className="text-xs text-slate-500">/oz</p>
+                          </div>
+                          <div className="bg-slate-800 rounded-lg p-3">
+                            <p className="text-xs text-slate-500">Production</p>
+                            <p className="font-mono font-bold text-lg text-slate-200">{miner.production.toFixed(2)}</p>
+                            <p className="text-xs text-slate-500">Moz/Qtr</p>
+                          </div>
+                          <div className="bg-slate-800 rounded-lg p-3">
+                            <p className="text-xs text-slate-500">Market Cap</p>
+                            <p className="font-mono font-bold text-lg text-slate-200">${miner.market_cap}B</p>
+                          </div>
+                          <div className="bg-slate-800 rounded-lg p-3">
+                            <p className="text-xs text-slate-500">Dividend</p>
+                            <p className="font-mono font-bold text-lg text-emerald-400">{miner.dividend_yield}%</p>
+                          </div>
+                        </div>
+
+                        {/* Margin Analysis */}
+                        <div className="bg-slate-800/50 rounded-lg p-3">
+                          <p className="text-xs text-slate-500 mb-2">Profit Margin @ $4,400/oz</p>
+                          <div className="flex items-center justify-between">
+                            <span className={`font-mono font-bold text-xl ${margin > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              ${margin.toLocaleString()}/oz
+                            </span>
+                            <span className={`text-sm ${marginOfSafety >= 40 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                              {marginOfSafety.toFixed(0)}% safety
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Jurisdictional Breakdown */}
+                        <div className="space-y-2">
+                          <p className="text-xs text-slate-500">Jurisdictional Mix</p>
+                          <div className="flex h-4 rounded-full overflow-hidden">
+                            <div
+                              className="bg-emerald-500"
+                              style={{ width: `${miner.tier1}%` }}
+                              title={`Tier 1: ${miner.tier1}%`}
+                            />
+                            <div
+                              className="bg-amber-500"
+                              style={{ width: `${miner.tier2}%` }}
+                              title={`Tier 2: ${miner.tier2}%`}
+                            />
+                            <div
+                              className="bg-red-500"
+                              style={{ width: `${miner.tier3}%` }}
+                              title={`Tier 3: ${miner.tier3}%`}
+                            />
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-500">
+                            <span>T1: {miner.tier1}%</span>
+                            <span>T2: {miner.tier2}%</span>
+                            <span>T3: {miner.tier3}%</span>
+                          </div>
+                        </div>
+
+                        {/* Financial Health */}
+                        <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-700">
+                          <div>
+                            <p className="text-xs text-slate-500">Revenue</p>
+                            <p className="font-mono font-bold text-slate-200">${miner.revenue}B</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-slate-500">FCF</p>
+                            <p className={`font-mono font-bold ${miner.fcf >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              ${miner.fcf}B
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )
+                })}
+              </div>
+
+              {/* Comparison Table */}
+              <Card className="border-slate-700">
+                <CardHeader>
+                  <CardTitle className="text-slate-100">Metric Comparison Table</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-slate-700">
+                          <th className="text-left py-3 px-2 text-slate-400 font-medium">Metric</th>
+                          {comparisonData.map(m => (
+                            <th key={m.ticker} className="text-right py-3 px-2 text-amber-400 font-bold">
+                              {m.ticker}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr className="border-b border-slate-800">
+                          <td className="py-3 px-2 text-slate-400">AISC ($/oz)</td>
+                          {comparisonData.map(m => {
+                            const best = Math.min(...comparisonData.map(x => x.aisc))
+                            return (
+                              <td key={m.ticker} className={`text-right py-3 px-2 font-mono ${m.aisc === best ? 'text-emerald-400 font-bold' : 'text-slate-300'}`}>
+                                ${m.aisc}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                        <tr className="border-b border-slate-800">
+                          <td className="py-3 px-2 text-slate-400">Production (Moz)</td>
+                          {comparisonData.map(m => {
+                            const best = Math.max(...comparisonData.map(x => x.production))
+                            return (
+                              <td key={m.ticker} className={`text-right py-3 px-2 font-mono ${m.production === best ? 'text-emerald-400 font-bold' : 'text-slate-300'}`}>
+                                {m.production.toFixed(2)}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                        <tr className="border-b border-slate-800">
+                          <td className="py-3 px-2 text-slate-400">Market Cap ($B)</td>
+                          {comparisonData.map(m => (
+                            <td key={m.ticker} className="text-right py-3 px-2 font-mono text-slate-300">
+                              ${m.market_cap}
+                            </td>
+                          ))}
+                        </tr>
+                        <tr className="border-b border-slate-800">
+                          <td className="py-3 px-2 text-slate-400">Tier 1 Exposure (%)</td>
+                          {comparisonData.map(m => {
+                            const best = Math.max(...comparisonData.map(x => x.tier1))
+                            return (
+                              <td key={m.ticker} className={`text-right py-3 px-2 font-mono ${m.tier1 === best ? 'text-emerald-400 font-bold' : 'text-slate-300'}`}>
+                                {m.tier1}%
+                              </td>
+                            )
+                          })}
+                        </tr>
+                        <tr className="border-b border-slate-800">
+                          <td className="py-3 px-2 text-slate-400">Dividend Yield (%)</td>
+                          {comparisonData.map(m => {
+                            const best = Math.max(...comparisonData.map(x => x.dividend_yield))
+                            return (
+                              <td key={m.ticker} className={`text-right py-3 px-2 font-mono ${m.dividend_yield === best ? 'text-emerald-400 font-bold' : 'text-slate-300'}`}>
+                                {m.dividend_yield}%
+                              </td>
+                            )
+                          })}
+                        </tr>
+                        <tr className="border-b border-slate-800">
+                          <td className="py-3 px-2 text-slate-400">FCF ($B)</td>
+                          {comparisonData.map(m => {
+                            const best = Math.max(...comparisonData.map(x => x.fcf))
+                            return (
+                              <td key={m.ticker} className={`text-right py-3 px-2 font-mono ${m.fcf === best ? 'text-emerald-400 font-bold' : m.fcf < 0 ? 'text-red-400' : 'text-slate-300'}`}>
+                                ${m.fcf}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                        <tr>
+                          <td className="py-3 px-2 text-slate-400">Sovereignty Score</td>
+                          {comparisonData.map(m => {
+                            const score = comparisonScores.find(s => s.ticker === m.ticker)
+                            const best = Math.max(...comparisonScores.map(s => s.totalScore))
+                            return (
+                              <td key={m.ticker} className={`text-right py-3 px-2 font-mono font-bold ${score?.totalScore === best ? 'text-amber-400' : 'text-slate-300'}`}>
+                                {score?.totalScore || '-'}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
         </div>
       )}
 
