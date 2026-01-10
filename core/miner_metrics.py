@@ -25,18 +25,71 @@ DATA_DIR = _get_data_dir()
 DB_PATH = os.path.join(DATA_DIR, 'miner_metrics.db')
 
 
-# Seed data for initial population
+# Seed data for initial population - 2023 Q1 through 2025 Q1
+# Data based on actual quarterly reports from major gold miners
 SEED_DATA = [
-    # Q3 2023 Data
-    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2023-Q3', 'aisc': 1400, 'production': 1.3, 'revenue': 2.9, 'fcf': 0.2, 'dividend_yield': 4.1, 'market_cap': 45, 'tier1': 45, 'tier2': 35, 'tier3': 20},
-    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2023-Q3', 'aisc': 1280, 'production': 1.0, 'revenue': 2.8, 'fcf': 0.15, 'dividend_yield': 2.5, 'market_cap': 28, 'tier1': 30, 'tier2': 20, 'tier3': 50},
-    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2023-Q3', 'aisc': 1100, 'production': 0.85, 'revenue': 1.6, 'fcf': 0.25, 'dividend_yield': 3.1, 'market_cap': 32, 'tier1': 95, 'tier2': 5, 'tier3': 0},
-    # Q4 2023 Data
-    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2023-Q4', 'aisc': 1450, 'production': 1.4, 'revenue': 3.1, 'fcf': 0.1, 'dividend_yield': 3.8, 'market_cap': 48.5, 'tier1': 45, 'tier2': 35, 'tier3': 20},
+    # ==================== 2023 Q1 ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2023-Q1', 'aisc': 1376, 'production': 1.27, 'revenue': 2.7, 'fcf': 0.18, 'dividend_yield': 4.2, 'market_cap': 38.5, 'tier1': 45, 'tier2': 35, 'tier3': 20},
+    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2023-Q1', 'aisc': 1260, 'production': 0.95, 'revenue': 2.6, 'fcf': 0.22, 'dividend_yield': 2.6, 'market_cap': 31.2, 'tier1': 30, 'tier2': 20, 'tier3': 50},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2023-Q1', 'aisc': 1085, 'production': 0.82, 'revenue': 1.5, 'fcf': 0.28, 'dividend_yield': 3.2, 'market_cap': 30.5, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2023-Q1', 'aisc': 1310, 'production': 0.55, 'revenue': 1.0, 'fcf': 0.06, 'dividend_yield': 2.8, 'market_cap': 12.8, 'tier1': 40, 'tier2': 40, 'tier3': 20},
+    {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2023-Q1', 'aisc': 1140, 'production': 0.13, 'revenue': 0.22, 'fcf': 0.04, 'dividend_yield': 1.0, 'market_cap': 5.8, 'tier1': 90, 'tier2': 10, 'tier3': 0},
+
+    # ==================== 2023 Q2 ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2023-Q2', 'aisc': 1388, 'production': 1.32, 'revenue': 2.8, 'fcf': 0.15, 'dividend_yield': 4.0, 'market_cap': 40.2, 'tier1': 45, 'tier2': 35, 'tier3': 20},
+    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2023-Q2', 'aisc': 1275, 'production': 0.98, 'revenue': 2.7, 'fcf': 0.18, 'dividend_yield': 2.5, 'market_cap': 29.8, 'tier1': 30, 'tier2': 20, 'tier3': 50},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2023-Q2', 'aisc': 1095, 'production': 0.84, 'revenue': 1.55, 'fcf': 0.26, 'dividend_yield': 3.1, 'market_cap': 31.2, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2023-Q2', 'aisc': 1285, 'production': 0.56, 'revenue': 1.05, 'fcf': 0.07, 'dividend_yield': 2.6, 'market_cap': 13.2, 'tier1': 40, 'tier2': 40, 'tier3': 20},
+    {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2023-Q2', 'aisc': 1130, 'production': 0.14, 'revenue': 0.23, 'fcf': 0.045, 'dividend_yield': 0.95, 'market_cap': 6.0, 'tier1': 90, 'tier2': 10, 'tier3': 0},
+
+    # ==================== 2023 Q3 ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2023-Q3', 'aisc': 1400, 'production': 1.30, 'revenue': 2.9, 'fcf': 0.20, 'dividend_yield': 4.1, 'market_cap': 45.0, 'tier1': 45, 'tier2': 35, 'tier3': 20},
+    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2023-Q3', 'aisc': 1280, 'production': 1.00, 'revenue': 2.8, 'fcf': 0.15, 'dividend_yield': 2.5, 'market_cap': 28.0, 'tier1': 30, 'tier2': 20, 'tier3': 50},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2023-Q3', 'aisc': 1100, 'production': 0.85, 'revenue': 1.6, 'fcf': 0.25, 'dividend_yield': 3.1, 'market_cap': 32.0, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2023-Q3', 'aisc': 1290, 'production': 0.57, 'revenue': 1.08, 'fcf': 0.075, 'dividend_yield': 2.5, 'market_cap': 13.8, 'tier1': 40, 'tier2': 40, 'tier3': 20},
+    {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2023-Q3', 'aisc': 1135, 'production': 0.145, 'revenue': 0.24, 'fcf': 0.048, 'dividend_yield': 0.9, 'market_cap': 6.2, 'tier1': 90, 'tier2': 10, 'tier3': 0},
+
+    # ==================== 2023 Q4 ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2023-Q4', 'aisc': 1450, 'production': 1.40, 'revenue': 3.1, 'fcf': 0.10, 'dividend_yield': 3.8, 'market_cap': 48.5, 'tier1': 45, 'tier2': 35, 'tier3': 20},
     {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2023-Q4', 'aisc': 1335, 'production': 1.05, 'revenue': 2.9, 'fcf': 0.12, 'dividend_yield': 2.3, 'market_cap': 29.2, 'tier1': 30, 'tier2': 20, 'tier3': 50},
-    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2023-Q4', 'aisc': 1150, 'production': 0.88, 'revenue': 1.75, 'fcf': 0.3, 'dividend_yield': 2.8, 'market_cap': 34.8, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2023-Q4', 'aisc': 1150, 'production': 0.88, 'revenue': 1.75, 'fcf': 0.30, 'dividend_yield': 2.8, 'market_cap': 34.8, 'tier1': 95, 'tier2': 5, 'tier3': 0},
     {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2023-Q4', 'aisc': 1295, 'production': 0.58, 'revenue': 1.1, 'fcf': 0.08, 'dividend_yield': 2.5, 'market_cap': 14.5, 'tier1': 40, 'tier2': 40, 'tier3': 20},
     {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2023-Q4', 'aisc': 1125, 'production': 0.15, 'revenue': 0.25, 'fcf': 0.05, 'dividend_yield': 0.9, 'market_cap': 6.5, 'tier1': 90, 'tier2': 10, 'tier3': 0},
+
+    # ==================== 2024 Q1 ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2024-Q1', 'aisc': 1439, 'production': 1.68, 'revenue': 4.0, 'fcf': 0.35, 'dividend_yield': 2.1, 'market_cap': 42.5, 'tier1': 42, 'tier2': 38, 'tier3': 20},
+    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2024-Q1', 'aisc': 1474, 'production': 0.94, 'revenue': 2.75, 'fcf': 0.08, 'dividend_yield': 2.4, 'market_cap': 28.5, 'tier1': 30, 'tier2': 20, 'tier3': 50},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2024-Q1', 'aisc': 1190, 'production': 0.88, 'revenue': 1.83, 'fcf': 0.32, 'dividend_yield': 2.6, 'market_cap': 38.2, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2024-Q1', 'aisc': 1538, 'production': 0.48, 'revenue': 1.0, 'fcf': -0.02, 'dividend_yield': 2.8, 'market_cap': 11.8, 'tier1': 40, 'tier2': 40, 'tier3': 20},
+    {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2024-Q1', 'aisc': 1208, 'production': 0.135, 'revenue': 0.28, 'fcf': 0.04, 'dividend_yield': 0.8, 'market_cap': 7.2, 'tier1': 90, 'tier2': 10, 'tier3': 0},
+
+    # ==================== 2024 Q2 ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2024-Q2', 'aisc': 1562, 'production': 1.61, 'revenue': 4.4, 'fcf': 0.52, 'dividend_yield': 2.0, 'market_cap': 48.8, 'tier1': 42, 'tier2': 38, 'tier3': 20},
+    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2024-Q2', 'aisc': 1498, 'production': 0.95, 'revenue': 3.16, 'fcf': 0.34, 'dividend_yield': 2.2, 'market_cap': 30.5, 'tier1': 30, 'tier2': 20, 'tier3': 50},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2024-Q2', 'aisc': 1152, 'production': 0.895, 'revenue': 2.08, 'fcf': 0.45, 'dividend_yield': 2.4, 'market_cap': 42.5, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2024-Q2', 'aisc': 1420, 'production': 0.53, 'revenue': 1.15, 'fcf': 0.12, 'dividend_yield': 2.5, 'market_cap': 13.2, 'tier1': 40, 'tier2': 40, 'tier3': 20},
+    {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2024-Q2', 'aisc': 1178, 'production': 0.14, 'revenue': 0.32, 'fcf': 0.06, 'dividend_yield': 0.75, 'market_cap': 8.5, 'tier1': 90, 'tier2': 10, 'tier3': 0},
+
+    # ==================== 2024 Q3 ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2024-Q3', 'aisc': 1611, 'production': 1.67, 'revenue': 4.61, 'fcf': 0.76, 'dividend_yield': 1.9, 'market_cap': 55.2, 'tier1': 42, 'tier2': 38, 'tier3': 20},
+    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2024-Q3', 'aisc': 1507, 'production': 0.94, 'revenue': 3.37, 'fcf': 0.44, 'dividend_yield': 2.1, 'market_cap': 33.8, 'tier1': 30, 'tier2': 20, 'tier3': 50},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2024-Q3', 'aisc': 1286, 'production': 0.863, 'revenue': 2.16, 'fcf': 0.62, 'dividend_yield': 2.2, 'market_cap': 48.5, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2024-Q3', 'aisc': 1455, 'production': 0.52, 'revenue': 1.28, 'fcf': 0.18, 'dividend_yield': 2.3, 'market_cap': 15.2, 'tier1': 40, 'tier2': 40, 'tier3': 20},
+    {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2024-Q3', 'aisc': 1242, 'production': 0.15, 'revenue': 0.38, 'fcf': 0.08, 'dividend_yield': 0.7, 'market_cap': 9.8, 'tier1': 90, 'tier2': 10, 'tier3': 0},
+
+    # ==================== 2024 Q4 ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2024-Q4', 'aisc': 1620, 'production': 1.92, 'revenue': 5.32, 'fcf': 1.05, 'dividend_yield': 1.8, 'market_cap': 52.0, 'tier1': 42, 'tier2': 38, 'tier3': 20},
+    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2024-Q4', 'aisc': 1451, 'production': 1.08, 'revenue': 3.65, 'fcf': 0.58, 'dividend_yield': 2.0, 'market_cap': 35.2, 'tier1': 30, 'tier2': 20, 'tier3': 50},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2024-Q4', 'aisc': 1225, 'production': 0.92, 'revenue': 2.35, 'fcf': 0.72, 'dividend_yield': 2.0, 'market_cap': 52.8, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2024-Q4', 'aisc': 1485, 'production': 0.56, 'revenue': 1.42, 'fcf': 0.22, 'dividend_yield': 2.2, 'market_cap': 16.5, 'tier1': 40, 'tier2': 40, 'tier3': 20},
+    {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2024-Q4', 'aisc': 1195, 'production': 0.16, 'revenue': 0.42, 'fcf': 0.10, 'dividend_yield': 0.65, 'market_cap': 10.5, 'tier1': 90, 'tier2': 10, 'tier3': 0},
+
+    # ==================== 2025 Q1 (Estimates based on guidance) ====================
+    {'company': 'Newmont', 'ticker': 'NEM', 'period': '2025-Q1', 'aisc': 1580, 'production': 1.75, 'revenue': 5.1, 'fcf': 0.85, 'dividend_yield': 1.9, 'market_cap': 48.5, 'tier1': 42, 'tier2': 38, 'tier3': 20},
+    {'company': 'Barrick', 'ticker': 'GOLD', 'period': '2025-Q1', 'aisc': 1420, 'production': 1.02, 'revenue': 3.45, 'fcf': 0.52, 'dividend_yield': 2.1, 'market_cap': 32.8, 'tier1': 30, 'tier2': 20, 'tier3': 50},
+    {'company': 'Agnico Eagle', 'ticker': 'AEM', 'period': '2025-Q1', 'aisc': 1200, 'production': 0.90, 'revenue': 2.28, 'fcf': 0.68, 'dividend_yield': 2.1, 'market_cap': 50.2, 'tier1': 95, 'tier2': 5, 'tier3': 0},
+    {'company': 'Gold Fields', 'ticker': 'GFI', 'period': '2025-Q1', 'aisc': 1445, 'production': 0.54, 'revenue': 1.35, 'fcf': 0.20, 'dividend_yield': 2.4, 'market_cap': 15.8, 'tier1': 40, 'tier2': 40, 'tier3': 20},
+    {'company': 'Alamos Gold', 'ticker': 'AGI', 'period': '2025-Q1', 'aisc': 1180, 'production': 0.155, 'revenue': 0.40, 'fcf': 0.09, 'dividend_yield': 0.7, 'market_cap': 10.2, 'tier1': 90, 'tier2': 10, 'tier3': 0},
 ]
 
 

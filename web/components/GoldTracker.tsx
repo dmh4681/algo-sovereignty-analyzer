@@ -18,7 +18,6 @@ import { Line, Bar, Bubble } from 'react-chartjs-2'
 import {
   LayoutDashboard,
   TrendingUp,
-  PlusCircle,
   Database,
   Shield,
   Pickaxe,
@@ -29,9 +28,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   getMinerMetrics,
-  getLatestMinerMetrics,
   getSectorStats,
-  createMinerMetric,
   type MinerMetric,
   type SectorStats
 } from '@/lib/api'
@@ -187,228 +184,9 @@ function TrendLineChart({ historicalData, metric, title, yAxisTitle }: TrendLine
   )
 }
 
-// --- Data Entry Form ---
-
-interface DataEntryFormProps {
-  onSubmit: (data: FormData) => Promise<void>
-  loading: boolean
-}
-
-interface FormData {
-  company: string
-  ticker: string
-  period: string
-  aisc: string
-  production: string
-  revenue: string
-  fcf: string
-  dividend_yield: string
-  market_cap: string
-  tier1: string
-  tier2: string
-  tier3: string
-}
-
-const COMPANY_MAP: Record<string, string> = {
-  'NEM': 'Newmont',
-  'GOLD': 'Barrick',
-  'AEM': 'Agnico Eagle',
-  'GFI': 'Gold Fields',
-  'AGI': 'Alamos Gold'
-}
-
-function DataEntryForm({ onSubmit, loading }: DataEntryFormProps) {
-  const [formData, setFormData] = useState<FormData>({
-    company: 'Newmont',
-    ticker: 'NEM',
-    period: '',
-    aisc: '',
-    production: '',
-    revenue: '',
-    fcf: '',
-    dividend_yield: '',
-    market_cap: '',
-    tier1: '',
-    tier2: '',
-    tier3: ''
-  })
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-  }
-
-  const handleTickerChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const ticker = e.target.value
-    setFormData(prev => ({ ...prev, ticker, company: COMPANY_MAP[ticker] || ticker }))
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    await onSubmit(formData)
-    setFormData(prev => ({ ...prev, aisc: '', production: '', revenue: '', fcf: '', period: '' }))
-  }
-
-  return (
-    <Card className="max-w-2xl mx-auto border-slate-700">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-slate-100">
-          <PlusCircle className="text-amber-500" />
-          Input Quarterly Report
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Company Selection */}
-          <div className="col-span-full mb-2">
-            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Company Details</label>
-            <div className="grid grid-cols-2 gap-4">
-              <select
-                name="ticker"
-                className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100 w-full"
-                onChange={handleTickerChange}
-                value={formData.ticker}
-              >
-                <option value="NEM">Newmont (NEM)</option>
-                <option value="GOLD">Barrick (GOLD)</option>
-                <option value="AEM">Agnico Eagle (AEM)</option>
-                <option value="GFI">Gold Fields (GFI)</option>
-                <option value="AGI">Alamos Gold (AGI)</option>
-              </select>
-              <input
-                type="text"
-                name="period"
-                placeholder="Period (e.g., 2024-Q1)"
-                className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100 w-full"
-                value={formData.period}
-                onChange={handleChange}
-                required
-              />
-            </div>
-          </div>
-
-          {/* Metrics */}
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">AISC ($/oz)</label>
-            <input
-              type="number"
-              name="aisc"
-              className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100 w-full"
-              value={formData.aisc}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Production (Moz)</label>
-            <input
-              type="number"
-              step="0.01"
-              name="production"
-              className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100 w-full"
-              value={formData.production}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Revenue ($B)</label>
-            <input
-              type="number"
-              step="0.01"
-              name="revenue"
-              className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100 w-full"
-              value={formData.revenue}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Free Cash Flow ($B)</label>
-            <input
-              type="number"
-              step="0.01"
-              name="fcf"
-              className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100 w-full"
-              value={formData.fcf}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Dividend Yield (%)</label>
-            <input
-              type="number"
-              step="0.01"
-              name="dividend_yield"
-              className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100 w-full"
-              value={formData.dividend_yield}
-              onChange={handleChange}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-xs text-slate-400 mb-1">Market Cap ($B)</label>
-            <input
-              type="number"
-              step="0.01"
-              name="market_cap"
-              className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100 w-full"
-              value={formData.market_cap}
-              onChange={handleChange}
-              required
-            />
-          </div>
-
-          {/* Jurisdiction Risk */}
-          <div className="col-span-full mt-2">
-            <label className="block text-xs font-semibold text-slate-400 uppercase mb-1">Jurisdiction Exposure (%)</label>
-            <div className="grid grid-cols-3 gap-2">
-              <input
-                type="number"
-                name="tier1"
-                placeholder="Tier 1"
-                className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100"
-                value={formData.tier1}
-                onChange={handleChange}
-              />
-              <input
-                type="number"
-                name="tier2"
-                placeholder="Tier 2"
-                className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100"
-                value={formData.tier2}
-                onChange={handleChange}
-              />
-              <input
-                type="number"
-                name="tier3"
-                placeholder="Tier 3"
-                className="p-2 border border-slate-600 rounded bg-slate-800 text-slate-100"
-                value={formData.tier3}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-
-          <div className="col-span-full mt-4">
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3"
-            >
-              {loading ? 'Saving...' : 'Submit Report Data'}
-            </Button>
-          </div>
-        </form>
-      </CardContent>
-    </Card>
-  )
-}
-
 // --- Main Component ---
 
-type ViewType = 'dashboard' | 'trends' | 'entry'
+type ViewType = 'dashboard' | 'trends'
 
 export function GoldTracker() {
   const [view, setView] = useState<ViewType>('dashboard')
@@ -452,41 +230,6 @@ export function GoldTracker() {
     return Object.values(uniqueCompanies)
   }, [rawData])
 
-  // Handle form submission
-  const handleAddData = async (formData: FormData) => {
-    setLoading(true)
-    try {
-      await createMinerMetric({
-        company: formData.company,
-        ticker: formData.ticker,
-        period: formData.period,
-        aisc: Number(formData.aisc),
-        production: Number(formData.production),
-        revenue: Number(formData.revenue),
-        fcf: Number(formData.fcf),
-        dividend_yield: Number(formData.dividend_yield),
-        market_cap: Number(formData.market_cap),
-        tier1: Number(formData.tier1 || 0),
-        tier2: Number(formData.tier2 || 0),
-        tier3: Number(formData.tier3 || 0)
-      })
-
-      // Refresh data
-      const [metricsRes, statsRes] = await Promise.all([
-        getMinerMetrics(100),
-        getSectorStats()
-      ])
-      setRawData(metricsRes.metrics)
-      setStats(statsRes.stats)
-      setView('dashboard')
-    } catch (err) {
-      console.error('Error adding data:', err)
-      setError(err instanceof Error ? err.message : 'Failed to add data')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   // Navigation
   const Navigation = () => (
     <nav className="flex items-center space-x-2 bg-slate-800 p-1 rounded-lg">
@@ -509,16 +252,6 @@ export function GoldTracker() {
         }`}
       >
         <TrendingUp size={16} /> Trends
-      </button>
-      <button
-        onClick={() => setView('entry')}
-        className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-          view === 'entry'
-            ? 'bg-amber-500 text-white shadow-sm'
-            : 'text-slate-400 hover:text-white'
-        }`}
-      >
-        <PlusCircle size={16} /> Data Entry
       </button>
     </nav>
   )
@@ -726,7 +459,7 @@ export function GoldTracker() {
         <div className="space-y-8">
           <div className="text-center mb-8">
             <h2 className="text-3xl font-bold text-slate-100">Historical Performance</h2>
-            <p className="text-slate-400">Tracking metrics quarter-over-quarter</p>
+            <p className="text-slate-400">Tracking metrics quarter-over-quarter (2023-2025)</p>
           </div>
 
           <div className="grid grid-cols-1 gap-8">
@@ -761,47 +494,6 @@ export function GoldTracker() {
                   yAxisTitle="Billions USD"
                 />
               </CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      {/* Data Entry View */}
-      {view === 'entry' && (
-        <div>
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-slate-100">Analyst Input</h2>
-            <p className="text-slate-400">Update the model with the latest quarterly results</p>
-          </div>
-
-          <DataEntryForm onSubmit={handleAddData} loading={loading} />
-
-          {/* Recent Entries Table */}
-          <div className="mt-12 max-w-4xl mx-auto">
-            <h3 className="font-bold text-slate-300 mb-4">Recent Entries</h3>
-            <Card className="border-slate-700 overflow-hidden">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-slate-800 text-slate-400 font-bold">
-                  <tr>
-                    <th className="p-3">Period</th>
-                    <th className="p-3">Ticker</th>
-                    <th className="p-3">AISC</th>
-                    <th className="p-3">Prod (Moz)</th>
-                    <th className="p-3">Yield</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rawData.slice(0, 10).map((row, i) => (
-                    <tr key={`${row.ticker}-${row.period}-${i}`} className="border-t border-slate-700 hover:bg-slate-800/50">
-                      <td className="p-3 font-mono text-slate-300">{row.period}</td>
-                      <td className="p-3 font-bold text-amber-400">{row.ticker}</td>
-                      <td className="p-3 text-slate-300">${row.aisc}</td>
-                      <td className="p-3 text-slate-300">{row.production}</td>
-                      <td className="p-3 text-slate-300">{row.dividend_yield}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </Card>
           </div>
         </div>

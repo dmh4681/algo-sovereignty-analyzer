@@ -72,6 +72,12 @@ export function MainNav() {
       >
         Arbitrage
       </Link>
+      <Link
+        href="/gold-tracker"
+        className="text-sm text-slate-400 hover:text-amber-500 transition-colors"
+      >
+        Gold Miners
+      </Link>
       <HeaderWalletStatus />
       <a
         href="https://github.com"
