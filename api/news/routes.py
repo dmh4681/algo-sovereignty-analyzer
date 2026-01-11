@@ -67,16 +67,16 @@ class CurateBatchResponse(BaseModel):
 
 @router.get("/articles", response_model=ArticlesResponse)
 async def get_articles(
-    metal: str = Query("gold", description="Metal type: gold or silver"),
+    metal: str = Query("gold", description="Metal type: gold, silver, or bitcoin"),
     hours: int = Query(48, description="Hours to look back"),
     limit: int = Query(10, description="Max articles to return")
 ):
     """
-    Fetch recent precious metals news articles.
+    Fetch recent hard money news articles.
     Returns raw articles without AI analysis.
     """
-    if metal not in ("gold", "silver"):
-        raise HTTPException(status_code=400, detail="Metal must be 'gold' or 'silver'")
+    if metal not in ("gold", "silver", "bitcoin"):
+        raise HTTPException(status_code=400, detail="Metal must be 'gold', 'silver', or 'bitcoin'")
 
     try:
         async with NewsAggregator() as agg:
@@ -134,8 +134,8 @@ async def curate_batch(request: CurateBatchRequest):
     Fetch and analyze multiple articles, returning only high-signal ones.
     This is the main endpoint for getting curated news.
     """
-    if request.metal not in ("gold", "silver"):
-        raise HTTPException(status_code=400, detail="Metal must be 'gold' or 'silver'")
+    if request.metal not in ("gold", "silver", "bitcoin"):
+        raise HTTPException(status_code=400, detail="Metal must be 'gold', 'silver', or 'bitcoin'")
 
     try:
         # Fetch articles

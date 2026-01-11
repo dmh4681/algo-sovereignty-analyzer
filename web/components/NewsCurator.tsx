@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { getCuratedNews, getNewsArticles } from '@/lib/api'
 import { AnalyzedArticle, NewsArticle } from '@/lib/types'
 
-type MetalType = 'gold' | 'silver'
+type MetalType = 'gold' | 'silver' | 'bitcoin'
 
 function SovereigntyBadge({ score }: { score: number }) {
   let color = 'bg-red-500/20 text-red-400 border-red-500/50'
@@ -151,11 +151,11 @@ export default function NewsCurator() {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <span className="text-2xl">{metal === 'gold' ? '' : ''}</span>
+              <span className="text-2xl">{metal === 'gold' ? '' : metal === 'silver' ? '' : '₿'}</span>
               Sovereignty News Curator
             </CardTitle>
             <CardDescription className="mt-1">
-              AI-analyzed precious metals news through the sovereignty lens
+              AI-analyzed hard money news through the sovereignty lens
             </CardDescription>
           </div>
         </div>
@@ -177,6 +177,14 @@ export default function NewsCurator() {
               className={metal === 'silver' ? 'bg-slate-500 hover:bg-slate-600' : ''}
             >
               Silver
+            </Button>
+            <Button
+              variant={metal === 'bitcoin' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setMetal('bitcoin')}
+              className={metal === 'bitcoin' ? 'bg-orange-500 hover:bg-orange-600' : ''}
+            >
+              Bitcoin
             </Button>
           </div>
 
@@ -210,7 +218,7 @@ export default function NewsCurator() {
 
         {!loading && articles.length === 0 && !error && (
           <div className="text-center py-8 text-slate-400">
-            <p className="text-4xl mb-2">{metal === 'gold' ? '' : ''}</p>
+            <p className="text-4xl mb-2">{metal === 'gold' ? '' : metal === 'silver' ? '' : '₿'}</p>
             <p>Click &ldquo;Fetch & Analyze&rdquo; to get curated {metal} news</p>
             <p className="text-sm mt-2 text-slate-500">
               Articles are scored 0-10 based on sovereignty relevance

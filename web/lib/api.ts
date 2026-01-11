@@ -173,7 +173,7 @@ export async function saveHistorySnapshot(
  * Get raw news articles without AI analysis
  */
 export async function getNewsArticles(
-  metal: 'gold' | 'silver' = 'gold',
+  metal: 'gold' | 'silver' | 'bitcoin' = 'gold',
   hours: number = 48,
   limit: number = 10
 ): Promise<NewsArticlesResponse> {

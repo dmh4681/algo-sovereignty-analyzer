@@ -182,7 +182,7 @@ export interface NewsArticlesResponse {
 }
 
 export interface CurateBatchRequest {
-  metal: 'gold' | 'silver'
+  metal: 'gold' | 'silver' | 'bitcoin'
   hours?: number
   limit?: number
   min_score?: number

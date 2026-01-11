@@ -36,6 +36,13 @@ class NewsAggregator:
         'https://www.reddit.com/r/Silverbugs/.rss',
     ]
 
+    BITCOIN_SOURCES = [
+        'https://news.google.com/rss/search?q=bitcoin+price&hl=en-US&gl=US&ceid=US:en',
+        'https://www.reddit.com/r/Bitcoin/.rss',
+        'https://www.reddit.com/r/BitcoinMarkets/.rss',
+        'https://bitcoinmagazine.com/feed',
+    ]
+
     def __init__(self):
         self.session = None
 
@@ -131,7 +138,12 @@ class NewsAggregator:
 
     async def fetch_all(self, metal: str, hours: int = 24) -> List[Dict]:
         """Fetch all news for a specific metal within timeframe"""
-        sources = self.GOLD_SOURCES if metal == 'gold' else self.SILVER_SOURCES
+        if metal == 'gold':
+            sources = self.GOLD_SOURCES
+        elif metal == 'silver':
+            sources = self.SILVER_SOURCES
+        else:  # bitcoin
+            sources = self.BITCOIN_SOURCES
 
         tasks = [self.fetch_feed(url) for url in sources]
         results = await asyncio.gather(*tasks)
