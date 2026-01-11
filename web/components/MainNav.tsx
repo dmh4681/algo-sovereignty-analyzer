@@ -15,6 +15,11 @@ const networkItems = [
     href: '/network/run-a-node',
     description: 'Guide to running your own participation node',
   },
+  {
+    label: 'Research',
+    href: '/research',
+    description: 'Algorand infrastructure research report',
+  },
 ]
 
 const aboutItems = [
@@ -35,6 +40,24 @@ const aboutItems = [
   },
 ]
 
+const preciousMetalsItems = [
+  {
+    label: 'Arbitrage',
+    href: '/arbitrage',
+    description: 'Meld Gold/Silver vs spot price analysis',
+  },
+  {
+    label: 'Gold Miners',
+    href: '/gold-tracker',
+    description: 'Track major gold mining companies',
+  },
+  {
+    label: 'Silver Miners',
+    href: '/silver-tracker',
+    description: 'Track major silver mining companies',
+  },
+]
+
 export function MainNav() {
   return (
     <nav className="flex items-center gap-4">
@@ -42,6 +65,11 @@ export function MainNav() {
         label="Network"
         items={networkItems}
         hoverColor="text-cyan-500"
+      />
+      <NavDropdown
+        label="Precious Metals"
+        items={preciousMetalsItems}
+        hoverColor="text-amber-500"
       />
       <NavDropdown
         label="About"
@@ -53,36 +81,6 @@ export function MainNav() {
         className="text-sm text-slate-400 hover:text-blue-500 transition-colors"
       >
         Training
-      </Link>
-      <Link
-        href="/news"
-        className="text-sm text-slate-400 hover:text-yellow-500 transition-colors"
-      >
-        News
-      </Link>
-      <Link
-        href="/research"
-        className="text-sm text-slate-400 hover:text-purple-500 transition-colors"
-      >
-        Research
-      </Link>
-      <Link
-        href="/arbitrage"
-        className="text-sm text-slate-400 hover:text-green-500 transition-colors"
-      >
-        Arbitrage
-      </Link>
-      <Link
-        href="/gold-tracker"
-        className="text-sm text-slate-400 hover:text-amber-500 transition-colors"
-      >
-        Gold Miners
-      </Link>
-      <Link
-        href="/silver-tracker"
-        className="text-sm text-slate-400 hover:text-slate-300 transition-colors"
-      >
-        Silver Miners
       </Link>
       <HeaderWalletStatus />
       <a
