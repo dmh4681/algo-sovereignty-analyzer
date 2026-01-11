@@ -16,6 +16,7 @@ import {
   BarChart3,
   AlertCircle,
 } from 'lucide-react'
+import { DataDisclaimer } from '@/components/DataDisclaimer'
 import {
   getUpcomingEarnings,
   getEarningsCalendar,
@@ -346,6 +347,9 @@ export function EarningsCalendar() {
           )}
         </>
       )}
+
+      {/* Disclaimer */}
+      <DataDisclaimer className="mt-8" />
     </div>
   )
 }

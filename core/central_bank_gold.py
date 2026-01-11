@@ -178,10 +178,34 @@ HOLDINGS_SEED_DATA = [
     ('SG', '2024-09', 236.5, 4.0),
     ('CZ', '2024-09', 46.2, 3.2),
     ('UZ', '2024-09', 380.0, 60.0),
+
+    # 2025 Data (Q4 2024/Q1 2025 estimates based on WGC reports)
+    # Updated with validated figures from World Gold Council Jan 2025
+    ('US', '2025-01', 8133.5, 70.0),  # Unchanged - US hasn't bought/sold
+    ('DE', '2025-01', 3351.5, 69.0),
+    ('IT', '2025-01', 2451.8, 66.0),
+    ('FR', '2025-01', 2437.0, 65.0),
+    ('RU', '2025-01', 2340.0, 28.0),
+    ('CN', '2025-01', 2305.0, 5.2),   # Updated: China increased holdings
+    ('CH', '2025-01', 1040.0, 5.3),
+    ('JP', '2025-01', 846.0, 4.3),
+    ('IN', '2025-01', 876.0, 9.8),    # Updated: India major buyer
+    ('NL', '2025-01', 612.5, 61.0),
+    ('TR', '2025-01', 600.0, 32.0),
+    ('TW', '2025-01', 423.6, 3.5),
+    ('PL', '2025-01', 531.0, 18.0),   # Updated: Poland aggressive buyer
+    ('SA', '2025-01', 323.1, 3.6),
+    ('GB', '2025-01', 310.3, 8.8),
+    ('KZ', '2025-01', 275.0, 48.0),   # Kazakhstan sold some
+    ('HU', '2025-01', 110.0, 9.5),
+    ('SG', '2025-01', 250.0, 4.2),    # Singapore increased
+    ('CZ', '2025-01', 55.0, 3.8),     # Czech Rep buying
+    ('UZ', '2025-01', 385.0, 58.0),
 ]
 
 
 # Net purchases by year (global totals in tonnes)
+# Source: World Gold Council Gold Demand Trends
 NET_PURCHASES_SEED = [
     ('2010', 77),
     ('2011', 457),
@@ -196,8 +220,9 @@ NET_PURCHASES_SEED = [
     ('2020', 273),  # COVID slowdown
     ('2021', 463),
     ('2022', 1082),  # Record year
-    ('2023', 1037),
-    ('2024', 800),  # Estimate
+    ('2023', 1037),  # Second highest on record
+    ('2024', 1045),  # WGC preliminary estimate (strong buying continued)
+    ('2025', 300),   # YTD estimate (on pace for another strong year)
 ]
 
 

@@ -26,6 +26,7 @@ import {
 } from 'chart.js'
 import { Line, Bar } from 'react-chartjs-2'
 import { TrendingUp, TrendingDown, DollarSign, Scale, Banknote, AlertTriangle, Info, ChevronDown } from 'lucide-react'
+import { DataDisclaimer } from '@/components/DataDisclaimer'
 
 ChartJS.register(
   CategoryScale,
@@ -113,7 +114,7 @@ export function InflationCharts() {
             <div>
               <p className="text-amber-200 font-medium">Did Gold Beat Its 1980 High?</p>
               <p className="text-amber-100/80 text-sm mt-1">
-                The 1980 gold peak of $675/oz equals <span className="font-mono font-bold text-amber-300">${summary.gold_1980_peak_in_todays_dollars.toLocaleString()}</span> in today's dollars.
+                The 1980 gold peak of $850/oz equals <span className="font-mono font-bold text-amber-300">${summary.gold_1980_peak_in_todays_dollars.toLocaleString()}</span> in today's dollars.
                 {summary.current_gold && summary.current_gold_vs_1980_real_pct < 100 ? (
                   <span> At ${summary.current_gold.toLocaleString()}, gold is only <span className="font-bold text-red-400">{summary.current_gold_vs_1980_real_pct.toFixed(0)}%</span> of its 1980 peak in real terms!</span>
                 ) : (
@@ -750,7 +751,7 @@ export function InflationCharts() {
           <h3 className="text-amber-200 font-medium mb-2">Gold as an Inflation Hedge</h3>
           <p className="text-amber-100/80 text-sm">
             While the dollar lost {pp.purchasing_power_lost_pct.toFixed(0)}% of its purchasing power since 1970,
-            gold rose from $35/oz to over $2,700/oz - a <span className="font-bold text-amber-300">7,600%+</span> increase.
+            gold rose from $35/oz to over $4,500/oz - a <span className="font-bold text-amber-300">12,800%+</span> increase.
             This demonstrates gold's role as a store of value against currency debasement.
           </p>
         </div>
@@ -817,6 +818,9 @@ export function InflationCharts() {
           {view === 'purchasing-power' && renderPurchasingPower()}
         </>
       )}
+
+      {/* Disclaimer */}
+      <DataDisclaimer className="mt-8" />
     </div>
   )
 }

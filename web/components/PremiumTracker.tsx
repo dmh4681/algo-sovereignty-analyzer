@@ -15,6 +15,7 @@ import {
   AlertCircle,
   Package,
 } from 'lucide-react'
+import { DataDisclaimer } from '@/components/DataDisclaimer'
 import {
   getPremiumSummary,
   getPremiumProducts,
@@ -412,6 +413,9 @@ export function PremiumTracker() {
           )}
         </>
       )}
+
+      {/* Disclaimer */}
+      <DataDisclaimer className="mt-8" />
     </div>
   )
 }

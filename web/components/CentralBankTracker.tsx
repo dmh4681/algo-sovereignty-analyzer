@@ -36,6 +36,7 @@ import {
   Info,
   Landmark,
 } from 'lucide-react'
+import { DataDisclaimer } from '@/components/DataDisclaimer'
 
 ChartJS.register(
   CategoryScale,
@@ -799,6 +800,9 @@ export function CentralBankTracker() {
           {view === 'buyers' && renderBuyers()}
         </>
       )}
+
+      {/* Disclaimer */}
+      <DataDisclaimer className="mt-8" />
     </div>
   )
 }

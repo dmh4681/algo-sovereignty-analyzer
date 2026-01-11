@@ -257,64 +257,64 @@ class PremiumTrackerDB:
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', product)
 
-        # Seed sample prices (using realistic January 2025 data)
-        # Spot prices: Gold ~$2,680, Silver ~$31
-        gold_spot = 2680.0
-        silver_spot = 31.0
+        # Seed sample prices (using January 2026 data)
+        # Spot prices: Gold ~$4,523, Silver ~$80.65 (verified from Kitco Jan 2026)
+        gold_spot = 4523.0
+        silver_spot = 80.65
 
         sample_prices = [
-            # Gold Eagles
-            ('gold-eagle-1oz', 'apmex', 2812.0, 1, gold_spot, True),
-            ('gold-eagle-1oz', 'jmbullion', 2795.0, 1, gold_spot, True),
-            ('gold-eagle-1oz', 'sdbullion', 2788.0, 1, gold_spot, True),
-            ('gold-eagle-1oz', 'moneymetals', 2805.0, 1, gold_spot, True),
-            ('gold-eagle-1oz', 'provident', 2798.0, 1, gold_spot, True),
+            # Gold Eagles (~5% premium)
+            ('gold-eagle-1oz', 'apmex', 4749.0, 1, gold_spot, True),
+            ('gold-eagle-1oz', 'jmbullion', 4720.0, 1, gold_spot, True),
+            ('gold-eagle-1oz', 'sdbullion', 4705.0, 1, gold_spot, True),
+            ('gold-eagle-1oz', 'moneymetals', 4735.0, 1, gold_spot, True),
+            ('gold-eagle-1oz', 'provident', 4725.0, 1, gold_spot, True),
 
-            # Gold Maples
-            ('gold-maple-1oz', 'apmex', 2772.0, 1, gold_spot, True),
-            ('gold-maple-1oz', 'jmbullion', 2758.0, 1, gold_spot, True),
-            ('gold-maple-1oz', 'sdbullion', 2752.0, 1, gold_spot, True),
-            ('gold-maple-1oz', 'moneymetals', 2765.0, 1, gold_spot, True),
+            # Gold Maples (~3.5% premium)
+            ('gold-maple-1oz', 'apmex', 4690.0, 1, gold_spot, True),
+            ('gold-maple-1oz', 'jmbullion', 4665.0, 1, gold_spot, True),
+            ('gold-maple-1oz', 'sdbullion', 4655.0, 1, gold_spot, True),
+            ('gold-maple-1oz', 'moneymetals', 4678.0, 1, gold_spot, True),
 
-            # Gold Bars
-            ('gold-bar-1oz', 'apmex', 2745.0, 1, gold_spot, True),
-            ('gold-bar-1oz', 'jmbullion', 2732.0, 1, gold_spot, True),
-            ('gold-bar-1oz', 'sdbullion', 2725.0, 1, gold_spot, True),
-            ('gold-bar-1oz', 'moneymetals', 2738.0, 1, gold_spot, True),
-            ('gold-bar-1oz', 'bgasc', 2728.0, 1, gold_spot, True),
+            # Gold Bars (~2.5% premium)
+            ('gold-bar-1oz', 'apmex', 4645.0, 1, gold_spot, True),
+            ('gold-bar-1oz', 'jmbullion', 4625.0, 1, gold_spot, True),
+            ('gold-bar-1oz', 'sdbullion', 4610.0, 1, gold_spot, True),
+            ('gold-bar-1oz', 'moneymetals', 4635.0, 1, gold_spot, True),
+            ('gold-bar-1oz', 'bgasc', 4615.0, 1, gold_spot, True),
 
-            # Silver Eagles
-            ('silver-eagle-1oz', 'apmex', 41.50, 1, silver_spot, True),
-            ('silver-eagle-1oz', 'jmbullion', 39.85, 1, silver_spot, True),
-            ('silver-eagle-1oz', 'sdbullion', 39.50, 1, silver_spot, True),
-            ('silver-eagle-1oz', 'moneymetals', 40.20, 1, silver_spot, True),
-            ('silver-eagle-1oz', 'provident', 40.10, 1, silver_spot, False),
-            ('silver-eagle-1oz', 'bgasc', 39.95, 1, silver_spot, True),
+            # Silver Eagles (~30% premium - higher premium on govt coins)
+            ('silver-eagle-1oz', 'apmex', 105.0, 1, silver_spot, True),
+            ('silver-eagle-1oz', 'jmbullion', 102.0, 1, silver_spot, True),
+            ('silver-eagle-1oz', 'sdbullion', 100.50, 1, silver_spot, True),
+            ('silver-eagle-1oz', 'moneymetals', 103.0, 1, silver_spot, True),
+            ('silver-eagle-1oz', 'provident', 102.50, 1, silver_spot, False),
+            ('silver-eagle-1oz', 'bgasc', 101.50, 1, silver_spot, True),
 
-            # Silver Maples
-            ('silver-maple-1oz', 'apmex', 37.20, 1, silver_spot, True),
-            ('silver-maple-1oz', 'jmbullion', 35.80, 1, silver_spot, True),
-            ('silver-maple-1oz', 'sdbullion', 35.50, 1, silver_spot, True),
-            ('silver-maple-1oz', 'moneymetals', 36.10, 1, silver_spot, True),
+            # Silver Maples (~20% premium)
+            ('silver-maple-1oz', 'apmex', 97.0, 1, silver_spot, True),
+            ('silver-maple-1oz', 'jmbullion', 95.0, 1, silver_spot, True),
+            ('silver-maple-1oz', 'sdbullion', 94.0, 1, silver_spot, True),
+            ('silver-maple-1oz', 'moneymetals', 95.50, 1, silver_spot, True),
 
-            # Silver Rounds
-            ('silver-round-1oz', 'apmex', 35.50, 1, silver_spot, True),
-            ('silver-round-1oz', 'jmbullion', 33.80, 1, silver_spot, True),
-            ('silver-round-1oz', 'sdbullion', 33.50, 1, silver_spot, True),
-            ('silver-round-1oz', 'moneymetals', 34.20, 1, silver_spot, True),
-            ('silver-round-1oz', 'herobullion', 33.65, 1, silver_spot, True),
+            # Silver Rounds (~12% premium)
+            ('silver-round-1oz', 'apmex', 91.0, 1, silver_spot, True),
+            ('silver-round-1oz', 'jmbullion', 89.0, 1, silver_spot, True),
+            ('silver-round-1oz', 'sdbullion', 88.50, 1, silver_spot, True),
+            ('silver-round-1oz', 'moneymetals', 89.50, 1, silver_spot, True),
+            ('silver-round-1oz', 'herobullion', 88.75, 1, silver_spot, True),
 
-            # 10oz Silver Bars
-            ('silver-bar-10oz', 'apmex', 342.0, 1, silver_spot, True),
-            ('silver-bar-10oz', 'jmbullion', 335.0, 1, silver_spot, True),
-            ('silver-bar-10oz', 'sdbullion', 332.0, 1, silver_spot, True),
-            ('silver-bar-10oz', 'moneymetals', 338.0, 1, silver_spot, True),
+            # 10oz Silver Bars (~10% premium)
+            ('silver-bar-10oz', 'apmex', 890.0, 1, silver_spot, True),
+            ('silver-bar-10oz', 'jmbullion', 875.0, 1, silver_spot, True),
+            ('silver-bar-10oz', 'sdbullion', 870.0, 1, silver_spot, True),
+            ('silver-bar-10oz', 'moneymetals', 880.0, 1, silver_spot, True),
 
-            # 100oz Silver Bars
-            ('silver-bar-100oz', 'apmex', 3280.0, 1, silver_spot, True),
-            ('silver-bar-100oz', 'jmbullion', 3220.0, 1, silver_spot, True),
-            ('silver-bar-100oz', 'sdbullion', 3195.0, 1, silver_spot, True),
-            ('silver-bar-100oz', 'moneymetals', 3240.0, 1, silver_spot, False),
+            # 100oz Silver Bars (~6% premium)
+            ('silver-bar-100oz', 'apmex', 8580.0, 1, silver_spot, True),
+            ('silver-bar-100oz', 'jmbullion', 8500.0, 1, silver_spot, True),
+            ('silver-bar-100oz', 'sdbullion', 8465.0, 1, silver_spot, True),
+            ('silver-bar-100oz', 'moneymetals', 8530.0, 1, silver_spot, False),
         ]
 
         for price_data in sample_prices:
