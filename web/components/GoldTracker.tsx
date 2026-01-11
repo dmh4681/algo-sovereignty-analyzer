@@ -417,12 +417,27 @@ interface EfficiencyScatterProps {
   data: MinerMetric[]
 }
 
+// Distinct colors for each miner - easily distinguishable
+const MINER_COLORS: Record<string, string> = {
+  'NEM': '#ef4444',   // Red - Newmont
+  'GOLD': '#f97316',  // Orange - Barrick
+  'AEM': '#eab308',   // Yellow - Agnico Eagle
+  'GFI': '#22c55e',   // Green - Gold Fields
+  'AGI': '#14b8a6',   // Teal - Alamos
+  'KGC': '#06b6d4',   // Cyan - Kinross
+  'AU': '#3b82f6',    // Blue - AngloGold
+  'EGO': '#8b5cf6',   // Purple - Eldorado
+  'BTG': '#ec4899',   // Pink - B2Gold
+}
+
 function EfficiencyScatter({ data }: EfficiencyScatterProps) {
   const chartData = {
     datasets: data.map(d => ({
       label: d.ticker,
-      data: [{ x: d.production, y: d.aisc, r: Math.sqrt(d.market_cap) * 3 }],
-      backgroundColor: d.aisc < 1200 ? '#10b981' : d.aisc > 1350 ? '#ef4444' : '#f59e0b',
+      data: [{ x: d.production, y: d.aisc, r: Math.sqrt(d.market_cap) * 3, ticker: d.ticker, company: d.company }],
+      backgroundColor: MINER_COLORS[d.ticker] || '#94a3b8',
+      borderColor: MINER_COLORS[d.ticker] || '#94a3b8',
+      borderWidth: 2,
     }))
   }
 
@@ -433,9 +448,21 @@ function EfficiencyScatter({ data }: EfficiencyScatterProps) {
       legend: { position: 'right' as const, labels: { color: '#94a3b8' } },
       tooltip: {
         callbacks: {
+          title: (ctx: unknown) => {
+            const items = ctx as Array<{ dataset: { label: string } }>
+            if (items.length > 0) {
+              const ticker = items[0].dataset.label
+              const miner = data.find(d => d.ticker === ticker)
+              return miner ? `${ticker} - ${miner.company}` : ticker
+            }
+            return ''
+          },
           label: (ctx: unknown) => {
-            const item = ctx as { raw: { x: number; y: number } }
-            return `${item.raw.x} Moz @ $${item.raw.y}/oz AISC`
+            const item = ctx as { raw: { x: number; y: number }; dataset: { label: string } }
+            return [
+              `Production: ${item.raw.x.toFixed(2)} Moz/Qtr`,
+              `AISC: $${item.raw.y}/oz`
+            ]
           }
         }
       }
@@ -472,20 +499,20 @@ function TrendLineChart({ historicalData, metric, title, yAxisTitle }: TrendLine
   const sortedHistory = [...historicalData].sort((a, b) => a.period.localeCompare(b.period))
   const periods = [...new Set(sortedHistory.map(d => d.period))]
 
-  const colors = ['#1e3a8a', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6']
-
-  const datasets = companies.map((ticker, idx) => {
+  const datasets = companies.map((ticker) => {
     const companyData = sortedHistory.filter(d => d.ticker === ticker)
     const dataPoints = periods.map(p => {
       const entry = companyData.find(d => d.period === p)
       return entry ? (entry[metric] as number) : null
     })
 
+    const color = MINER_COLORS[ticker] || '#94a3b8'
+
     return {
       label: ticker,
       data: dataPoints,
-      borderColor: colors[idx % colors.length],
-      backgroundColor: colors[idx % colors.length],
+      borderColor: color,
+      backgroundColor: color,
       tension: 0.3
     }
   })
