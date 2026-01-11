@@ -193,9 +193,9 @@ function calculateSovereigntyScores(
 
 // --- Silver Price Sensitivity Calculation ---
 
-const CURRENT_SILVER_PRICE = 32 // Current silver price per oz
+const CURRENT_SILVER_PRICE = 79 // Current silver price per oz
 const MIN_SILVER_PRICE = 15
-const MAX_SILVER_PRICE = 100
+const MAX_SILVER_PRICE = 500
 
 interface MinerSensitivity {
   ticker: string
@@ -1097,7 +1097,7 @@ export function SilverTracker() {
 
                 {/* Quick Presets */}
                 <div className="flex gap-2 flex-wrap justify-center mt-4">
-                  {[20, 32, 50, 75, 100].map(price => (
+                  {[50, 79, 100, 150, 250, 500].map(price => (
                     <button
                       key={price}
                       onClick={() => setSilverPrice(price)}
@@ -1546,7 +1546,7 @@ export function SilverTracker() {
 
                         {/* Margin Analysis */}
                         <div className="bg-slate-800/50 rounded-lg p-3">
-                          <p className="text-xs text-slate-500 mb-2">Profit Margin @ $32/oz</p>
+                          <p className="text-xs text-slate-500 mb-2">Profit Margin @ $79/oz</p>
                           <div className="flex items-center justify-between">
                             <span className={`font-mono font-bold text-xl ${margin > 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                               ${margin.toFixed(2)}/oz
