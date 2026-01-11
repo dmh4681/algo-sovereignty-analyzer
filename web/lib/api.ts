@@ -464,3 +464,76 @@ export async function createMinerMetric(data: CreateMinerMetricRequest): Promise
 
   return response.json()
 }
+
+// --- Silver Miner Metrics API ---
+// Uses same interfaces as gold miners (MinerMetric, SectorStats, etc.)
+
+/**
+ * Get all silver miner quarterly metrics
+ */
+export async function getSilverMetrics(limit: number = 100): Promise<MinerMetricsResponse> {
+  const response = await fetch(`${API_BASE}/silver/miners?limit=${limit}`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch silver miner metrics', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get the most recent metrics for each silver mining company
+ */
+export async function getSilverLatestMetrics(): Promise<MinerMetricsResponse> {
+  const response = await fetch(`${API_BASE}/silver/miners/latest`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch latest silver miner metrics', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get silver sector-wide statistics
+ */
+export async function getSilverSectorStats(): Promise<SectorStatsResponse> {
+  const response = await fetch(`${API_BASE}/silver/miners/stats`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch silver sector stats', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get all metrics for a specific silver company by ticker
+ */
+export async function getSilverByTicker(ticker: string): Promise<MinerMetricsResponse & { ticker: string; company: string }> {
+  const response = await fetch(`${API_BASE}/silver/miners/${ticker}`)
+
+  if (!response.ok) {
+    throw new ApiError(`Failed to fetch silver metrics for ${ticker}`, response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Submit a new quarterly report for a silver miner
+ */
+export async function createSilverMetric(data: CreateMinerMetricRequest): Promise<{ success: boolean; id: number; message: string }> {
+  const response = await fetch(`${API_BASE}/silver/miners`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new ApiError(errorData.detail || 'Failed to create silver miner metric', response.status)
+  }
+
+  return response.json()
+}

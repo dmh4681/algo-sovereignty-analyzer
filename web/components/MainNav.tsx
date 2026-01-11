@@ -78,6 +78,12 @@ export function MainNav() {
       >
         Gold Miners
       </Link>
+      <Link
+        href="/silver-tracker"
+        className="text-sm text-slate-400 hover:text-slate-300 transition-colors"
+      >
+        Silver Miners
+      </Link>
       <HeaderWalletStatus />
       <a
         href="https://github.com"
