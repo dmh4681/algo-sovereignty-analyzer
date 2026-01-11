@@ -4,6 +4,10 @@ from core.history import SovereigntySnapshot, get_history_manager
 from core.btc_history import get_btc_history_manager, save_current_prices
 from core.miner_metrics import get_miner_metrics_db, MinerMetric
 from core.silver_metrics import get_silver_metrics_db, SilverMinerMetric
+from core.inflation_data import get_inflation_db
+from core.central_bank_gold import get_cb_gold_db
+from core.earnings_calendar import get_earnings_db, EarningsEvent
+from core.premium_tracker import get_premium_db
 from core.pricing import (
     get_hardcoded_price,
     get_gold_price_per_oz,
@@ -1547,4 +1551,881 @@ async def reseed_silver_miner_metrics():
         }
     except Exception as e:
         print(f"Error reseeding silver miner metrics: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# -----------------------------------------------------------------------------
+# Inflation-Adjusted Charts Endpoints
+# -----------------------------------------------------------------------------
+
+@router.get("/inflation/summary")
+async def get_inflation_summary():
+    """
+    Get summary statistics for the inflation dashboard.
+
+    Returns current CPI, M2, gold/silver prices, and key insights like:
+    - What the 1980 gold peak would be in today's dollars
+    - Dollar purchasing power decline since 1970
+    """
+    try:
+        db = get_inflation_db()
+        stats = db.get_summary_stats()
+
+        return {
+            'stats': stats,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching inflation summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/inflation/data")
+async def get_inflation_data(
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM format)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM format)")
+):
+    """
+    Get historical inflation data (CPI, M2, gold, silver prices).
+
+    Returns raw data points for charting. Can filter by date range.
+    """
+    try:
+        db = get_inflation_db()
+        data = db.get_all_data(start_date=start_date, end_date=end_date)
+
+        return {
+            'data': [d.to_dict() for d in data],
+            'count': len(data),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching inflation data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/inflation/adjusted/{metal}")
+async def get_inflation_adjusted_prices(
+    metal: str = Path(..., description="Metal type: 'gold' or 'silver'"),
+    base_year: int = Query(2024, ge=1970, le=2025, description="Base year for adjustment")
+):
+    """
+    Get inflation-adjusted prices for gold or silver.
+
+    Adjusts historical prices to constant dollars for the specified base year.
+    This shows the "real" price after accounting for CPI inflation.
+
+    Example: Gold at $675 in Jan 1980 equals ~$2,800 in 2024 dollars.
+    """
+    if metal not in ('gold', 'silver'):
+        raise HTTPException(status_code=400, detail="metal must be 'gold' or 'silver'")
+
+    try:
+        db = get_inflation_db()
+        data = db.calculate_inflation_adjusted_prices(metal=metal, base_year=base_year)
+
+        return {
+            'metal': metal,
+            'base_year': base_year,
+            'data': [d.to_dict() for d in data],
+            'count': len(data),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Error calculating adjusted prices: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/inflation/m2-comparison")
+async def get_m2_comparison():
+    """
+    Get gold/silver prices compared to M2 money supply.
+
+    The gold/M2 ratio helps visualize if gold is cheap or expensive
+    relative to money printing. A high ratio means gold is expensive
+    vs the money supply; a low ratio suggests gold is undervalued.
+
+    Includes comparison to 1980 peak ratio as benchmark.
+    """
+    try:
+        db = get_inflation_db()
+        data = db.get_m2_comparison()
+
+        return {
+            'data': [d.to_dict() for d in data],
+            'count': len(data),
+            'interpretation': {
+                'peak_year': 1980,
+                'peak_context': 'In 1980, gold was extremely expensive relative to M2 money supply',
+                'current_pct_of_peak': data[-1].gold_m2_ratio_pct_of_peak if data else None,
+                'implication': 'If ratio returns to 1980 peak levels, gold would need to rise significantly'
+            },
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error calculating M2 comparison: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/inflation/purchasing-power")
+async def get_purchasing_power(
+    from_year: int = Query(1970, ge=1970, le=2020, description="Starting year for calculation")
+):
+    """
+    Calculate dollar purchasing power decline from a given year.
+
+    Shows how much value the US dollar has lost since the specified year.
+    Useful for visualizing currency debasement over time.
+    """
+    try:
+        db = get_inflation_db()
+        result = db.calculate_purchasing_power(from_year=from_year)
+
+        return {
+            'purchasing_power': result,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error calculating purchasing power: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/inflation/reseed")
+async def reseed_inflation_data():
+    """
+    Clear all inflation data and reseed with built-in historical data.
+
+    WARNING: This deletes all existing data!
+    """
+    try:
+        db = get_inflation_db()
+        count = db.reseed()
+        return {
+            'success': True,
+            'message': f"Database reseeded with {count} data points",
+            'count': count,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error reseeding inflation data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# -----------------------------------------------------------------------------
+# Central Bank Gold Tracker Endpoints
+# -----------------------------------------------------------------------------
+
+@router.get("/central-banks/summary")
+async def get_cb_gold_summary():
+    """
+    Get summary statistics for the central bank gold dashboard.
+
+    Returns total global holdings, recent purchase activity,
+    de-dollarization score, and top holder info.
+    """
+    try:
+        db = get_cb_gold_db()
+        stats = db.get_summary_stats()
+
+        return {
+            'stats': stats,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching CB gold summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/central-banks/leaderboard")
+async def get_cb_gold_leaderboard(
+    limit: int = Query(20, ge=1, le=50, description="Number of countries to return")
+):
+    """
+    Get country leaderboard ranked by gold holdings.
+
+    Includes 12-month change in holdings for trend analysis.
+    """
+    try:
+        db = get_cb_gold_db()
+        rankings = db.get_leaderboard(limit=limit)
+
+        return {
+            'rankings': [r.to_dict() for r in rankings],
+            'count': len(rankings),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching CB leaderboard: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/central-banks/country/{country_code}")
+async def get_cb_country_history(
+    country_code: str = Path(..., description="ISO 3166-1 alpha-2 country code (e.g., US, CN, RU)")
+):
+    """
+    Get historical gold holdings for a specific country.
+
+    Returns time series data for charting a country's accumulation.
+    """
+    try:
+        db = get_cb_gold_db()
+        history = db.get_country_history(country_code)
+
+        if not history:
+            raise HTTPException(status_code=404, detail=f"No data for country: {country_code}")
+
+        return {
+            'country_code': country_code.upper(),
+            'country_name': history[0].country_name if history else country_code,
+            'history': [h.to_dict() for h in history],
+            'count': len(history),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching CB history for {country_code}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/central-banks/net-purchases")
+async def get_cb_net_purchases():
+    """
+    Get global net gold purchases by year.
+
+    Shows whether central banks as a group are buying or selling.
+    2022 was a record year at 1,082 tonnes.
+    """
+    try:
+        db = get_cb_gold_db()
+        purchases = db.get_net_purchases()
+
+        # Calculate summary stats
+        total = sum(p.tonnes for p in purchases)
+        avg = total / len(purchases) if purchases else 0
+        recent_avg = sum(p.tonnes for p in purchases[-5:]) / 5 if len(purchases) >= 5 else avg
+
+        return {
+            'purchases': [p.to_dict() for p in purchases],
+            'count': len(purchases),
+            'summary': {
+                'total_tonnes': round(total, 0),
+                'average_per_year': round(avg, 0),
+                'recent_5yr_avg': round(recent_avg, 0),
+                'peak_year': max(purchases, key=lambda x: x.tonnes).year if purchases else None,
+                'peak_tonnes': max(p.tonnes for p in purchases) if purchases else 0,
+            },
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching CB net purchases: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/central-banks/top-buyers")
+async def get_cb_top_buyers(
+    n: int = Query(10, ge=1, le=30, description="Number of top buyers to return")
+):
+    """
+    Get countries with the largest gold accumulation in the past 12 months.
+    """
+    try:
+        db = get_cb_gold_db()
+        buyers = db.get_top_buyers(n=n)
+
+        return {
+            'buyers': [b.to_dict() for b in buyers],
+            'count': len(buyers),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching top buyers: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/central-banks/top-sellers")
+async def get_cb_top_sellers(
+    n: int = Query(10, ge=1, le=30, description="Number of top sellers to return")
+):
+    """
+    Get countries that have reduced gold holdings in the past 12 months.
+    """
+    try:
+        db = get_cb_gold_db()
+        sellers = db.get_top_sellers(n=n)
+
+        return {
+            'sellers': [s.to_dict() for s in sellers],
+            'count': len(sellers),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching top sellers: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/central-banks/dedollarization")
+async def get_dedollarization_score():
+    """
+    Get the composite de-dollarization score (0-100).
+
+    Higher scores indicate stronger trend of central banks
+    diversifying away from USD reserves into gold.
+    """
+    try:
+        db = get_cb_gold_db()
+        score = db.calculate_dedollarization_score()
+
+        return {
+            'score': score.to_dict(),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error calculating de-dollarization score: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/central-banks/reseed")
+async def reseed_cb_gold_data():
+    """
+    Clear all central bank gold data and reseed with built-in data.
+
+    WARNING: This deletes all existing data!
+    """
+    try:
+        db = get_cb_gold_db()
+        count = db.reseed()
+        return {
+            'success': True,
+            'message': f"Database reseeded with {count} holdings records",
+            'count': count,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error reseeding CB gold data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# -----------------------------------------------------------------------------
+# Miner Earnings Calendar Endpoints
+# -----------------------------------------------------------------------------
+
+@router.get("/earnings/calendar")
+async def get_earnings_calendar(
+    month: Optional[str] = Query(None, description="Month in YYYY-MM format (default: current month)")
+):
+    """
+    Get earnings events for a specific month.
+
+    Returns all gold and silver miner earnings scheduled for the month.
+    Use for displaying a calendar view of upcoming earnings.
+    """
+    try:
+        db = get_earnings_db()
+        events = db.get_calendar(month=month)
+
+        return {
+            'events': [e.to_dict() for e in events],
+            'count': len(events),
+            'month': month or datetime.now().strftime('%Y-%m'),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching earnings calendar: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/earnings/upcoming")
+async def get_upcoming_earnings(
+    days: int = Query(30, ge=1, le=90, description="Number of days to look ahead")
+):
+    """
+    Get earnings events in the next N days.
+
+    Returns upcoming earnings sorted by date.
+    Includes countdown information and estimates.
+    """
+    try:
+        db = get_earnings_db()
+        events = db.get_upcoming(days=days)
+
+        # Add countdown days
+        today = datetime.now().date()
+        events_with_countdown = []
+        for event in events:
+            event_dict = event.to_dict()
+            try:
+                event_date = datetime.strptime(event.earnings_date, '%Y-%m-%d').date()
+                event_dict['days_until'] = (event_date - today).days
+            except ValueError:
+                event_dict['days_until'] = None
+            events_with_countdown.append(event_dict)
+
+        return {
+            'events': events_with_countdown,
+            'count': len(events),
+            'days_ahead': days,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching upcoming earnings: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/earnings/ticker/{ticker}")
+async def get_earnings_by_ticker(
+    ticker: str = Path(..., description="Company ticker symbol (e.g., NEM, PAAS)")
+):
+    """
+    Get all earnings events for a specific company.
+
+    Returns historical and upcoming earnings for trend analysis.
+    """
+    try:
+        db = get_earnings_db()
+        events = db.get_by_ticker(ticker)
+
+        if not events:
+            raise HTTPException(status_code=404, detail=f"No earnings data for ticker: {ticker}")
+
+        return {
+            'ticker': ticker.upper(),
+            'company_name': events[0].company_name if events else None,
+            'metal': events[0].metal if events else None,
+            'events': [e.to_dict() for e in events],
+            'count': len(events),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching earnings for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/earnings/stats/{ticker}")
+async def get_earnings_stats(
+    ticker: str = Path(..., description="Company ticker symbol")
+):
+    """
+    Get beat/miss statistics for a specific company.
+
+    Returns historical EPS, revenue, production, and AISC beat rates,
+    plus average price reactions on earnings.
+    """
+    try:
+        db = get_earnings_db()
+        stats = db.get_stats(ticker)
+
+        if not stats:
+            raise HTTPException(status_code=404, detail=f"No earnings stats for ticker: {ticker}")
+
+        return {
+            'stats': stats.to_dict(),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching earnings stats for {ticker}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/earnings/sector-stats")
+async def get_sector_earnings_stats(
+    metal: Optional[str] = Query(None, description="Filter by metal: 'gold' or 'silver'")
+):
+    """
+    Get sector-wide earnings statistics.
+
+    Returns aggregate beat rates, next upcoming earnings,
+    and average price reactions across all tracked miners.
+    """
+    if metal and metal not in ('gold', 'silver'):
+        raise HTTPException(status_code=400, detail="metal must be 'gold' or 'silver'")
+
+    try:
+        db = get_earnings_db()
+        stats = db.get_sector_stats(metal=metal)
+
+        return {
+            'stats': stats.to_dict(),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching sector earnings stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/earnings")
+async def create_earnings_event(data: Dict[str, Any]):
+    """
+    Create a new earnings event (manual entry).
+
+    Required fields:
+    - ticker: Stock ticker (e.g., "NEM")
+    - metal: 'gold' or 'silver'
+    - company_name: Full company name
+    - quarter: Period (e.g., "Q1 2025")
+    - earnings_date: Date in YYYY-MM-DD format
+    - time_of_day: 'pre-market', 'after-hours', or 'during-market'
+    - is_confirmed: Whether date is confirmed vs estimated
+    """
+    try:
+        required = ['ticker', 'metal', 'company_name', 'quarter', 'earnings_date', 'time_of_day', 'is_confirmed']
+        missing = [f for f in required if f not in data]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required fields: {', '.join(missing)}"
+            )
+
+        if data['metal'] not in ('gold', 'silver'):
+            raise HTTPException(status_code=400, detail="metal must be 'gold' or 'silver'")
+
+        event = EarningsEvent(
+            id=None,
+            ticker=data['ticker'].upper(),
+            metal=data['metal'],
+            company_name=data['company_name'],
+            quarter=data['quarter'],
+            earnings_date=data['earnings_date'],
+            time_of_day=data['time_of_day'],
+            is_confirmed=bool(data['is_confirmed']),
+            eps_actual=data.get('eps_actual'),
+            eps_estimate=data.get('eps_estimate'),
+            revenue_actual=data.get('revenue_actual'),
+            revenue_estimate=data.get('revenue_estimate'),
+            production_actual=data.get('production_actual'),
+            production_guidance=data.get('production_guidance'),
+            aisc_actual=data.get('aisc_actual'),
+            aisc_guidance=data.get('aisc_guidance'),
+            price_before=data.get('price_before'),
+            price_1d_after=data.get('price_1d_after'),
+            price_5d_after=data.get('price_5d_after'),
+            price_30d_after=data.get('price_30d_after'),
+            transcript_url=data.get('transcript_url'),
+            press_release_url=data.get('press_release_url'),
+        )
+
+        db = get_earnings_db()
+        new_id = db.create_event(event)
+
+        if new_id is None:
+            raise HTTPException(
+                status_code=409,
+                detail=f"Duplicate: {event.ticker} {event.quarter} already exists"
+            )
+
+        return {
+            'success': True,
+            'id': new_id,
+            'message': f"Created earnings event for {event.ticker} ({event.quarter})",
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error creating earnings event: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.put("/earnings/{event_id}")
+async def update_earnings_event(
+    event_id: int = Path(..., description="Earnings event ID"),
+    data: Dict[str, Any] = None
+):
+    """
+    Update an existing earnings event.
+
+    Use this to add actual results after earnings are reported.
+    """
+    try:
+        if not data:
+            raise HTTPException(status_code=400, detail="No update data provided")
+
+        db = get_earnings_db()
+        success = db.update_event(event_id, data)
+
+        if not success:
+            raise HTTPException(status_code=404, detail=f"Event {event_id} not found or no valid updates")
+
+        return {
+            'success': True,
+            'message': f"Updated earnings event {event_id}",
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error updating earnings event: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/earnings/reseed")
+async def reseed_earnings_data():
+    """
+    Clear all earnings data and reseed with built-in historical data.
+
+    WARNING: This deletes all existing data!
+    """
+    try:
+        db = get_earnings_db()
+        count = db.reseed()
+        return {
+            'success': True,
+            'message': f"Database reseeded with {count} earnings events",
+            'count': count,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error reseeding earnings data: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# -----------------------------------------------------------------------------
+# Physical Premium Tracker Endpoints
+# -----------------------------------------------------------------------------
+
+@router.get("/premiums/summary")
+async def get_premiums_summary():
+    """
+    Get summary statistics for the premium tracker dashboard.
+
+    Returns spot prices, average premiums by metal, and data freshness.
+    """
+    try:
+        db = get_premium_db()
+        stats = db.get_summary_stats()
+
+        return {
+            'stats': stats,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching premiums summary: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/premiums/products")
+async def get_premium_products(
+    metal: Optional[str] = Query(None, description="Filter by metal: 'gold' or 'silver'")
+):
+    """
+    Get all tracked products.
+
+    Returns product catalog with typical premium ranges.
+    """
+    if metal and metal not in ('gold', 'silver'):
+        raise HTTPException(status_code=400, detail="metal must be 'gold' or 'silver'")
+
+    try:
+        db = get_premium_db()
+        products = db.get_products(metal=metal)
+
+        return {
+            'products': [p.to_dict() for p in products],
+            'count': len(products),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching products: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/premiums/products/{product_id}")
+async def get_premium_product(
+    product_id: str = Path(..., description="Product ID (e.g., 'silver-eagle-1oz')")
+):
+    """
+    Get details for a specific product.
+    """
+    try:
+        db = get_premium_db()
+        product = db.get_product(product_id)
+
+        if not product:
+            raise HTTPException(status_code=404, detail=f"Product not found: {product_id}")
+
+        return {
+            'product': product.to_dict(),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error fetching product {product_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/premiums/dealers")
+async def get_premium_dealers():
+    """
+    Get all active dealers.
+    """
+    try:
+        db = get_premium_db()
+        dealers = db.get_dealers()
+
+        return {
+            'dealers': [d.to_dict() for d in dealers],
+            'count': len(dealers),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching dealers: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/premiums/compare/{product_id}")
+async def compare_product_prices(
+    product_id: str = Path(..., description="Product ID to compare")
+):
+    """
+    Compare prices for a product across all dealers.
+
+    Returns prices sorted by total cost with best deal highlighted.
+    """
+    try:
+        db = get_premium_db()
+        comparison = db.get_comparison(product_id)
+
+        if not comparison:
+            raise HTTPException(status_code=404, detail=f"No prices found for: {product_id}")
+
+        return {
+            'comparison': comparison.to_dict(),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error comparing prices for {product_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/premiums/best-deals")
+async def get_best_deals(
+    metal: Optional[str] = Query(None, description="Filter by metal: 'gold' or 'silver'"),
+    limit: int = Query(10, ge=1, le=50, description="Number of deals to return")
+):
+    """
+    Get products with the lowest current premiums.
+
+    Returns the best value products available right now.
+    """
+    if metal and metal not in ('gold', 'silver'):
+        raise HTTPException(status_code=400, detail="metal must be 'gold' or 'silver'")
+
+    try:
+        db = get_premium_db()
+        deals = db.get_best_deals(metal=metal, limit=limit)
+
+        return {
+            'deals': deals,
+            'count': len(deals),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching best deals: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/premiums/leaderboard")
+async def get_dealer_leaderboard(
+    metal: Optional[str] = Query(None, description="Filter by metal: 'gold' or 'silver'")
+):
+    """
+    Get dealers ranked by average premium.
+
+    Lower average premium = better value for customers.
+    """
+    if metal and metal not in ('gold', 'silver'):
+        raise HTTPException(status_code=400, detail="metal must be 'gold' or 'silver'")
+
+    try:
+        db = get_premium_db()
+        rankings = db.get_dealer_leaderboard(metal=metal)
+
+        return {
+            'rankings': [r.to_dict() for r in rankings],
+            'count': len(rankings),
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error fetching dealer leaderboard: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/premiums/price")
+async def add_price(data: Dict[str, Any]):
+    """
+    Add a new price entry (manual update).
+
+    Required fields:
+    - product_id: Product ID
+    - dealer_id: Dealer ID
+    - price: Current price
+    - spot_price: Current spot price for the metal
+
+    Optional fields:
+    - in_stock: Whether product is in stock (default: true)
+    - product_url: URL to product page
+    """
+    try:
+        required = ['product_id', 'dealer_id', 'price', 'spot_price']
+        missing = [f for f in required if f not in data]
+        if missing:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Missing required fields: {', '.join(missing)}"
+            )
+
+        db = get_premium_db()
+        new_id = db.add_price(
+            product_id=data['product_id'],
+            dealer_id=data['dealer_id'],
+            price=float(data['price']),
+            spot_price=float(data['spot_price']),
+            in_stock=data.get('in_stock', True),
+            product_url=data.get('product_url'),
+        )
+
+        if new_id is None:
+            raise HTTPException(status_code=400, detail="Invalid product_id")
+
+        return {
+            'success': True,
+            'id': new_id,
+            'message': f"Price added for {data['product_id']} at {data['dealer_id']}",
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error adding price: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/premiums/reseed")
+async def reseed_premium_data():
+    """
+    Clear all premium data and reseed with sample data.
+
+    WARNING: This deletes all existing data!
+    """
+    try:
+        db = get_premium_db()
+        count = db.reseed()
+        return {
+            'success': True,
+            'message': f"Database reseeded with {count} price entries",
+            'count': count,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error reseeding premium data: {e}")
         raise HTTPException(status_code=500, detail=str(e))

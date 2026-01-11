@@ -56,6 +56,26 @@ const preciousMetalsItems = [
     href: '/silver-tracker',
     description: 'Track major silver mining companies',
   },
+  {
+    label: 'Inflation Charts',
+    href: '/inflation-charts',
+    description: 'Gold in real terms, M2 comparison, purchasing power',
+  },
+  {
+    label: 'Central Banks',
+    href: '/central-bank-gold',
+    description: 'Global CB gold holdings & de-dollarization',
+  },
+  {
+    label: 'Earnings Calendar',
+    href: '/earnings-calendar',
+    description: 'Track miner quarterly reports and price reactions',
+  },
+  {
+    label: 'Physical Premiums',
+    href: '/premium-tracker',
+    description: 'Compare dealer premiums on coins, bars & rounds',
+  },
 ]
 
 export function MainNav() {

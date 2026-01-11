@@ -537,3 +537,607 @@ export async function createSilverMetric(data: CreateMinerMetricRequest): Promis
 
   return response.json()
 }
+
+// --- Inflation-Adjusted Charts API ---
+
+export interface InflationDataPoint {
+  date: string
+  cpi: number | null
+  m2: number | null
+  gold_price: number | null
+  silver_price: number | null
+}
+
+export interface AdjustedPrice {
+  date: string
+  nominal_price: number
+  real_price: number
+  base_year: number
+  cpi_at_date: number
+  cpi_at_base: number
+}
+
+export interface M2Comparison {
+  date: string
+  gold_price: number
+  silver_price: number
+  m2_billions: number
+  gold_m2_ratio: number
+  silver_m2_ratio: number
+  gold_m2_ratio_pct_of_peak: number
+}
+
+export interface PurchasingPower {
+  from_year: number
+  to_date: string
+  dollar_value_today: number
+  purchasing_power_lost_pct: number
+  cumulative_inflation_pct: number
+  average_annual_inflation_pct: number
+  cpi_from: number
+  cpi_now: number
+}
+
+export interface InflationSummary {
+  latest_date: string | null
+  current_cpi: number | null
+  current_m2_billions: number | null
+  current_gold: number | null
+  current_silver: number | null
+  gold_1980_peak_in_todays_dollars: number
+  current_gold_vs_1980_real_pct: number
+  purchasing_power: PurchasingPower
+}
+
+/**
+ * Get inflation dashboard summary statistics
+ */
+export async function getInflationSummary(): Promise<{ stats: InflationSummary; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/inflation/summary`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch inflation summary', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get historical inflation data (CPI, M2, gold, silver)
+ */
+export async function getInflationData(
+  startDate?: string,
+  endDate?: string
+): Promise<{ data: InflationDataPoint[]; count: number; timestamp: string }> {
+  const params = new URLSearchParams()
+  if (startDate) params.append('start_date', startDate)
+  if (endDate) params.append('end_date', endDate)
+
+  const url = params.toString()
+    ? `${API_BASE}/inflation/data?${params}`
+    : `${API_BASE}/inflation/data`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch inflation data', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get inflation-adjusted prices for gold or silver
+ */
+export async function getInflationAdjustedPrices(
+  metal: 'gold' | 'silver',
+  baseYear: number = 2024
+): Promise<{ metal: string; base_year: number; data: AdjustedPrice[]; count: number; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/inflation/adjusted/${metal}?base_year=${baseYear}`)
+
+  if (!response.ok) {
+    throw new ApiError(`Failed to fetch ${metal} adjusted prices`, response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get gold/silver vs M2 money supply comparison
+ */
+export async function getM2Comparison(): Promise<{
+  data: M2Comparison[]
+  count: number
+  interpretation: {
+    peak_year: number
+    peak_context: string
+    current_pct_of_peak: number | null
+    implication: string
+  }
+  timestamp: string
+}> {
+  const response = await fetch(`${API_BASE}/inflation/m2-comparison`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch M2 comparison', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get dollar purchasing power decline calculation
+ */
+export async function getPurchasingPower(
+  fromYear: number = 1970
+): Promise<{ purchasing_power: PurchasingPower; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/inflation/purchasing-power?from_year=${fromYear}`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch purchasing power', response.status)
+  }
+
+  return response.json()
+}
+
+// --- Central Bank Gold Tracker API ---
+
+export interface CBGoldSummary {
+  total_holdings_tonnes: number
+  total_countries: number
+  latest_year_purchases: number
+  previous_year_purchases: number
+  yoy_change_tonnes: number
+  consecutive_buying_years: number
+  dedollarization_score: number
+  dedollarization_interpretation: string
+  top_holder: string | null
+  top_holder_tonnes: number
+}
+
+export interface CountryRanking {
+  rank: number
+  country_code: string
+  country_name: string
+  flag: string
+  tonnes: number
+  pct_of_reserves: number
+  change_12m: number | null
+  region: string
+}
+
+export interface CBHolding {
+  id: number
+  country_code: string
+  country_name: string
+  date: string
+  tonnes: number
+  pct_of_reserves: number
+  region: string
+  flag: string
+}
+
+export interface NetPurchase {
+  year: string
+  tonnes: number
+  is_buying: boolean
+}
+
+export interface DeDollarizationScore {
+  date: string
+  score: number
+  components: {
+    gold_pct_score: number
+    buying_streak_score: number
+    acceleration_score: number
+    volume_score: number
+    consecutive_buying_years: number
+    avg_recent_purchases: number
+    total_global_tonnes: number
+  }
+  interpretation: string
+}
+
+/**
+ * Get central bank gold dashboard summary
+ */
+export async function getCBGoldSummary(): Promise<{ stats: CBGoldSummary; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/central-banks/summary`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch CB gold summary', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get country leaderboard by gold holdings
+ */
+export async function getCBLeaderboard(
+  limit: number = 20
+): Promise<{ rankings: CountryRanking[]; count: number; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/central-banks/leaderboard?limit=${limit}`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch CB leaderboard', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get historical holdings for a specific country
+ */
+export async function getCBCountryHistory(
+  countryCode: string
+): Promise<{ country_code: string; country_name: string; history: CBHolding[]; count: number; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/central-banks/country/${countryCode}`)
+
+  if (!response.ok) {
+    throw new ApiError(`Failed to fetch CB history for ${countryCode}`, response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get global net gold purchases by year
+ */
+export async function getCBNetPurchases(): Promise<{
+  purchases: NetPurchase[]
+  count: number
+  summary: {
+    total_tonnes: number
+    average_per_year: number
+    recent_5yr_avg: number
+    peak_year: string | null
+    peak_tonnes: number
+  }
+  timestamp: string
+}> {
+  const response = await fetch(`${API_BASE}/central-banks/net-purchases`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch CB net purchases', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get top gold buying countries (12-month change)
+ */
+export async function getCBTopBuyers(
+  n: number = 10
+): Promise<{ buyers: CountryRanking[]; count: number; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/central-banks/top-buyers?n=${n}`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch top buyers', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get de-dollarization composite score
+ */
+export async function getDeDollarizationScore(): Promise<{ score: DeDollarizationScore; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/central-banks/dedollarization`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch de-dollarization score', response.status)
+  }
+
+  return response.json()
+}
+
+// --- Miner Earnings Calendar API ---
+
+export interface EarningsEvent {
+  id: number
+  ticker: string
+  metal: 'gold' | 'silver'
+  company_name: string
+  quarter: string
+  earnings_date: string
+  time_of_day: 'pre-market' | 'after-hours' | 'during-market'
+  is_confirmed: boolean
+  eps_actual: number | null
+  eps_estimate: number | null
+  revenue_actual: number | null
+  revenue_estimate: number | null
+  production_actual: number | null
+  production_guidance: number | null
+  aisc_actual: number | null
+  aisc_guidance: number | null
+  price_before: number | null
+  price_1d_after: number | null
+  price_5d_after: number | null
+  price_30d_after: number | null
+  transcript_url: string | null
+  press_release_url: string | null
+  created_at: string | null
+  updated_at: string | null
+  // Computed fields
+  eps_beat: boolean | null
+  revenue_beat: boolean | null
+  production_beat: boolean | null
+  aisc_beat: boolean | null
+  price_reaction_1d: number | null
+  price_reaction_5d: number | null
+  price_reaction_30d: number | null
+  days_until?: number
+}
+
+export interface BeatMissStats {
+  ticker: string
+  company_name: string
+  metal: string
+  quarters_tracked: number
+  eps: { beats: number; misses: number; beat_rate: number }
+  revenue: { beats: number; misses: number; beat_rate: number }
+  production: { beats: number; misses: number; beat_rate: number }
+  aisc: { beats: number; misses: number; beat_rate: number }
+  price_reactions: {
+    avg_1d: number | null
+    avg_on_beat: number | null
+    avg_on_miss: number | null
+  }
+}
+
+export interface SectorEarningsStats {
+  metal: string
+  upcoming_count: number
+  next_earnings: { ticker: string | null; date: string | null }
+  sector_avg_eps_beat_rate: number
+  sector_avg_revenue_beat_rate: number
+  sector_avg_1d_reaction: number | null
+  total_companies: number
+}
+
+/**
+ * Get earnings calendar for a specific month
+ */
+export async function getEarningsCalendar(
+  month?: string
+): Promise<{ events: EarningsEvent[]; count: number; month: string; timestamp: string }> {
+  const url = month
+    ? `${API_BASE}/earnings/calendar?month=${month}`
+    : `${API_BASE}/earnings/calendar`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch earnings calendar', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get upcoming earnings events
+ */
+export async function getUpcomingEarnings(
+  days: number = 30
+): Promise<{ events: EarningsEvent[]; count: number; days_ahead: number; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/earnings/upcoming?days=${days}`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch upcoming earnings', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get earnings history for a specific ticker
+ */
+export async function getEarningsByTicker(
+  ticker: string
+): Promise<{ ticker: string; company_name: string; metal: string; events: EarningsEvent[]; count: number; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/earnings/ticker/${ticker}`)
+
+  if (!response.ok) {
+    throw new ApiError(`Failed to fetch earnings for ${ticker}`, response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get beat/miss statistics for a company
+ */
+export async function getEarningsStats(
+  ticker: string
+): Promise<{ stats: BeatMissStats; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/earnings/stats/${ticker}`)
+
+  if (!response.ok) {
+    throw new ApiError(`Failed to fetch earnings stats for ${ticker}`, response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get sector-wide earnings statistics
+ */
+export async function getSectorEarningsStats(
+  metal?: 'gold' | 'silver'
+): Promise<{ stats: SectorEarningsStats; timestamp: string }> {
+  const url = metal
+    ? `${API_BASE}/earnings/sector-stats?metal=${metal}`
+    : `${API_BASE}/earnings/sector-stats`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch sector earnings stats', response.status)
+  }
+
+  return response.json()
+}
+
+// --- Physical Premium Tracker API ---
+
+export interface PremiumDealer {
+  id: string
+  name: string
+  website: string
+  shipping_info: string
+  min_free_shipping: number | null
+  is_active: boolean
+}
+
+export interface PremiumProduct {
+  id: string
+  name: string
+  metal: 'gold' | 'silver'
+  weight_oz: number
+  product_type: 'coin' | 'bar' | 'round' | 'junk'
+  mint: string | null
+  is_government: boolean
+  typical_premium_low: number
+  typical_premium_high: number
+}
+
+export interface ProductPrice {
+  id: number
+  product_id: string
+  dealer_id: string
+  dealer_name?: string
+  dealer_website?: string
+  shipping_info?: string
+  price: number
+  quantity: number
+  spot_price: number
+  premium_dollars: number
+  premium_percent: number
+  in_stock: boolean
+  product_url: string | null
+  captured_at: string
+}
+
+export interface ProductComparison {
+  product: PremiumProduct
+  prices: ProductPrice[]
+  best_price: ProductPrice | null
+  spot_price: number
+  melt_value: number
+}
+
+export interface DealerRanking {
+  dealer: PremiumDealer
+  avg_premium_percent: number
+  products_tracked: number
+  best_for: string[]
+}
+
+export interface PremiumSummary {
+  spot_prices: { gold?: number; silver?: number }
+  product_count: number
+  dealer_count: number
+  avg_premiums: { gold?: number; silver?: number }
+  last_update: string | null
+}
+
+/**
+ * Get premium tracker summary stats
+ */
+export async function getPremiumSummary(): Promise<{ stats: PremiumSummary; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/premiums/summary`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch premium summary', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get all tracked products
+ */
+export async function getPremiumProducts(
+  metal?: 'gold' | 'silver'
+): Promise<{ products: PremiumProduct[]; count: number; timestamp: string }> {
+  const url = metal
+    ? `${API_BASE}/premiums/products?metal=${metal}`
+    : `${API_BASE}/premiums/products`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch premium products', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get all dealers
+ */
+export async function getPremiumDealers(): Promise<{ dealers: PremiumDealer[]; count: number; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/premiums/dealers`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch dealers', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Compare prices for a product across dealers
+ */
+export async function compareProductPrices(
+  productId: string
+): Promise<{ comparison: ProductComparison; timestamp: string }> {
+  const response = await fetch(`${API_BASE}/premiums/compare/${productId}`)
+
+  if (!response.ok) {
+    throw new ApiError(`Failed to fetch comparison for ${productId}`, response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get best deals (lowest premiums)
+ */
+export async function getBestDeals(
+  metal?: 'gold' | 'silver',
+  limit: number = 10
+): Promise<{ deals: (PremiumProduct & ProductPrice)[]; count: number; timestamp: string }> {
+  const params = new URLSearchParams()
+  if (metal) params.append('metal', metal)
+  params.append('limit', limit.toString())
+
+  const response = await fetch(`${API_BASE}/premiums/best-deals?${params}`)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch best deals', response.status)
+  }
+
+  return response.json()
+}
+
+/**
+ * Get dealer leaderboard
+ */
+export async function getDealerLeaderboard(
+  metal?: 'gold' | 'silver'
+): Promise<{ rankings: DealerRanking[]; count: number; timestamp: string }> {
+  const url = metal
+    ? `${API_BASE}/premiums/leaderboard?metal=${metal}`
+    : `${API_BASE}/premiums/leaderboard`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new ApiError('Failed to fetch dealer leaderboard', response.status)
+  }
+
+  return response.json()
+}
