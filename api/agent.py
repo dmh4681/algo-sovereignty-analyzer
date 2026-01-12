@@ -9,18 +9,10 @@ class AdviceRequest(BaseModel):
 class SovereigntyCoach:
     def __init__(self):
         api_key = os.getenv("ANTHROPIC_API_KEY")
-        print(f"DEBUG: Loading SovereigntyCoach. API Key present: {bool(api_key)}")
-        if api_key:
-            print(f"DEBUG: API Key starts with: {api_key[:10]}...")
-        else:
-            print("ERROR: ANTHROPIC_API_KEY is missing!")
-            
-        try:
-            self.client = anthropic.Anthropic(api_key=api_key)
-            print("DEBUG: Anthropic client initialized successfully")
-        except Exception as e:
-            print(f"ERROR: Failed to initialize Anthropic client: {e}")
-            raise
+        if not api_key:
+            raise ValueError("ANTHROPIC_API_KEY environment variable is required")
+
+        self.client = anthropic.Anthropic(api_key=api_key)
 
     def generate_advice(self, analysis: dict) -> str:
         """
