@@ -59,7 +59,6 @@ async def get_agent_advice(request: AdviceRequest):
     """
     Get personalized financial sovereignty advice from the AI agent.
     """
-    print(f"DEBUG: Received advice request for address: {request.address}")
     try:
         coach = SovereigntyCoach()
         advice = coach.generate_advice(request.analysis)

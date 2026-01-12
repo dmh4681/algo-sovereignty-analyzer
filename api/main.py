@@ -6,7 +6,6 @@ from pathlib import Path
 
 # Load environment variables explicitly from root directory
 env_path = Path(__file__).parent.parent / '.env'
-print(f"DEBUG: Loading .env from {env_path}")
 load_dotenv(dotenv_path=env_path, override=True)
 
 from .routes import router
