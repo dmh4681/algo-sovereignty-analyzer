@@ -348,24 +348,24 @@ class EarningsCalendarDB:
             ('CDE', 'silver', 'Coeur Mining', 'Q3 2024', '2024-10-30', 'pre-market', 1, 0.19, 0.15, 440, 400, 4700000, 4500000, 12.60, 13.20, 6.50, 7.10, 7.60, 7.20),
         ]
 
-        # Upcoming earnings (2025)
-        upcoming_2025 = [
-            # Gold Q4 2024 / Q1 2025
-            ('NEM', 'gold', 'Newmont', 'Q4 2024', '2025-02-20', 'pre-market', 0, None, 0.95, None, 5500, None, 1900000, None, 1000, None, None, None, None, None, None),
-            ('GOLD', 'gold', 'Barrick Gold', 'Q4 2024', '2025-02-12', 'pre-market', 0, None, 0.58, None, 4400, None, 1250000, None, 980, None, None, None, None, None, None),
-            ('AEM', 'gold', 'Agnico Eagle', 'Q4 2024', '2025-02-13', 'pre-market', 0, None, 1.45, None, 2650, None, 1200000, None, 850, None, None, None, None, None, None),
-            ('KGC', 'gold', 'Kinross Gold', 'Q4 2024', '2025-02-12', 'pre-market', 0, None, 0.38, None, 1900, None, 760000, None, 880, None, None, None, None, None, None),
-            ('BTG', 'gold', 'B2Gold', 'Q4 2024', '2025-02-19', 'pre-market', 0, None, 0.19, None, 780, None, 380000, None, 920, None, None, None, None, None, None),
+        # Upcoming earnings (2026) - Q4 2025 results
+        upcoming_2026 = [
+            # Gold Q4 2025
+            ('NEM', 'gold', 'Newmont', 'Q4 2025', '2026-02-19', 'pre-market', 0, None, 1.05, None, 5800, None, 1950000, None, 980, None, None, None, None),
+            ('GOLD', 'gold', 'Barrick Gold', 'Q4 2025', '2026-02-11', 'pre-market', 0, None, 0.62, None, 4600, None, 1280000, None, 960, None, None, None, None),
+            ('AEM', 'gold', 'Agnico Eagle', 'Q4 2025', '2026-02-12', 'pre-market', 0, None, 1.52, None, 2800, None, 1220000, None, 840, None, None, None, None),
+            ('KGC', 'gold', 'Kinross Gold', 'Q4 2025', '2026-02-11', 'pre-market', 0, None, 0.42, None, 2000, None, 780000, None, 860, None, None, None, None),
+            ('BTG', 'gold', 'B2Gold', 'Q4 2025', '2026-02-18', 'pre-market', 0, None, 0.21, None, 820, None, 400000, None, 900, None, None, None, None),
 
-            # Silver Q4 2024
-            ('PAAS', 'silver', 'Pan American Silver', 'Q4 2024', '2025-02-19', 'pre-market', 0, None, 0.50, None, 1300, None, 7800000, None, 13.00, None, None, None, None, None, None),
-            ('AG', 'silver', 'First Majestic Silver', 'Q4 2024', '2025-02-20', 'pre-market', 0, None, 0.28, None, 380, None, 5200000, None, 14.50, None, None, None, None, None, None),
-            ('HL', 'silver', 'Hecla Mining', 'Q4 2024', '2025-02-19', 'pre-market', 0, None, 0.20, None, 420, None, 5900000, None, 11.00, None, None, None, None, None, None),
-            ('CDE', 'silver', 'Coeur Mining', 'Q4 2024', '2025-02-19', 'pre-market', 0, None, 0.22, None, 490, None, 5000000, None, 12.00, None, None, None, None, None, None),
+            # Silver Q4 2025
+            ('PAAS', 'silver', 'Pan American Silver', 'Q4 2025', '2026-02-18', 'pre-market', 0, None, 0.55, None, 1400, None, 8000000, None, 12.50, None, None, None, None),
+            ('AG', 'silver', 'First Majestic Silver', 'Q4 2025', '2026-02-19', 'pre-market', 0, None, 0.32, None, 420, None, 5400000, None, 14.00, None, None, None, None),
+            ('HL', 'silver', 'Hecla Mining', 'Q4 2025', '2026-02-18', 'pre-market', 0, None, 0.24, None, 460, None, 6100000, None, 10.50, None, None, None, None),
+            ('CDE', 'silver', 'Coeur Mining', 'Q4 2025', '2026-02-18', 'pre-market', 0, None, 0.26, None, 520, None, 5200000, None, 11.50, None, None, None, None),
         ]
 
         # Insert all data
-        all_earnings = gold_earnings + silver_earnings + upcoming_2025
+        all_earnings = gold_earnings + silver_earnings + upcoming_2026
 
         for event in all_earnings:
             conn.execute('''
