@@ -143,6 +143,15 @@ class WalletParticipationResponse(BaseModel):
 # Wallet Analysis Schemas
 # -----------------------------------------------------------------------------
 
+class AlertSummary(BaseModel):
+    """Summary of an alert for the analysis response."""
+    type: str
+    severity: str
+    title: str
+    message: str
+    suggested_action: str
+
+
 class AnalysisResponse(BaseModel):
     address: str
     is_participating: bool
@@ -150,6 +159,8 @@ class AnalysisResponse(BaseModel):
     categories: Dict[str, List[Dict[str, Any]]]
     sovereignty_data: Optional[SovereigntyData] = None
     participation_info: Optional[Dict[str, Any]] = None
+    alerts: Optional[List[AlertSummary]] = None
+    has_critical_alerts: Optional[bool] = None
 
 class AnalyzeRequest(BaseModel):
     address: str

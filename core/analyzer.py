@@ -1,12 +1,16 @@
 import requests
 import json
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, TYPE_CHECKING
 
 from .models import AssetCategory, SovereigntyData
 from .classifier import AssetClassifier
 from .pricing import get_algo_price, get_asset_price
 from .lp_parser import LPParser
+
+if TYPE_CHECKING:
+    from .alerts import AlertEngine, Alert
+    from .history import SovereigntySnapshot
 
 class AlgorandSovereigntyAnalyzer:
     # Minimum USD value to include in shitcoin category (filters dust)
@@ -546,3 +550,32 @@ class AlgorandSovereigntyAnalyzer:
         
         print(f"\n💾 Results exported to: {filename}\n")
         return filename
+
+    def generate_alerts(
+        self,
+        categories: Dict[str, List[Dict[str, Any]]],
+        sovereignty_data: Optional[SovereigntyData] = None,
+        history: Optional[List["SovereigntySnapshot"]] = None,
+        user_prefs: Optional[Dict[str, Any]] = None
+    ) -> List["Alert"]:
+        """
+        Generate sovereignty alerts based on current analysis.
+
+        Args:
+            categories: Asset categories from wallet analysis
+            sovereignty_data: Current sovereignty metrics (may be None if no expenses)
+            history: Historical snapshots for comparison
+            user_prefs: User preferences for alerts
+
+        Returns:
+            List of Alert objects
+        """
+        from .alerts import AlertEngine
+
+        alert_engine = AlertEngine()
+        return alert_engine.generate_all_alerts(
+            categories=categories,
+            sovereignty_data=sovereignty_data,
+            history=history,
+            user_prefs=user_prefs
+        )

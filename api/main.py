@@ -11,6 +11,7 @@ load_dotenv(dotenv_path=env_path, override=True)
 from .routes import router
 from .news.routes import router as news_router
 from .services.infra_routes import router as infra_router
+from .alerts_routes import router as alerts_router, rebalance_router
 from core.miner_metrics import get_miner_metrics_db
 from core.silver_metrics import get_silver_metrics_db
 
@@ -56,6 +57,8 @@ app.add_middleware(
 app.include_router(router, prefix="/api/v1")
 app.include_router(news_router, prefix="/api/v1")
 app.include_router(infra_router, prefix="/api/v1")
+app.include_router(alerts_router, prefix="/api/v1")
+app.include_router(rebalance_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
