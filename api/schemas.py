@@ -6,6 +6,38 @@ from core.history import SovereigntySnapshot
 
 
 # -----------------------------------------------------------------------------
+# Error Response Schemas
+# -----------------------------------------------------------------------------
+
+class ErrorDetail(BaseModel):
+    """Structured error detail information."""
+    code: str = Field(..., description="Machine-readable error code")
+    message: str = Field(..., description="Human-readable error message")
+    details: Optional[Dict[str, Any]] = Field(None, description="Additional error context")
+
+
+class ErrorResponse(BaseModel):
+    """Standardized error response format for all API errors."""
+    success: bool = Field(default=False, description="Always false for error responses")
+    error: ErrorDetail = Field(..., description="Error details")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": False,
+                "error": {
+                    "code": "VALIDATION_ERROR",
+                    "message": "Invalid wallet address format",
+                    "details": {
+                        "field": "address",
+                        "value": "invalid-address"
+                    }
+                }
+            }
+        }
+
+
+# -----------------------------------------------------------------------------
 # Network Stats Schemas
 # -----------------------------------------------------------------------------
 

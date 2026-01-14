@@ -1,5 +1,8 @@
+import re
+import requests
 from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
+from .errors import ValidationException, NotFoundException, ExternalApiException
 from core.history import SovereigntySnapshot, get_history_manager
 from core.btc_history import get_btc_history_manager, save_current_prices
 from core.miner_metrics import get_miner_metrics_db, MinerMetric
@@ -43,6 +46,34 @@ from datetime import datetime, timedelta
 import asyncio
 
 router = APIRouter()
+
+# Algorand address validation pattern (58 characters, base32 alphabet)
+ALGORAND_ADDRESS_PATTERN = re.compile(r'^[A-Z2-7]{58}$')
+
+
+def validate_algorand_address(address: str) -> None:
+    """
+    Validate Algorand wallet address format.
+
+    Raises ValidationException if the address is invalid.
+    """
+    if not address:
+        raise ValidationException(
+            detail="Wallet address is required",
+            error_code="MISSING_ADDRESS",
+            details={"field": "address"}
+        )
+
+    if not ALGORAND_ADDRESS_PATTERN.match(address):
+        raise ValidationException(
+            detail="Invalid Algorand wallet address format",
+            error_code="INVALID_ADDRESS_FORMAT",
+            details={
+                "field": "address",
+                "value": address[:10] + "..." if len(address) > 10 else address,
+                "expected": "58 character base32 string (A-Z, 2-7)"
+            }
+        )
 
 # Global network stats instance (reused for caching)
 _network_stats: Optional[AlgorandNetworkStats] = None
@@ -90,6 +121,9 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
     """
     Analyze an Algorand wallet for sovereignty metrics.
     """
+    # Validate address format
+    validate_algorand_address(request.address)
+
     # Check cache first (only if not using local node, as local node might be for dev/testing)
     if not use_local_node:
         cached = get_cached_analysis(request.address)
@@ -129,7 +163,11 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
         print(f"📊 Starting analysis for {request.address[:8]}...")
         categories = analyzer.analyze_wallet(request.address)
         if not categories:
-            raise HTTPException(status_code=404, detail="Wallet not found or empty")
+            raise NotFoundException(
+                detail="Wallet not found or contains no assets",
+                error_code="WALLET_NOT_FOUND",
+                details={"address": request.address}
+            )
         
         print(f"✅ Analysis complete. Categories: {list(categories.keys())}")
             
@@ -173,13 +211,29 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
         )
         print(f"✅ Response ready, sending...")
         return response
-    except HTTPException:
+    except (ValidationException, NotFoundException):
         raise
+    except requests.exceptions.Timeout:
+        raise ExternalApiException(
+            detail="Algorand API request timed out",
+            error_code="ALGORAND_API_TIMEOUT",
+            details={"address": request.address}
+        )
+    except requests.exceptions.RequestException as e:
+        raise ExternalApiException(
+            detail="Failed to communicate with Algorand API",
+            error_code="ALGORAND_API_ERROR",
+            details={"address": request.address, "error_type": type(e).__name__}
+        )
     except Exception as e:
         print(f"❌ Error in analyze_wallet endpoint: {e}")
         import traceback
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
+        raise ExternalApiException(
+            detail="Analysis failed due to an external service error",
+            error_code="ANALYSIS_FAILED",
+            details={"address": request.address}
+        )
 
 @router.get("/classifications")
 async def get_classifications() -> Dict[str, Dict[str, str]]:
