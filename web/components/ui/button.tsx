@@ -4,20 +4,22 @@ import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-amber-500 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-orange-500 text-white shadow hover:bg-orange-600",
+          "bg-gradient-to-r from-amber-600 to-yellow-500 text-amber-950 font-semibold shadow-md hover:from-amber-500 hover:to-yellow-400 hover:shadow-lg hover:shadow-amber-500/20",
         destructive:
           "bg-destructive text-destructive-foreground shadow-sm hover:bg-destructive/90",
         outline:
-          "border border-slate-700 bg-transparent shadow-sm hover:bg-slate-800 hover:text-slate-50",
+          "border border-amber-700/50 bg-transparent shadow-sm hover:bg-amber-900/30 hover:border-amber-600/70 text-amber-100",
         secondary:
-          "bg-slate-800 text-slate-50 shadow-sm hover:bg-slate-700",
-        ghost: "hover:bg-slate-800 hover:text-slate-50",
-        link: "text-orange-500 underline-offset-4 hover:underline",
+          "bg-stone-800 text-amber-100 shadow-sm hover:bg-stone-700 border border-stone-700",
+        ghost: "hover:bg-amber-900/20 hover:text-amber-100",
+        link: "text-amber-400 underline-offset-4 hover:underline hover:text-amber-300",
+        gold: "bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-500 text-amber-950 font-bold shadow-lg hover:shadow-amber-400/30",
+        bronze: "bg-gradient-to-r from-orange-700 to-amber-600 text-amber-100 shadow-md hover:from-orange-600 hover:to-amber-500",
       },
       size: {
         default: "h-9 px-4 py-2",

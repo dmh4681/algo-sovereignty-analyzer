@@ -16,7 +16,7 @@ interface NavDropdownProps {
   hoverColor?: string
 }
 
-export function NavDropdown({ label, items, hoverColor = 'text-orange-500' }: NavDropdownProps) {
+export function NavDropdown({ label, items, hoverColor = 'text-amber-400' }: NavDropdownProps) {
   const [isOpen, setIsOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
@@ -56,26 +56,26 @@ export function NavDropdown({ label, items, hoverColor = 'text-orange-500' }: Na
     >
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-1 text-sm text-slate-400 hover:${hoverColor} transition-colors`}
+        className={`flex items-center gap-1 text-sm text-amber-200/60 hover:${hoverColor} transition-colors`}
       >
         {label}
         <ChevronDown className={`w-3 h-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-56 bg-slate-900 border border-slate-700 rounded-lg shadow-xl overflow-hidden z-50">
+        <div className="absolute top-full left-0 mt-2 w-56 bg-stone-900 border border-amber-900/40 rounded-lg shadow-xl shadow-black/30 overflow-hidden z-50">
           {items.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setIsOpen(false)}
-              className="block px-4 py-3 hover:bg-slate-800 transition-colors border-b border-slate-800 last:border-0"
+              className="block px-4 py-3 hover:bg-amber-900/20 transition-colors border-b border-amber-900/20 last:border-0"
             >
-              <div className={`text-sm font-medium text-slate-200 hover:${hoverColor}`}>
+              <div className={`text-sm font-medium text-amber-100 hover:${hoverColor}`}>
                 {item.label}
               </div>
               {item.description && (
-                <div className="text-xs text-slate-500 mt-0.5">
+                <div className="text-xs text-amber-200/50 mt-0.5">
                   {item.description}
                 </div>
               )}

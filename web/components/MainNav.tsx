@@ -84,21 +84,21 @@ export function MainNav() {
       <NavDropdown
         label="Network"
         items={networkItems}
-        hoverColor="text-cyan-500"
+        hoverColor="text-emerald-400"
       />
       <NavDropdown
         label="Precious Metals"
         items={preciousMetalsItems}
-        hoverColor="text-amber-500"
+        hoverColor="text-yellow-400"
       />
       <NavDropdown
         label="About"
         items={aboutItems}
-        hoverColor="text-orange-500"
+        hoverColor="text-amber-400"
       />
       <Link
         href="/training"
-        className="text-sm text-slate-400 hover:text-blue-500 transition-colors"
+        className="text-sm text-amber-200/60 hover:text-amber-300 transition-colors"
       >
         Training
       </Link>
@@ -107,7 +107,7 @@ export function MainNav() {
         href="https://github.com"
         target="_blank"
         rel="noopener noreferrer"
-        className="text-sm text-slate-400 hover:text-slate-200 transition-colors"
+        className="text-sm text-amber-200/60 hover:text-amber-100 transition-colors"
       >
         GitHub
       </a>
