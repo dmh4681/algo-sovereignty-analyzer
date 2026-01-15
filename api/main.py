@@ -16,6 +16,7 @@ from .services.infra_routes import router as infra_router
 from .alerts_routes import router as alerts_router, rebalance_router
 from .errors import ApiException
 from .middleware import LoggingMiddleware, get_current_request_id
+from .security import RateLimitMiddleware, SecurityHeadersMiddleware
 from core.miner_metrics import get_miner_metrics_db
 from core.silver_metrics import get_silver_metrics_db
 
@@ -50,13 +51,21 @@ async def startup_event():
         print("[Startup] RESEED_SILVER not set, using existing silver miner data")
 
 # Add CORS middleware
+# Production: restrict to specific origins via CORS_ORIGINS env var
+allowed_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for now, restrict in production
+    allow_origins=allowed_origins if allowed_origins != ["*"] else ["*"],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Add security headers middleware (runs first on response)
+app.add_middleware(SecurityHeadersMiddleware)
+
+# Add rate limiting middleware
+app.add_middleware(RateLimitMiddleware)
 
 # Add request logging middleware
 app.add_middleware(LoggingMiddleware)
