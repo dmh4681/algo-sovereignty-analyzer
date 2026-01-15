@@ -17,6 +17,7 @@ import { SovereigntyScore } from '@/components/SovereigntyScore'
 import { AssetBreakdown, AssetBreakdownSummary } from '@/components/AssetBreakdown'
 import { RunwayCalculator, NextMilestone } from '@/components/RunwayCalculator'
 import { LoadingSpinner, LoadingState } from '@/components/LoadingState'
+import { ErrorAlert } from '@/components/ErrorAlert'
 import { HistoryChart } from '@/components/HistoryChart'
 import { BadgeSection } from '@/components/BadgeSection'
 import GoldSilverRatio from '@/components/GoldSilverRatio'
@@ -178,15 +179,13 @@ function AnalyzeContent() {
 
       {/* Error State */}
       {error && (
-        <Alert variant="destructive">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertTitle>Analysis Failed</AlertTitle>
-          <AlertDescription>
-            {error === 'Wallet not found or empty'
-              ? 'This wallet was not found or has no assets. Please check the address and try again.'
-              : error}
-          </AlertDescription>
-        </Alert>
+        <ErrorAlert
+          message={error === 'Wallet not found or empty'
+            ? 'This wallet was not found or has no assets. Please check the address and try again.'
+            : error}
+          onRetry={fetchAnalysis}
+          onDismiss={() => setError(null)}
+        />
       )}
 
       {/* Loading State */}
