@@ -3,6 +3,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatUSD, formatNumber } from '@/lib/utils'
 import { Asset, Categories, CATEGORY_CONFIGS, getHardMoneyType, HARD_MONEY_COLORS, HardMoneyType } from '@/lib/types'
+import { CoinStack, GoldBars } from '@/components/illustrations'
 
 interface AssetBreakdownProps {
   categories: Categories
@@ -24,27 +25,35 @@ export function AssetBreakdown({ categories }: AssetBreakdownProps) {
     <div className="space-y-4">
       {/* Hard Money - Full Width Top Section */}
       {hardMoneyAssets.length > 0 && (
-        <Card className="border-orange-500/30 bg-gradient-to-br from-orange-500/5 via-yellow-500/5 to-slate-400/5 border-2">
-          <CardHeader>
+        <Card className="border-yellow-500/40 bg-gradient-to-br from-amber-600/10 via-yellow-500/10 to-gray-400/10 border-2 relative overflow-hidden">
+          {/* Decorative gold bars in corner */}
+          <div className="absolute -right-4 -top-4 opacity-10 hidden md:block">
+            <GoldBars size={120} variant="pile" animated={false} />
+          </div>
+          <CardHeader className="relative">
             <CardTitle className="flex items-center gap-3 text-2xl">
               <span className="flex gap-2">
-                <span className="text-orange-500">₿</span>
-                <span className="text-yellow-400">🥇</span>
-                <span className="text-slate-300">🥈</span>
+                <span className="text-amber-400">₿</span>
+                <span className="text-yellow-400">🪙</span>
+                <span className="text-gray-300">🥈</span>
               </span>
-              <span className="bg-gradient-to-r from-orange-500 via-yellow-400 to-slate-400 bg-clip-text text-transparent">
-                Hard Money
+              <span className="gold-shimmer">
+                Treasure Vault
               </span>
             </CardTitle>
-            <p className="text-sm text-slate-400">Bitcoin, Gold, Silver</p>
+            <p className="text-sm text-amber-200/60">Bitcoin, Gold, Silver - Your Hard Money Hoard</p>
           </CardHeader>
-          <CardContent>
+          <CardContent className="relative">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {/* Gold Card */}
-              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-yellow-600/20 to-yellow-900/20 border-2 border-yellow-500/30 p-6 hover:border-yellow-400/50 transition-all">
-                <div className="absolute top-0 right-0 text-9xl opacity-10">🥇</div>
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-yellow-600/20 to-yellow-900/20 border-2 border-yellow-500/30 p-6 hover:border-yellow-400/50 hover:shadow-lg hover:shadow-yellow-500/10 transition-all">
+                <div className="absolute -bottom-2 -right-2 opacity-30">
+                  <CoinStack size={60} metal="gold" animated={false} />
+                </div>
                 <div className="relative z-10">
-                  <div className="text-yellow-400 text-sm font-medium mb-2">GOLD</div>
+                  <div className="text-yellow-400 text-sm font-medium mb-2 flex items-center gap-2">
+                    🪙 GOLD
+                  </div>
                   <div className="text-4xl font-bold text-yellow-300 mb-1 tabular-nums">
                     {formatUSD(goldValue)}
                   </div>
@@ -57,51 +66,59 @@ export function AssetBreakdown({ categories }: AssetBreakdownProps) {
                     ))}
                   </div>
                   {goldAssets.length === 0 && (
-                    <div className="text-yellow-600/50 text-sm italic">No gold holdings</div>
+                    <div className="text-yellow-600/50 text-sm italic">No gold in vault</div>
                   )}
                 </div>
               </div>
 
               {/* Silver Card */}
-              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-slate-400/20 to-slate-700/20 border-2 border-slate-400/30 p-6 hover:border-slate-300/50 transition-all">
-                <div className="absolute top-0 right-0 text-9xl opacity-10">🥈</div>
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-gray-400/20 to-gray-700/20 border-2 border-gray-400/30 p-6 hover:border-gray-300/50 hover:shadow-lg hover:shadow-gray-400/10 transition-all">
+                <div className="absolute -bottom-2 -right-2 opacity-30">
+                  <CoinStack size={60} metal="silver" animated={false} />
+                </div>
                 <div className="relative z-10">
-                  <div className="text-slate-300 text-sm font-medium mb-2">SILVER</div>
-                  <div className="text-4xl font-bold text-slate-200 mb-1 tabular-nums">
+                  <div className="text-gray-300 text-sm font-medium mb-2 flex items-center gap-2">
+                    🥈 SILVER
+                  </div>
+                  <div className="text-4xl font-bold text-gray-200 mb-1 tabular-nums">
                     {formatUSD(silverValue)}
                   </div>
                   <div className="space-y-1">
                     {silverAssets.map((asset, idx) => (
                       <div key={idx} className="flex justify-between text-sm">
-                        <span className="text-slate-300/70">{asset.ticker}</span>
-                        <span className="text-slate-200 tabular-nums">{formatNumber(asset.amount)}</span>
+                        <span className="text-gray-300/70">{asset.ticker}</span>
+                        <span className="text-gray-200 tabular-nums">{formatNumber(asset.amount)}</span>
                       </div>
                     ))}
                   </div>
                   {silverAssets.length === 0 && (
-                    <div className="text-slate-600/50 text-sm italic">No silver holdings</div>
+                    <div className="text-gray-600/50 text-sm italic">No silver in vault</div>
                   )}
                 </div>
               </div>
 
               {/* Bitcoin Card */}
-              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-orange-600/20 to-orange-900/20 border-2 border-orange-500/30 p-6 hover:border-orange-400/50 transition-all">
-                <div className="absolute top-0 right-0 text-9xl opacity-10">₿</div>
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-amber-600/20 to-amber-900/20 border-2 border-amber-500/30 p-6 hover:border-amber-400/50 hover:shadow-lg hover:shadow-amber-500/10 transition-all">
+                <div className="absolute -bottom-2 -right-2 opacity-30">
+                  <CoinStack size={60} metal="bronze" animated={false} />
+                </div>
                 <div className="relative z-10">
-                  <div className="text-orange-400 text-sm font-medium mb-2">BITCOIN</div>
-                  <div className="text-4xl font-bold text-orange-300 mb-1 tabular-nums">
+                  <div className="text-amber-400 text-sm font-medium mb-2 flex items-center gap-2">
+                    ₿ BITCOIN
+                  </div>
+                  <div className="text-4xl font-bold text-amber-300 mb-1 tabular-nums">
                     {formatUSD(bitcoinValue)}
                   </div>
                   <div className="space-y-1">
                     {bitcoinAssets.map((asset, idx) => (
                       <div key={idx} className="flex justify-between text-sm">
-                        <span className="text-orange-200/70">{asset.ticker}</span>
-                        <span className="text-orange-100 tabular-nums">{formatNumber(asset.amount)}</span>
+                        <span className="text-amber-200/70">{asset.ticker}</span>
+                        <span className="text-amber-100 tabular-nums">{formatNumber(asset.amount)}</span>
                       </div>
                     ))}
                   </div>
                   {bitcoinAssets.length === 0 && (
-                    <div className="text-orange-600/50 text-sm italic">No bitcoin holdings</div>
+                    <div className="text-amber-600/50 text-sm italic">No bitcoin in vault</div>
                   )}
                 </div>
               </div>

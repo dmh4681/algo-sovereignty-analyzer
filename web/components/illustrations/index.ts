@@ -1,0 +1,6 @@
+export { DwarfMiner } from './DwarfMiner'
+export { TreasureChest } from './TreasureChest'
+export { GoldBars } from './GoldBars'
+export { CoinStack } from './CoinStack'
+export { MineCart } from './MineCart'
+export { Pickaxe } from './Pickaxe'

@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowLeft, ExternalLink, TrendingUp, TrendingDown, Info, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, ExternalLink, TrendingUp, TrendingDown, Info, AlertTriangle, Scale, Gem } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { MeldArbitrageSpotter } from '@/components/MeldArbitrageSpotter'
@@ -19,19 +19,23 @@ export default function ArbitragePage() {
         >
           <Link href="/">
             <ArrowLeft className="h-4 w-4 mr-2" />
-            Back
+            Back to Mine
           </Link>
         </Button>
       </div>
 
-      {/* Hero Section */}
+      {/* Hero Section - Mining Merchant Theme */}
       <div className="text-center space-y-4 py-8">
-        <h1 className="text-4xl font-bold">
-          Arbitrage Spotter
-        </h1>
-        <p className="text-lg text-slate-400 max-w-2xl mx-auto">
-          Compare on-chain asset prices to spot markets.
-          Find opportunities when Meld tokens, goBTC, or WBTC trade above or below fair value.
+        <div className="flex items-center justify-center gap-3">
+          <Scale className="h-8 w-8 text-yellow-500/70" />
+          <h1 className="text-4xl font-bold">
+            <span className="gold-shimmer">Treasure Trade Post</span>
+          </h1>
+          <Gem className="h-8 w-8 text-yellow-500/70" />
+        </div>
+        <p className="text-lg text-amber-200/60 max-w-2xl mx-auto">
+          Weigh your precious metals against market prices.
+          Discover when on-chain gold, silver, and bitcoin trade above or below their true value.
         </p>
       </div>
 
@@ -41,14 +45,14 @@ export default function ArbitragePage() {
       </section>
 
       {/* How It Works */}
-      <Card className="border-slate-700">
+      <Card className="border-amber-900/30">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Info className="h-5 w-5 text-cyan-500" />
-            How It Works
+          <CardTitle className="flex items-center gap-2 text-amber-100">
+            <Info className="h-5 w-5 text-amber-400" />
+            How the Merchant Scales Work
           </CardTitle>
-          <CardDescription>
-            Understanding the arbitrage calculation
+          <CardDescription className="text-amber-200/50">
+            Understanding the treasure valuation
           </CardDescription>
         </CardHeader>
         <CardContent>
