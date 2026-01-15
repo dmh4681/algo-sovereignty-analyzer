@@ -1,7 +1,0 @@
-Requirement already satisfied: httpx in c:\users\dmh46\algo-sovereignty-analyzer\algo-sovereignty-analyzer\.venv\lib\site-packages (0.28.1)
-Requirement already satisfied: anyio in c:\users\dmh46\algo-sovereignty-analyzer\algo-sovereignty-analyzer\.venv\lib\site-packages (from httpx) (4.11.0)
-Requirement already satisfied: certifi in c:\users\dmh46\algo-sovereignty-analyzer\algo-sovereignty-analyzer\.venv\lib\site-packages (from httpx) (2025.11.12)
-Requirement already satisfied: httpcore==1.* in c:\users\dmh46\algo-sovereignty-analyzer\algo-sovereignty-analyzer\.venv\lib\site-packages (from httpx) (1.0.9)
-Requirement already satisfied: idna in c:\users\dmh46\algo-sovereignty-analyzer\algo-sovereignty-analyzer\.venv\lib\site-packages (from httpx) (3.11)
-Requirement already satisfied: h11>=0.16 in c:\users\dmh46\algo-sovereignty-analyzer\algo-sovereignty-analyzer\.venv\lib\site-packages (from httpcore==1.*->httpx) (0.16.0)
-Requirement already satisfied: sniffio>=1.1 in c:\users\dmh46\algo-sovereignty-analyzer\algo-sovereignty-analyzer\.venv\lib\site-packages (from anyio->httpx) (1.3.1)

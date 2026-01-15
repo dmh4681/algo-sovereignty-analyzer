@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "analyzed_at": "2025-11-24T22:09:31.733373",
+    "analyzed_at": "2026-01-14T07:21:21.627337",
     "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
     "address_short": "I26BHULC...L3BIP4",
     "participation_status": "online"
@@ -9,69 +9,57 @@
     "hard_money": [
       {
         "ticker": "GOLD$",
-        "name": "Meld Gold (g)",
-        "amount": 2.599835,
-        "usd_value": 338.5740178262748
+        "name": "Meld Gold",
+        "amount": 0.730134,
+        "usd_value": 103.5397116824217
       },
       {
         "ticker": "SILVER$",
-        "name": "Meld Silver (g)",
-        "amount": 222.377664,
-        "usd_value": 359.12935625237685
+        "name": "Meld Silver",
+        "amount": 299.612618,
+        "usd_value": 847.4235363764274
       },
       {
         "ticker": "goBTC",
         "name": "goBTC",
-        "amount": 0.01560609,
-        "usd_value": 1362.8239527225583
+        "amount": 0.01000794,
+        "usd_value": 937.0857321457843
       }
     ],
     "algo": [
       {
         "ticker": "ALGO",
         "name": "Algorand (PARTICIPATING)",
-        "amount": 127144.257819,
-        "usd_value": 18368.149494337475
-      },
-      {
-        "ticker": "xALGO",
-        "name": "Governance xAlgo",
-        "amount": 33861.503004,
-        "usd_value": 5775.280200728347
+        "amount": 109900.70417,
+        "usd_value": 38465.2464595
       }
     ],
     "dollars": [
       {
         "ticker": "USDC",
         "name": "USDC",
-        "amount": 1000.776667,
-        "usd_value": 1000.776667
+        "amount": 0.191421,
+        "usd_value": 0.191421
       }
     ],
     "shitcoin": [
       {
-        "ticker": "ALPHA",
-        "name": "Alpha Arcade",
-        "amount": 50159.789144,
-        "usd_value": 1296.234969605754
+        "ticker": "iGA",
+        "name": "iGetAlgo",
+        "amount": 10.007611,
+        "usd_value": 2453.097805912246
       },
       {
-        "ticker": "OPUL",
-        "name": "Opulous",
-        "amount": 50115.2564883694,
-        "usd_value": 605.2958506948748
+        "ticker": "ALPHA",
+        "name": "Alpha Arcade",
+        "amount": 50000.007739,
+        "usd_value": 1107.5216183376385
       },
       {
         "ticker": "FOLKS",
         "name": "Folks Finance",
-        "amount": 40.006882,
-        "usd_value": 351.100336461177
-      },
-      {
-        "ticker": "TINY",
-        "name": "TINY",
-        "amount": 444.9033,
-        "usd_value": 1.9964505742227476
+        "amount": 40.050988,
+        "usd_value": 148.20791403912352
       },
       {
         "ticker": "PLP",
@@ -83,6 +71,12 @@
         "ticker": "ALPHA-Y",
         "name": "Alpha Market 2829841613 Yes",
         "amount": 0.022233,
+        "usd_value": 0.0
+      },
+      {
+        "ticker": "ALPHA-N",
+        "name": "Alpha Market 3331133565 No",
+        "amount": 61.543763,
         "usd_value": 0.0
       }
     ]
