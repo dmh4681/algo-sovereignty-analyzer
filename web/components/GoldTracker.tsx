@@ -46,6 +46,7 @@ import { Button } from '@/components/ui/button'
 import {
   getMinerMetrics,
   getSectorStats,
+  getGoldSilverRatio,
   type MinerMetric,
   type SectorStats
 } from '@/lib/api'
@@ -194,7 +195,7 @@ function calculateSovereigntyScores(
 
 // --- Gold Price Sensitivity Calculation ---
 
-const CURRENT_GOLD_PRICE = 4400 // Current gold price per oz
+const DEFAULT_GOLD_PRICE = 4400 // Fallback gold price per oz
 const MIN_GOLD_PRICE = 1500
 const MAX_GOLD_PRICE = 15000
 
@@ -214,10 +215,11 @@ interface MinerSensitivity {
 
 function calculateSensitivity(
   latestData: MinerMetric[],
-  goldPrice: number
+  goldPrice: number,
+  currentGoldPrice: number
 ): MinerSensitivity[] {
   return latestData.map(miner => {
-    const currentMargin = CURRENT_GOLD_PRICE - miner.aisc
+    const currentMargin = currentGoldPrice - miner.aisc
     const projectedMargin = goldPrice - miner.aisc
     const marginChange = currentMargin > 0
       ? ((projectedMargin - currentMargin) / currentMargin) * 100
@@ -556,7 +558,8 @@ export function GoldTracker() {
   const [stats, setStats] = useState<SectorStats | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [goldPrice, setGoldPrice] = useState(CURRENT_GOLD_PRICE)
+  const [currentGoldPrice, setCurrentGoldPrice] = useState(DEFAULT_GOLD_PRICE)
+  const [goldPrice, setGoldPrice] = useState(DEFAULT_GOLD_PRICE)
   const [selectedMiners, setSelectedMiners] = useState<string[]>([])
   const [portfolioAllocations, setPortfolioAllocations] = useState<Record<string, number>>({})
 
@@ -565,12 +568,17 @@ export function GoldTracker() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [metricsRes, statsRes] = await Promise.all([
+        const [metricsRes, statsRes, ratioRes] = await Promise.all([
           getMinerMetrics(100),
-          getSectorStats()
+          getSectorStats(),
+          getGoldSilverRatio()
         ])
         setRawData(metricsRes.metrics)
         setStats(statsRes.stats)
+        // Set live gold price from API
+        const liveGoldPrice = Math.round(ratioRes.gold_price)
+        setCurrentGoldPrice(liveGoldPrice)
+        setGoldPrice(liveGoldPrice)
         setError(null)
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -602,8 +610,8 @@ export function GoldTracker() {
 
   // Price Sensitivity Analysis
   const sensitivityData = useMemo(() => {
-    return calculateSensitivity(latestData, goldPrice)
-  }, [latestData, goldPrice])
+    return calculateSensitivity(latestData, goldPrice, currentGoldPrice)
+  }, [latestData, goldPrice, currentGoldPrice])
 
   // Toggle miner selection for comparison
   const toggleMinerSelection = (ticker: string) => {
@@ -673,8 +681,8 @@ export function GoldTracker() {
       totalMarketCap += miner.market_cap * weight
     })
 
-    const blendedMargin = CURRENT_GOLD_PRICE - blendedAisc
-    const blendedMarginOfSafety = ((CURRENT_GOLD_PRICE - blendedAisc) / CURRENT_GOLD_PRICE) * 100
+    const blendedMargin = currentGoldPrice - blendedAisc
+    const blendedMarginOfSafety = ((currentGoldPrice - blendedAisc) / currentGoldPrice) * 100
 
     return {
       aisc: Math.round(blendedAisc),
@@ -1092,7 +1100,7 @@ export function GoldTracker() {
                   />
                   <div className="flex justify-between text-xs text-slate-500 mt-2">
                     <span>${MIN_GOLD_PRICE.toLocaleString()}</span>
-                    <span className="text-amber-500 font-medium">Current: ${CURRENT_GOLD_PRICE.toLocaleString()}</span>
+                    <span className="text-amber-500 font-medium">Current: ${currentGoldPrice.toLocaleString()}</span>
                     <span>${MAX_GOLD_PRICE.toLocaleString()}</span>
                   </div>
                 </div>
@@ -1116,19 +1124,19 @@ export function GoldTracker() {
 
                 {/* Price Change Indicator */}
                 <div className={`flex items-center gap-2 text-sm ${
-                  goldPrice > CURRENT_GOLD_PRICE ? 'text-emerald-400' :
-                  goldPrice < CURRENT_GOLD_PRICE ? 'text-red-400' : 'text-slate-400'
+                  goldPrice > currentGoldPrice ? 'text-emerald-400' :
+                  goldPrice < currentGoldPrice ? 'text-red-400' : 'text-slate-400'
                 }`}>
-                  {goldPrice !== CURRENT_GOLD_PRICE && (
+                  {goldPrice !== currentGoldPrice && (
                     <>
-                      {goldPrice > CURRENT_GOLD_PRICE ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                      {goldPrice > currentGoldPrice ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                       <span>
-                        {goldPrice > CURRENT_GOLD_PRICE ? '+' : ''}
-                        {(((goldPrice - CURRENT_GOLD_PRICE) / CURRENT_GOLD_PRICE) * 100).toFixed(1)}% from current
+                        {goldPrice > currentGoldPrice ? '+' : ''}
+                        {(((goldPrice - currentGoldPrice) / currentGoldPrice) * 100).toFixed(1)}% from current
                       </span>
                     </>
                   )}
-                  {goldPrice === CURRENT_GOLD_PRICE && <span>Current market price</span>}
+                  {goldPrice === currentGoldPrice && <span>Current market price</span>}
                 </div>
               </div>
             </CardContent>
@@ -1500,8 +1508,8 @@ export function GoldTracker() {
               }`}>
                 {comparisonData.map(miner => {
                   const score = comparisonScores.find(s => s.ticker === miner.ticker)
-                  const margin = CURRENT_GOLD_PRICE - miner.aisc
-                  const marginOfSafety = ((CURRENT_GOLD_PRICE - miner.aisc) / CURRENT_GOLD_PRICE) * 100
+                  const margin = currentGoldPrice - miner.aisc
+                  const marginOfSafety = ((currentGoldPrice - miner.aisc) / currentGoldPrice) * 100
 
                   return (
                     <Card key={miner.ticker} className="border-slate-700">

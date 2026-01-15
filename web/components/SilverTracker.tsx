@@ -45,6 +45,7 @@ import { Button } from '@/components/ui/button'
 import {
   getSilverMetrics,
   getSilverSectorStats,
+  getGoldSilverRatio,
   type MinerMetric,
   type SectorStats
 } from '@/lib/api'
@@ -193,7 +194,7 @@ function calculateSovereigntyScores(
 
 // --- Silver Price Sensitivity Calculation ---
 
-const CURRENT_SILVER_PRICE = 79 // Current silver price per oz
+const DEFAULT_SILVER_PRICE = 79 // Fallback silver price per oz
 const MIN_SILVER_PRICE = 15
 const MAX_SILVER_PRICE = 500
 
@@ -213,10 +214,11 @@ interface MinerSensitivity {
 
 function calculateSensitivity(
   latestData: MinerMetric[],
-  silverPrice: number
+  silverPrice: number,
+  currentSilverPrice: number
 ): MinerSensitivity[] {
   return latestData.map(miner => {
-    const currentMargin = CURRENT_SILVER_PRICE - miner.aisc
+    const currentMargin = currentSilverPrice - miner.aisc
     const projectedMargin = silverPrice - miner.aisc
     const marginChange = currentMargin > 0
       ? ((projectedMargin - currentMargin) / currentMargin) * 100
@@ -556,7 +558,8 @@ export function SilverTracker() {
   const [stats, setStats] = useState<SectorStats | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [silverPrice, setSilverPrice] = useState(CURRENT_SILVER_PRICE)
+  const [currentSilverPrice, setCurrentSilverPrice] = useState(DEFAULT_SILVER_PRICE)
+  const [silverPrice, setSilverPrice] = useState(DEFAULT_SILVER_PRICE)
   const [selectedMiners, setSelectedMiners] = useState<string[]>([])
   const [portfolioAllocations, setPortfolioAllocations] = useState<Record<string, number>>({})
 
@@ -565,12 +568,17 @@ export function SilverTracker() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [metricsRes, statsRes] = await Promise.all([
+        const [metricsRes, statsRes, ratioRes] = await Promise.all([
           getSilverMetrics(150),
-          getSilverSectorStats()
+          getSilverSectorStats(),
+          getGoldSilverRatio()
         ])
         setRawData(metricsRes.metrics)
         setStats(statsRes.stats)
+        // Set live silver price from API
+        const liveSilverPrice = Math.round(ratioRes.silver_price * 100) / 100
+        setCurrentSilverPrice(liveSilverPrice)
+        setSilverPrice(liveSilverPrice)
         setError(null)
       } catch (err) {
         console.error('Error fetching data:', err)
@@ -602,8 +610,8 @@ export function SilverTracker() {
 
   // Price Sensitivity Analysis
   const sensitivityData = useMemo(() => {
-    return calculateSensitivity(latestData, silverPrice)
-  }, [latestData, silverPrice])
+    return calculateSensitivity(latestData, silverPrice, currentSilverPrice)
+  }, [latestData, silverPrice, currentSilverPrice])
 
   // Toggle miner selection for comparison
   const toggleMinerSelection = (ticker: string) => {
@@ -671,8 +679,8 @@ export function SilverTracker() {
       blendedSovereigntyScore += (score?.totalScore || 50) * weight
     })
 
-    const blendedMargin = CURRENT_SILVER_PRICE - blendedAisc
-    const blendedMarginOfSafety = ((CURRENT_SILVER_PRICE - blendedAisc) / CURRENT_SILVER_PRICE) * 100
+    const blendedMargin = currentSilverPrice - blendedAisc
+    const blendedMarginOfSafety = ((currentSilverPrice - blendedAisc) / currentSilverPrice) * 100
 
     return {
       aisc: Math.round(blendedAisc * 100) / 100,
@@ -1090,7 +1098,7 @@ export function SilverTracker() {
                   />
                   <div className="flex justify-between text-xs text-slate-500 mt-2">
                     <span>${MIN_SILVER_PRICE}</span>
-                    <span className="text-slate-400 font-medium">Current: ${CURRENT_SILVER_PRICE}</span>
+                    <span className="text-slate-400 font-medium">Current: ${currentSilverPrice}</span>
                     <span>${MAX_SILVER_PRICE}</span>
                   </div>
                 </div>
@@ -1114,19 +1122,19 @@ export function SilverTracker() {
 
                 {/* Price Change Indicator */}
                 <div className={`flex items-center gap-2 text-sm ${
-                  silverPrice > CURRENT_SILVER_PRICE ? 'text-emerald-400' :
-                  silverPrice < CURRENT_SILVER_PRICE ? 'text-red-400' : 'text-slate-400'
+                  silverPrice > currentSilverPrice ? 'text-emerald-400' :
+                  silverPrice < currentSilverPrice ? 'text-red-400' : 'text-slate-400'
                 }`}>
-                  {silverPrice !== CURRENT_SILVER_PRICE && (
+                  {silverPrice !== currentSilverPrice && (
                     <>
-                      {silverPrice > CURRENT_SILVER_PRICE ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
+                      {silverPrice > currentSilverPrice ? <TrendingUp size={16} /> : <TrendingDown size={16} />}
                       <span>
-                        {silverPrice > CURRENT_SILVER_PRICE ? '+' : ''}
-                        {(((silverPrice - CURRENT_SILVER_PRICE) / CURRENT_SILVER_PRICE) * 100).toFixed(1)}% from current
+                        {silverPrice > currentSilverPrice ? '+' : ''}
+                        {(((silverPrice - currentSilverPrice) / currentSilverPrice) * 100).toFixed(1)}% from current
                       </span>
                     </>
                   )}
-                  {silverPrice === CURRENT_SILVER_PRICE && <span>Current market price</span>}
+                  {silverPrice === currentSilverPrice && <span>Current market price</span>}
                 </div>
               </div>
             </CardContent>
@@ -1497,8 +1505,8 @@ export function SilverTracker() {
               }`}>
                 {comparisonData.map(miner => {
                   const score = comparisonScores.find(s => s.ticker === miner.ticker)
-                  const margin = CURRENT_SILVER_PRICE - miner.aisc
-                  const marginOfSafety = ((CURRENT_SILVER_PRICE - miner.aisc) / CURRENT_SILVER_PRICE) * 100
+                  const margin = currentSilverPrice - miner.aisc
+                  const marginOfSafety = ((currentSilverPrice - miner.aisc) / currentSilverPrice) * 100
 
                   return (
                     <Card key={miner.ticker} className="border-slate-700">
