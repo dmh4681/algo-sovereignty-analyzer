@@ -1,0 +1,73 @@
+=======================================================================
+ALGO SOVEREIGNTY ANALYZER - TEST RESULTS
+Generated: 2026-01-15 20:34 EST
+=======================================================================
+
+Test Framework: pytest 9.0.1
+Python Version: 3.13.3
+
+SUMMARY:
+--------
+Test Files: 5 files
+Tests:      66 passed, 3 failed (pre-existing)
+Duration:   ~20 seconds
+
+
+TEST SUITES:
+------------
+
+1. tests/test_analyzer.py (22 tests) - ALL PASSED
+   - TestAlgorandSovereigntyAnalyzer: 4 tests
+   - TestDustAndNFTDetection: 7 tests
+   - TestAccountData: 3 tests
+   - TestAssetDetails: 2 tests
+   - TestWalletAnalysis: 4 tests
+   - TestStateStorage: 1 test
+
+2. tests/test_pricing.py (27 tests) - ALL PASSED
+   - TestHardcodedPrices: 7 tests
+   - TestCoinGeckoFetching: 3 tests
+   - TestCoinbaseIntegration: 3 tests
+   - TestVestigePricing: 5 tests
+   - TestGoBTCPricing: 3 tests
+   - TestYahooFinancePricing: 4 tests
+   - TestAssetPriceRouter: 6 tests
+   - TestCacheTTL: 2 tests
+
+3. tests/test_classifier.py (6 tests) - ALL PASSED
+
+4. tests/test_api.py - 2 FAILED (pre-existing)
+   - test_analyze_wallet: FAILED (400 validation error)
+   - test_analyze_wallet_with_expenses: FAILED (400 validation error)
+   Note: Pre-existing failures due to API validation changes
+
+5. tests/test_integration.py - 1 FAILED (pre-existing)
+   - test_analyze_dylan_wallet: FAILED (assertion error)
+   Note: Pre-existing integration test failure
+
+
+NEW TESTS CREATED THIS SESSION:
+-------------------------------
+- tests/test_analyzer.py (22 tests) - COMPLETE REWRITE
+- tests/test_pricing.py (27 tests) - NEW
+
+
+COVERAGE AREAS:
+---------------
+- AlgorandSovereigntyAnalyzer class initialization
+- Dust and NFT token detection
+- Account data fetching with error handling
+- Asset detail retrieval
+- Wallet analysis pipeline
+- State storage management
+- Hardcoded price fallbacks
+- CoinGecko API integration
+- Coinbase BTC price fetching
+- Vestige DEX pricing
+- Yahoo Finance commodity prices
+- Price caching and TTL behavior
+
+
+=======================================================================
+66 TESTS PASSING | 3 PRE-EXISTING FAILURES
+=======================================================================
