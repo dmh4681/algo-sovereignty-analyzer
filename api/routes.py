@@ -1,5 +1,6 @@
 import re
 import requests
+import traceback
 from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
 from .errors import ValidationException, NotFoundException, ExternalApiException
@@ -43,7 +44,6 @@ from .schemas import (
 from .agent import SovereigntyCoach, AdviceRequest
 from typing import Dict, Any, Tuple, Optional, List
 from datetime import datetime, timedelta
-import asyncio
 
 router = APIRouter()
 
@@ -96,7 +96,6 @@ async def get_agent_advice(request: AdviceRequest):
         return {"advice": advice}
     except Exception as e:
         print(f"ERROR in /agent/advice: {e}")
-        import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -226,8 +225,7 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
             details={"address": request.address, "error_type": type(e).__name__}
         )
     except Exception as e:
-        print(f"❌ Error in analyze_wallet endpoint: {e}")
-        import traceback
+        print(f"Error in analyze_wallet endpoint: {e}")
         traceback.print_exc()
         raise ExternalApiException(
             detail="Analysis failed due to an external service error",
@@ -661,7 +659,6 @@ async def get_network_statistics():
         )
     except Exception as e:
         print(f"Error fetching network stats: {e}")
-        import traceback
         traceback.print_exc()
         raise HTTPException(
             status_code=500,
@@ -748,7 +745,6 @@ async def get_wallet_participation(
         )
     except Exception as e:
         print(f"Error fetching wallet participation: {e}")
-        import traceback
         traceback.print_exc()
         raise HTTPException(
             status_code=500,

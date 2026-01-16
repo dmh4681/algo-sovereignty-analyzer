@@ -490,11 +490,6 @@ def get_asset_price(ticker: str, asset_id: Optional[int] = None) -> Optional[flo
     if ticker_upper in ['GOETH', 'ETH', 'WETH', 'FGOETH']:
         return get_ethereum_price()
 
-    # Stablecoins - Assume peg for now (Optimization: avoid API call)
-    # Note: We keep FUSDC/FUSDT/FUSD here as fallback if asset_id resolution fails
-    if ticker_upper in ['USDC', 'USDT', 'DAI', 'STBL', 'FUSDC', 'FUSDT', 'FUSD']:
-        return 1.0
-
     # Gold (Meld Gold is 1g)
     if ticker_upper in ['GOLD$', 'XAUT', 'PAXG']:
         return get_gold_price()

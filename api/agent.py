@@ -1,4 +1,5 @@
 import os
+import traceback
 import anthropic
 from pydantic import BaseModel
 
@@ -87,7 +88,6 @@ class SovereigntyCoach:
             return message.content[0].text
         except Exception as e:
             print(f"ERROR: Failed to generate advice: {e}")
-            import traceback
             traceback.print_exc()
             return f"My connection to the sovereignty network is interrupted. (Error: {str(e)})"
 

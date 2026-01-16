@@ -8,6 +8,7 @@ allowing proper classification of the component assets.
 import requests
 import re
 import math
+import traceback
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
 
@@ -36,37 +37,6 @@ class LPParser:
         # Known Tinyman pool asset IDs (asset_id -> (asset1_id, asset2_id, app_id))
         # These are cached pool configurations
         self._pool_cache: Dict[int, Dict[str, Any]] = {}
-
-    def _normalize_ticker(self, ticker: str) -> str:
-        """
-        Normalize wrapped/derivative token tickers to their base asset for pricing.
-        fALGO, xALGO, FALGO -> ALGO
-        fUSDC, FUSDC -> USDC
-        etc.
-        """
-        t = ticker.upper()
-
-        # Folks Finance wrapped ALGO variants
-        if t in ['FALGO', 'XALGO'] or t.startswith('FALGO') or t.startswith('XALGO'):
-            return 'ALGO'
-
-        # Folks Finance wrapped USDC
-        if t in ['FUSDC'] or t.startswith('FUSDC'):
-            return 'USDC'
-
-        # Folks Finance wrapped USDT
-        if t in ['FUSDT'] or t.startswith('FUSDT'):
-            return 'USDT'
-
-        # Folks Finance wrapped goBTC
-        if t in ['FGOBTC'] or t.startswith('FGOBTC'):
-            return 'GOBTC'
-
-        # Folks Finance wrapped goETH
-        if t in ['FGOETH'] or t.startswith('FGOETH'):
-            return 'GOETH'
-
-        return ticker
 
     def is_lp_token(self, ticker: str, name: str) -> bool:
         """Check if an asset is likely an LP token"""
@@ -246,8 +216,7 @@ class LPParser:
             }
             
         except Exception as e:
-            print(f"❌ Tinyman SDK error: {e}")
-            import traceback
+            print(f"Tinyman SDK error: {e}")
             traceback.print_exc()
             return None
 
