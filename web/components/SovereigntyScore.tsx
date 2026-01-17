@@ -50,16 +50,23 @@ export function SovereigntyScore({ data }: SovereigntyScoreProps) {
   return (
     <Card className={`bg-gradient-to-br ${getGradient()} border-0 overflow-hidden relative`}>
       {/* Decorative treasure chest */}
-      <div className="absolute -right-8 -bottom-8 opacity-20">
+      <div className="absolute -right-8 -bottom-8 opacity-20" aria-hidden="true">
         <TreasureChest size={150} open={sovereignty_ratio > 3} animated={false} />
       </div>
       <div className="p-8 text-center relative z-10">
         <div className="text-sm uppercase tracking-wider text-white/80 mb-2 flex items-center justify-center gap-2">
-          <span>⛏️</span>
+          <span aria-hidden="true">⛏️</span>
           <span>Sovereignty Score</span>
-          <span>⛏️</span>
+          <span aria-hidden="true">⛏️</span>
         </div>
-        <div className="text-6xl md:text-7xl font-bold text-white mb-2 tabular-nums">
+        <div
+          role="meter"
+          aria-valuenow={sovereignty_ratio}
+          aria-valuemin={0}
+          aria-valuemax={20}
+          aria-label={`Sovereignty Score: ${formatNumber(sovereignty_ratio, 1)} years of financial independence`}
+          className="text-6xl md:text-7xl font-bold text-white mb-2 tabular-nums"
+        >
           {formatNumber(sovereignty_ratio, 1)}
           <span className="text-3xl md:text-4xl ml-2">years</span>
         </div>

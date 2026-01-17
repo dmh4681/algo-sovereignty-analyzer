@@ -1,15 +1,27 @@
 'use client'
 
+import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatUSD, formatNumber } from '@/lib/utils'
 import { Asset, Categories, CATEGORY_CONFIGS, getHardMoneyType, HARD_MONEY_COLORS, HardMoneyType } from '@/lib/types'
 import { CoinStack, GoldBars } from '@/components/illustrations'
+import { ChevronDown, ChevronUp } from 'lucide-react'
 
 interface AssetBreakdownProps {
   categories: Categories
 }
 
 export function AssetBreakdown({ categories }: AssetBreakdownProps) {
+  // Collapsible section state for mobile
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
+    hard_money: true,
+    other: true
+  })
+
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }))
+  }
+
   // Separate hard money assets by type
   const hardMoneyAssets = categories.hard_money
   const goldAssets = hardMoneyAssets.filter(a => getHardMoneyType(a.ticker) === 'gold')
@@ -31,20 +43,52 @@ export function AssetBreakdown({ categories }: AssetBreakdownProps) {
             <GoldBars size={120} variant="pile" animated={false} />
           </div>
           <CardHeader className="relative">
-            <CardTitle className="flex items-center gap-3 text-2xl">
-              <span className="flex gap-2">
-                <span className="text-amber-400">₿</span>
-                <span className="text-yellow-400">🪙</span>
-                <span className="text-gray-300">🥈</span>
-              </span>
-              <span className="gold-shimmer">
-                Treasure Vault
-              </span>
-            </CardTitle>
-            <p className="text-sm text-amber-200/60">Bitcoin, Gold, Silver - Your Hard Money Hoard</p>
+            {/* Mobile collapsible header */}
+            <button
+              className="md:hidden w-full flex items-center justify-between text-left"
+              onClick={() => toggleSection('hard_money')}
+              aria-expanded={expandedSections.hard_money}
+              aria-controls="hard-money-content"
+            >
+              <CardTitle className="flex items-center gap-3 text-xl">
+                <span className="flex gap-2">
+                  <span className="text-amber-400">₿</span>
+                  <span className="text-yellow-400">🪙</span>
+                  <span className="text-gray-300">🥈</span>
+                </span>
+                <span className="gold-shimmer">
+                  Treasure Vault
+                </span>
+              </CardTitle>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-amber-300/70">{formatUSD(totalHardMoney)}</span>
+                {expandedSections.hard_money ? (
+                  <ChevronUp className="h-5 w-5 text-amber-400" />
+                ) : (
+                  <ChevronDown className="h-5 w-5 text-amber-400" />
+                )}
+              </div>
+            </button>
+            {/* Desktop header (always visible) */}
+            <div className="hidden md:block">
+              <CardTitle className="flex items-center gap-3 text-2xl">
+                <span className="flex gap-2">
+                  <span className="text-amber-400">₿</span>
+                  <span className="text-yellow-400">🪙</span>
+                  <span className="text-gray-300">🥈</span>
+                </span>
+                <span className="gold-shimmer">
+                  Treasure Vault
+                </span>
+              </CardTitle>
+              <p className="text-sm text-amber-200/60">Bitcoin, Gold, Silver - Your Hard Money Hoard</p>
+            </div>
           </CardHeader>
-          <CardContent className="relative">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <CardContent
+            id="hard-money-content"
+            className={`relative transition-all duration-300 ${expandedSections.hard_money ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0 overflow-hidden md:max-h-none md:opacity-100'}`}
+          >
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
               {/* Gold Card */}
               <div className="relative overflow-hidden rounded-xl bg-gradient-to-br from-yellow-600/20 to-yellow-900/20 border-2 border-yellow-500/30 p-6 hover:border-yellow-400/50 hover:shadow-lg hover:shadow-yellow-500/10 transition-all">
                 <div className="absolute -bottom-2 -right-2 opacity-30">
@@ -161,6 +205,38 @@ function getAssetColor(asset: Asset, isHardMoney: boolean): { textClass: string;
   return { textClass: 'text-slate-200' }
 }
 
+// Detect LP (liquidity pool) tokens by ticker patterns
+function isLPToken(ticker: string, name: string): boolean {
+  const t = ticker.toUpperCase()
+  const n = name.toUpperCase()
+  return (
+    t.includes('-LP') ||
+    t.includes('TM-POOL') ||
+    t.includes('TINYMAN') ||
+    t.includes('PACT-') ||
+    n.includes('LIQUIDITY') ||
+    n.includes('LP TOKEN') ||
+    n.includes('POOL')
+  )
+}
+
+// Parse LP token name to extract underlying assets (heuristic)
+function parseLPComponents(ticker: string, name: string): string[] {
+  // Try to extract from patterns like "ALGO-USDC-LP" or "TinymanPool ALGO/USDC"
+  const patterns = [
+    /(\w+)-(\w+)-LP/i,
+    /(\w+)\/(\w+)/i,
+    /(\w+)-(\w+)/i,
+  ]
+  for (const pattern of patterns) {
+    const match = ticker.match(pattern) || name.match(pattern)
+    if (match) {
+      return [match[1], match[2]]
+    }
+  }
+  return []
+}
+
 // Filter out insignificant assets for cleaner display (NFTs, dust, etc.)
 function filterDisplayAssets(assets: Asset[], categoryKey: string): Asset[] {
   // For shitcoins, filter out noise
@@ -190,6 +266,21 @@ function filterDisplayAssets(assets: Asset[], categoryKey: string): Asset[] {
 }
 
 function CategoryCard({ config, assets }: CategoryCardProps) {
+  // State for expanded LP tokens
+  const [expandedLPs, setExpandedLPs] = useState<Set<string>>(new Set())
+
+  const toggleLP = (assetKey: string) => {
+    setExpandedLPs(prev => {
+      const next = new Set(prev)
+      if (next.has(assetKey)) {
+        next.delete(assetKey)
+      } else {
+        next.add(assetKey)
+      }
+      return next
+    })
+  }
+
   const totalValue = assets.reduce((sum, asset) => sum + asset.usd_value, 0)
   const assetCount = assets.length
   const isHardMoney = config.key === 'hard_money'
@@ -234,26 +325,66 @@ function CategoryCard({ config, assets }: CategoryCardProps) {
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {displayAssets.slice(0, 10).map((asset, idx) => {
               const { textClass, emoji } = getAssetColor(asset, isHardMoney)
+              const assetKey = `${asset.ticker}-${idx}`
+              const isLP = isLPToken(asset.ticker, asset.name)
+              const isExpanded = expandedLPs.has(assetKey)
+              const lpComponents = isLP ? parseLPComponents(asset.ticker, asset.name) : []
+
               return (
-                <div
-                  key={`${asset.ticker}-${idx}`}
-                  className={`flex justify-between items-center text-sm py-1 border-b border-slate-700/50 last:border-0 ${isHardMoney ? 'rounded px-1 ' + (getHardMoneyType(asset.ticker) ? HARD_MONEY_COLORS[getHardMoneyType(asset.ticker)!].bg : '') : ''}`}
-                >
-                  <div className="truncate pr-2 flex items-center gap-1">
-                    {emoji && <span className="text-xs">{emoji}</span>}
-                    <span className={`font-medium ${textClass}`}>{asset.ticker}</span>
-                    {asset.name !== asset.ticker && (
-                      <span className="text-slate-500 ml-1 hidden sm:inline">
-                        ({asset.name.slice(0, 15)}{asset.name.length > 15 ? '...' : ''})
-                      </span>
-                    )}
+                <div key={assetKey} className="space-y-1">
+                  <div
+                    className={`flex justify-between items-center text-sm py-1 border-b border-slate-700/50 last:border-0 ${isHardMoney ? 'rounded px-1 ' + (getHardMoneyType(asset.ticker) ? HARD_MONEY_COLORS[getHardMoneyType(asset.ticker)!].bg : '') : ''} ${isLP ? 'cursor-pointer hover:bg-slate-700/30 rounded transition-colors' : ''}`}
+                    onClick={isLP ? () => toggleLP(assetKey) : undefined}
+                    role={isLP ? 'button' : undefined}
+                    aria-expanded={isLP ? isExpanded : undefined}
+                    tabIndex={isLP ? 0 : undefined}
+                    onKeyDown={isLP ? (e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        toggleLP(assetKey)
+                      }
+                    } : undefined}
+                  >
+                    <div className="truncate pr-2 flex items-center gap-1">
+                      {isLP && (
+                        <ChevronDown className={`h-3 w-3 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      )}
+                      {emoji && <span className="text-xs">{emoji}</span>}
+                      <span className={`font-medium ${textClass}`}>{asset.ticker}</span>
+                      {isLP && (
+                        <span className="text-xs bg-purple-500/20 text-purple-300 px-1.5 py-0.5 rounded">LP</span>
+                      )}
+                      {asset.name !== asset.ticker && !isLP && (
+                        <span className="text-slate-500 ml-1 hidden sm:inline">
+                          ({asset.name.slice(0, 15)}{asset.name.length > 15 ? '...' : ''})
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right tabular-nums whitespace-nowrap">
+                      <div className={textClass}>{formatNumber(asset.amount)}</div>
+                      {asset.usd_value > 0 && (
+                        <div className="text-xs text-slate-500">{formatUSD(asset.usd_value)}</div>
+                      )}
+                    </div>
                   </div>
-                  <div className="text-right tabular-nums whitespace-nowrap">
-                    <div className={textClass}>{formatNumber(asset.amount)}</div>
-                    {asset.usd_value > 0 && (
-                      <div className="text-xs text-slate-500">{formatUSD(asset.usd_value)}</div>
-                    )}
-                  </div>
+                  {/* LP Expanded details */}
+                  {isLP && isExpanded && (
+                    <div className="ml-4 pl-3 border-l-2 border-purple-500/30 py-2 text-xs space-y-1 bg-slate-800/30 rounded-r">
+                      <div className="text-slate-400 font-medium">Liquidity Pool Token</div>
+                      {lpComponents.length > 0 ? (
+                        <div className="text-slate-300">
+                          Pool: <span className="text-purple-300">{lpComponents.join(' / ')}</span>
+                        </div>
+                      ) : (
+                        <div className="text-slate-500 italic">
+                          {asset.name}
+                        </div>
+                      )}
+                      <div className="text-slate-500">
+                        Your share of liquidity in this pool
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}

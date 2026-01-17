@@ -44,6 +44,10 @@ const errorConfig: Record<ErrorType, { icon: typeof AlertTriangle; title: string
 
 function getErrorType(message: string): ErrorType {
   const lowerMessage = message.toLowerCase()
+  // Rate limit detection
+  if (lowerMessage.includes('rate') || lowerMessage.includes('429') || lowerMessage.includes('too many') || lowerMessage.includes('throttl')) {
+    return 'network' // Treat rate limits as temporary network issues
+  }
   if (lowerMessage.includes('network') || lowerMessage.includes('timeout') || lowerMessage.includes('fetch')) {
     return 'network'
   }
@@ -57,6 +61,11 @@ function getErrorType(message: string): ErrorType {
     return 'auth'
   }
   return 'generic'
+}
+
+function isRateLimitError(message: string): boolean {
+  const lowerMessage = message.toLowerCase()
+  return lowerMessage.includes('rate') || lowerMessage.includes('429') || lowerMessage.includes('too many') || lowerMessage.includes('throttl')
 }
 
 export function ErrorAlert({
@@ -108,7 +117,9 @@ export function ErrorAlert({
 
           {errorType === 'network' && (
             <p className="mt-2 text-xs text-slate-500">
-              Check your internet connection or try again in a few moments.
+              {isRateLimitError(message)
+                ? 'The service is rate limited. Please wait a moment before trying again.'
+                : 'Check your internet connection or try again in a few moments.'}
             </p>
           )}
 

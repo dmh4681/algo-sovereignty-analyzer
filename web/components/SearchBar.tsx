@@ -49,13 +49,16 @@ export function SearchBar({
 
   return (
     <div className="w-full space-y-3">
-      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">
+      <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3" role="search">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" aria-hidden="true" />
           <Input
             value={address}
             onChange={(e) => setAddress(e.target.value.toUpperCase())}
             placeholder="Paste Algorand address (58 characters)"
+            aria-label="Algorand wallet address"
+            aria-describedby={address && !isValid ? "address-error" : undefined}
+            aria-invalid={address && !isValid ? true : undefined}
             className={`pl-10 font-mono ${inputSize} ${
               address && !isValid ? 'border-red-500 focus-visible:ring-red-500' : ''
             }`}
@@ -67,14 +70,15 @@ export function SearchBar({
           disabled={!isValid}
           size={buttonSize as 'default' | 'xl'}
           className="group"
+          aria-label="Analyze wallet for sovereignty score"
         >
           Analyze Wallet
-          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" aria-hidden="true" />
         </Button>
       </form>
 
       {address && !isValid && (
-        <p className="text-sm text-red-400">
+        <p id="address-error" className="text-sm text-red-400" role="alert">
           {address.length < 58
             ? `${58 - address.length} more characters needed`
             : 'Invalid address format'}
