@@ -18,8 +18,9 @@ def test_analyze_dylan_wallet():
     assert "categories" in data
     assert "hard_money_algo" in data
 
-    # Verify 3 categories exist (hard money maximalist philosophy)
+    # Verify 4 categories exist (hard money maximalist philosophy with separate ALGO)
     assert "hard_money" in data["categories"]
+    assert "algo" in data["categories"]
     assert "dollars" in data["categories"]
     assert "shitcoin" in data["categories"]
 
@@ -27,9 +28,9 @@ def test_analyze_dylan_wallet():
     assert "productive" not in data["categories"]
     assert "nft" not in data["categories"]
 
-    # ALGO should now be in shitcoins, not hard_money
-    algo_asset = next((a for a in data["categories"]["shitcoin"] if a["ticker"] == "ALGO"), None)
-    assert algo_asset is not None, "ALGO should be in shitcoins"
+    # ALGO should be in its own 'algo' category (not hard_money, not shitcoin)
+    algo_asset = next((a for a in data["categories"]["algo"] if a["ticker"] == "ALGO"), None)
+    assert algo_asset is not None, "ALGO should be in algo category"
     assert algo_asset["usd_value"] > 0, "ALGO should have USD value"
 
     # Hard money should only have BTC, gold, silver
