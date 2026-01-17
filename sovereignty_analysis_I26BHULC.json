@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "analyzed_at": "2026-01-14T07:21:21.627337",
+    "analyzed_at": "2026-01-15T20:34:42.839514",
     "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
     "address_short": "I26BHULC...L3BIP4",
     "participation_status": "online"
@@ -10,56 +10,37 @@
       {
         "ticker": "GOLD$",
         "name": "Meld Gold",
-        "amount": 0.730134,
-        "usd_value": 103.5397116824217
+        "amount": 5.047824,
+        "usd_value": 710.5578196285792
       },
       {
         "ticker": "SILVER$",
         "name": "Meld Silver",
-        "amount": 299.612618,
-        "usd_value": 847.4235363764274
+        "amount": 514.888826,
+        "usd_value": 1414.6771547939475
       },
       {
         "ticker": "goBTC",
         "name": "goBTC",
         "amount": 0.01000794,
-        "usd_value": 937.0857321457843
+        "usd_value": 947.6568825801814
       }
     ],
     "algo": [
       {
         "ticker": "ALGO",
         "name": "Algorand (PARTICIPATING)",
-        "amount": 109900.70417,
-        "usd_value": 38465.2464595
+        "amount": 110018.722112,
+        "usd_value": 14096.808882932672
       }
     ],
-    "dollars": [
-      {
-        "ticker": "USDC",
-        "name": "USDC",
-        "amount": 0.191421,
-        "usd_value": 0.191421
-      }
-    ],
+    "dollars": [],
     "shitcoin": [
       {
         "ticker": "iGA",
         "name": "iGetAlgo",
         "amount": 10.007611,
-        "usd_value": 2453.097805912246
-      },
-      {
-        "ticker": "ALPHA",
-        "name": "Alpha Arcade",
-        "amount": 50000.007739,
-        "usd_value": 1107.5216183376385
-      },
-      {
-        "ticker": "FOLKS",
-        "name": "Folks Finance",
-        "amount": 40.050988,
-        "usd_value": 148.20791403912352
+        "usd_value": 2331.3031464378764
       },
       {
         "ticker": "PLP",
@@ -83,8 +64,8 @@
   },
   "summary": {
     "hard_money_count": 3,
-    "dollars_count": 1,
-    "shitcoin_count": 6,
+    "dollars_count": 0,
+    "shitcoin_count": 4,
     "total_algo": 0
   }
 }

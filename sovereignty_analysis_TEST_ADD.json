@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "analyzed_at": "2026-01-15T20:34:25.368886",
+    "address": "TEST_ADDRESS",
+    "address_short": "TEST_ADD...DDRESS",
+    "participation_status": "offline"
+  },
+  "assets": {
+    "hard_money": [],
+    "algo": [
+      {
+        "ticker": "ALGO",
+        "name": "Algorand (NOT PARTICIPATING)",
+        "amount": 0.0,
+        "usd_value": 0.0
+      }
+    ],
+    "dollars": [],
+    "shitcoin": []
+  },
+  "summary": {
+    "hard_money_count": 0,
+    "dollars_count": 0,
+    "shitcoin_count": 0,
+    "total_algo": 0
+  }
+}
