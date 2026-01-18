@@ -210,6 +210,43 @@ cd web && npm run build
 - **TypeScript**: Strict mode enabled, use interfaces
 - **Commits**: Conventional commits preferred (feat:, fix:, docs:, etc.)
 
+## UI/UX Features (Implemented)
+
+### Loading States
+- **Content-aware skeletons** in `web/components/LoadingState.tsx`:
+  - `LoadingState()` - Full page skeleton with fade-in animation
+  - `LoadingSpinner()` - Animated spinner with pulsing text
+  - `LoadingDots()` - Inline bouncing dots
+  - `SovereigntyScoreSkeleton()` - Score circle + details skeleton
+  - `AssetBreakdownSkeleton()` - 4-column grid of asset cards
+  - `DashboardLoadingSkeleton()` - Complete page skeleton
+
+### Error Handling
+- **ErrorAlert component** (`web/components/ErrorAlert.tsx`):
+  - 5 error types: network, server, validation, auth, generic
+  - Auto-detection based on error message keywords
+  - Rate limit detection (429, throttle, too many)
+  - Retry button with spinning animation
+  - Contextual help text per error type
+  - `role="alert"` for screen readers
+
+### Mobile Responsiveness
+- **Collapsible sections**: `expandedSections` state for mobile accordion
+- **Responsive grids**: `grid-cols-1 md:grid-cols-2 lg:grid-cols-4`
+- **Touch-friendly**: Adequate button sizes (h-10 minimum)
+
+### Accessibility
+- **SearchBar**: `aria-label`, `aria-describedby`, `aria-invalid` for form validation
+- **AssetBreakdown**: Expandable LP tokens with `role="button"`, `aria-expanded`, keyboard support (Enter/Space)
+- **Hard Money section**: `aria-controls` for collapsible content
+- **Error alerts**: `role="alert"` for screen readers
+
+### Progressive Disclosure
+- **LP Token expansion**: Click to reveal pool composition and details
+- **Chevron indicators**: Rotate on expand/collapse
+- **Nested details**: Indented with left border accent
+- **Keyboard support**: `tabIndex={0}`, Enter/Space handlers
+
 ## Caching
 
 - API responses cached 15 minutes in-memory (per address)
