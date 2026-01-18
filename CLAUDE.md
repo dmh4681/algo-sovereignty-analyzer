@@ -309,3 +309,26 @@ Runs FastAPI on port 8000.
 ### "Wallet connection fails"
 - Ensure wallet extension is installed (Pera, Defly)
 - Check WalletConnect project ID if using WalletConnect
+
+## Documentation (January 2026)
+
+Comprehensive documentation has been added to the `docs/` folder:
+
+| Document | Purpose |
+|----------|---------|
+| `docs/API-REFERENCE.md` | Complete API endpoint documentation with request/response schemas |
+| `docs/SETUP-GUIDE.md` | Development setup, deployment instructions, troubleshooting |
+| `docs/CLASSIFICATION-SYSTEM.md` | Hard money philosophy, classification hierarchy, LP decomposition |
+| `docs/USER-GUIDE.md` | End-user guide explaining sovereignty concepts and how to use the tool |
+
+### Core File Documentation
+
+Key source files now include comprehensive docstrings:
+- `core/analyzer.py` - Module-level docs, class docstring, method documentation
+- `core/lp_parser.py` - LP token decomposition with algorithm explanations
+
+### Quick Links
+
+- **For Users**: Start with `docs/USER-GUIDE.md`
+- **For Developers**: Read `docs/SETUP-GUIDE.md` then `docs/API-REFERENCE.md`
+- **For Understanding Classification**: Read `docs/CLASSIFICATION-SYSTEM.md`

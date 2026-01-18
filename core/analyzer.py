@@ -1,3 +1,32 @@
+"""
+Algorand Sovereignty Analyzer - Core Wallet Analysis Engine
+
+This module provides the main analysis logic for evaluating Algorand wallet holdings
+through a hard money maximalist lens. It classifies assets into four categories:
+
+1. Hard Money (BTC, Gold, Silver) - True sovereignty assets
+2. Algo (ALGO, xALGO, etc.) - Platform native tokens
+3. Dollars (USDC, USDT) - Stablecoin exposure
+4. Shitcoins - Everything else
+
+The Sovereignty Ratio is calculated as:
+    Total Hard Money Value (USD) / Annual Fixed Expenses
+
+This ratio determines how many years of essential expenses can be covered by
+hard money assets alone, indicating true financial independence.
+
+Example Usage:
+    analyzer = AlgorandSovereigntyAnalyzer(use_local_node=False)
+    categories = analyzer.analyze_wallet("ALGO_ADDRESS_HERE")
+    metrics = analyzer.calculate_sovereignty_metrics(categories, monthly_expenses=4000)
+
+Architecture Notes:
+    - Uses classifier.py for asset categorization (CSV > User Corrections > Regex)
+    - Uses pricing.py for multi-source price fetching (Vestige primary, CoinGecko fallback)
+    - Uses lp_parser.py to decompose LP tokens into underlying assets
+    - Caches last analysis results for sovereignty calculation and JSON export
+"""
+
 import requests
 import json
 from datetime import datetime
@@ -12,7 +41,35 @@ if TYPE_CHECKING:
     from .alerts import AlertEngine, Alert
     from .history import SovereigntySnapshot
 
+
 class AlgorandSovereigntyAnalyzer:
+    """
+    Main analysis engine for Algorand wallet sovereignty scoring.
+
+    This class fetches wallet data from the Algorand blockchain, classifies
+    assets according to hard money maximalist principles, and calculates
+    sovereignty metrics.
+
+    Attributes:
+        DUST_THRESHOLD_USD (float): Minimum USD value to include in analysis.
+            Assets below this threshold are filtered as dust.
+        NFT_MAX_AMOUNT (int): Maximum integer amount for NFT detection.
+            Small integer holdings with no price data are treated as NFTs.
+        algod_address (str): Algorand node API endpoint.
+        classifier (AssetClassifier): Handles asset categorization.
+        lp_parser (LPParser): Decomposes LP tokens into underlying assets.
+        last_categories (dict): Cached results from most recent analysis.
+        last_address (str): Address of most recent analysis.
+        last_participation_info (dict): Consensus participation details.
+
+    Sovereignty Status Levels:
+        - Generationally Sovereign (≥20): 20+ years of hard money reserves
+        - Antifragile (≥6): Benefits from volatility
+        - Robust (≥3): Can weather major economic storms
+        - Fragile (≥1): Building towards independence
+        - Vulnerable (<1): Less than 1 year of coverage
+    """
+
     # Minimum USD value to include in shitcoin category (filters dust)
     DUST_THRESHOLD_USD = 10.0
     # Maximum amount for NFT-like detection (small integer holdings)
@@ -89,7 +146,34 @@ class AlgorandSovereigntyAnalyzer:
         return False
 
     def analyze_wallet(self, address: str) -> Optional[Dict[str, List[Dict[str, Any]]]]:
-        """Analyze an Algorand wallet's sovereignty score"""
+        """
+        Analyze an Algorand wallet and categorize all holdings.
+
+        This is the main entry point for wallet analysis. It performs the following:
+        1. Fetches all ASAs (Algorand Standard Assets) from the blockchain
+        2. Classifies each asset into hard_money, algo, dollars, or shitcoin
+        3. Decomposes LP tokens into their underlying assets
+        4. Filters out dust tokens and NFT-like items
+        5. Calculates USD values using multi-source pricing
+
+        Args:
+            address: 58-character Algorand wallet address
+
+        Returns:
+            Dict with four category keys, each containing a list of asset dicts:
+            {
+                'hard_money': [{'name': str, 'ticker': str, 'amount': float, 'usd_value': float}],
+                'algo': [...],
+                'dollars': [...],
+                'shitcoin': [...]
+            }
+            Returns None if the wallet cannot be fetched.
+
+        Side Effects:
+            - Stores results in self.last_categories for later use
+            - Exports results to JSON file: sovereignty_analysis_{address[:8]}.json
+            - Prints analysis progress and results to console
+        """
         print(f"\n🔍 Analyzing wallet: {address[:8]}...{address[-6:]}\n")
         
         # Get account data
@@ -364,7 +448,38 @@ class AlgorandSovereigntyAnalyzer:
         # But here we just print results. The calculation method handles prompting if called directly.
     
     def calculate_sovereignty_metrics(self, categories: Dict[str, List[Dict[str, Any]]], monthly_fixed_expenses: float) -> Optional[SovereigntyData]:
-        """Calculate sovereignty metrics based on TOTAL hard money portfolio and expenses"""
+        """
+        Calculate sovereignty metrics from categorized holdings and expenses.
+
+        The core formula is:
+            Sovereignty Ratio = Total Portfolio USD / Annual Fixed Expenses
+
+        Note: The ratio uses the FULL portfolio value (all categories), not just
+        hard money. This gives a complete picture of financial runway.
+
+        Args:
+            categories: Output from analyze_wallet() with asset categories
+            monthly_fixed_expenses: User's monthly fixed costs in USD
+                (rent/mortgage, utilities, insurance, minimum debt payments)
+
+        Returns:
+            SovereigntyData object containing:
+                - monthly_fixed_expenses: Input value
+                - annual_fixed_expenses: monthly × 12
+                - algo_price: Current ALGO/USD price
+                - portfolio_usd: Total portfolio value
+                - sovereignty_ratio: years of runway
+                - sovereignty_status: human-readable status with emoji
+                - years_of_runway: same as ratio (alias)
+            Returns None if monthly_fixed_expenses <= 0.
+
+        Status Thresholds:
+            ≥20 → "Generationally Sovereign 🟩"
+            ≥6  → "Antifragile 🟢"
+            ≥3  → "Robust 🟡"
+            ≥1  → "Fragile 🔴"
+            <1  → "Vulnerable ⚫"
+        """
         if monthly_fixed_expenses <= 0:
             return None
             

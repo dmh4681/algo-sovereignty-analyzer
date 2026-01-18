@@ -1,8 +1,48 @@
 """
-LP Token Parser for Tinyman and other Algorand DEXes.
+LP Token Parser for Algorand DEXes (Tinyman, Pact, Humble, etc.)
 
-This module extracts the underlying asset values from LP tokens,
-allowing proper classification of the component assets.
+This module extracts the underlying asset values from Liquidity Provider (LP) tokens,
+allowing proper classification of the component assets for sovereignty scoring.
+
+Background:
+    When users provide liquidity to DEXes, they receive LP tokens representing their
+    share of the pool. For accurate sovereignty analysis, we need to decompose these
+    LP tokens back into their underlying assets.
+
+    Example: A user holds 100 ALGO-USDC LP tokens
+             → Decompose to: 50 ALGO + 50 USDC
+             → ALGO goes to 'algo' category, USDC goes to 'dollars' category
+
+Supported DEXes:
+    - Tinyman v1 (TM1POOL)
+    - Tinyman v2 (TMPOOL2, TinymanPool2.0)
+    - Pact (PACT LP, PLP)
+    - Humble (hLP)
+    - Folks Finance (fAsset / fAsset pairs)
+
+Value Calculation Methods:
+    1. **Accurate Method (Tinyman SDK)**: Uses on-chain pool state to calculate exact
+       user share of reserves. Requires tinyman-py-sdk.
+
+    2. **Fallback Method (Geometric Mean)**: Standard AMM pricing formula when
+       pool state is unavailable:
+           LP Token Value = 2 × √(Price1 × Price2)
+
+Architecture:
+    1. is_lp_token() - Detect if an asset is an LP token
+    2. get_pool_info() - Fetch pool metadata and creator
+    3. get_pool_state() - Query exact reserves via Tinyman SDK
+    4. estimate_lp_value() - Calculate user's share value
+    5. classify_lp_components() - Route underlying assets to categories
+
+Example Usage:
+    parser = LPParser(algod_address="https://mainnet-api.algonode.cloud")
+
+    if parser.is_lp_token(ticker, name):
+        breakdown = parser.estimate_lp_value(ticker, name, amount, asset_id, get_price_fn)
+        if breakdown:
+            components = parser.classify_lp_components(breakdown, classify_fn)
+            # components = [('algo', {...}), ('dollars', {...})]
 """
 
 import requests
@@ -15,7 +55,37 @@ from dataclasses import dataclass
 
 @dataclass
 class LPBreakdown:
-    """Represents the breakdown of an LP token into its components"""
+    """
+    Represents the decomposition of an LP token into its underlying assets.
+
+    When a user provides liquidity to a DEX, they receive LP tokens proportional
+    to their share of the pool. This dataclass captures the breakdown of that
+    LP position into the two underlying assets.
+
+    Attributes:
+        lp_ticker: The ticker symbol of the LP token (e.g., "TMPOOL2")
+        lp_amount: How many LP tokens the user holds
+        asset1_ticker: Ticker of the first underlying asset (e.g., "ALGO")
+        asset1_amount: User's share of asset 1 based on pool reserves
+        asset1_usd: USD value of user's asset 1 position
+        asset2_ticker: Ticker of the second underlying asset (e.g., "USDC")
+        asset2_amount: User's share of asset 2 based on pool reserves
+        asset2_usd: USD value of user's asset 2 position
+        total_usd: Combined USD value (asset1_usd + asset2_usd)
+
+    Example:
+        LPBreakdown(
+            lp_ticker="TMPOOL2",
+            lp_amount=100.0,
+            asset1_ticker="ALGO",
+            asset1_amount=500.0,      # User owns 500 ALGO worth
+            asset1_usd=150.0,         # At $0.30 per ALGO
+            asset2_ticker="USDC",
+            asset2_amount=150.0,      # User owns 150 USDC worth
+            asset2_usd=150.0,
+            total_usd=300.0
+        )
+    """
     lp_ticker: str
     lp_amount: float
     asset1_ticker: str
@@ -28,7 +98,37 @@ class LPBreakdown:
 
 
 class LPParser:
-    """Parser for extracting underlying values from LP tokens"""
+    """
+    Parser for extracting underlying asset values from LP (Liquidity Provider) tokens.
+
+    LP tokens represent a user's share of a liquidity pool on a DEX. To properly
+    classify holdings for sovereignty analysis, we decompose LP tokens into their
+    underlying assets.
+
+    Calculation Methods:
+        1. **Tinyman SDK (Accurate)**: Queries on-chain pool state for exact reserves
+           and total LP supply. User's share = (user_lp / total_lp) × reserves.
+
+        2. **Geometric Mean (Fallback)**: When pool state unavailable, uses standard
+           AMM formula: LP Value = 2 × √(Price1 × Price2)
+
+    Supported LP Token Patterns:
+        - Tinyman v1: ticker starts with "TM1POOL" or "TMPOOL"
+        - Tinyman v2: ticker contains "TM" and "POOL", name like "TinymanPool2.0"
+        - Pact: ticker starts with "PACT" or contains "PLP"
+        - Humble: ticker contains "-LP"
+        - Folks Finance: name contains "/" with asset pairs
+
+    Attributes:
+        algod_address: Algorand node API endpoint
+        headers: HTTP headers for API requests (auth token if local node)
+        _pool_cache: In-memory cache of pool configurations by asset ID
+
+    Usage:
+        parser = LPParser()
+        if parser.is_lp_token("TMPOOL2", "TinymanPool2.0 ALGO-USDC"):
+            breakdown = parser.estimate_lp_value(...)
+    """
 
     def __init__(self, algod_address: str = "https://mainnet-api.algonode.cloud", headers: dict = None):
         self.algod_address = algod_address
@@ -39,7 +139,26 @@ class LPParser:
         self._pool_cache: Dict[int, Dict[str, Any]] = {}
 
     def is_lp_token(self, ticker: str, name: str) -> bool:
-        """Check if an asset is likely an LP token"""
+        """
+        Detect if an asset is likely a Liquidity Provider (LP) token.
+
+        Uses pattern matching on ticker and name to identify LP tokens from
+        various Algorand DEXes. This is a heuristic check - some edge cases
+        may require manual classification override.
+
+        Args:
+            ticker: The unit-name of the ASA (e.g., "TMPOOL2", "PLP-ALGO-USDC")
+            name: The full name of the ASA (e.g., "TinymanPool2.0 ALGO-USDC")
+
+        Returns:
+            True if the asset appears to be an LP token, False otherwise.
+
+        Detection Patterns:
+            - Tinyman: "TMPOOL", "TM1POOL", "TM" + "POOL" combinations
+            - Pact: "PACT" prefix, "PLP" substring
+            - Generic: "POOL" in name, "-LP" in ticker
+            - Folks Finance: "/" separator with ALGO/USDC in name
+        """
         ticker_upper = ticker.upper()
         name_upper = name.upper()
 
@@ -223,7 +342,38 @@ class LPParser:
     def estimate_lp_value(self, lp_ticker: str, lp_name: str, lp_amount: float,
                          asset_id: int, get_price_fn) -> Optional[LPBreakdown]:
         """
-        Estimate the value of an LP token position.
+        Calculate the USD value and component breakdown of an LP token position.
+
+        This method attempts to decompose an LP token into its underlying assets
+        and calculate the user's proportional share. It uses two calculation methods:
+
+        **Method 1 - Tinyman SDK (Preferred)**:
+        When the Tinyman SDK is available and the pool is a Tinyman pool:
+            user_share = user_lp_amount / total_lp_supply
+            asset1_amount = user_share × pool_reserve1
+            asset2_amount = user_share × pool_reserve2
+
+        **Method 2 - Geometric Mean (Fallback)**:
+        Standard AMM constant product formula when pool state is unavailable:
+            lp_value = 2 × √(price1 × price2) × lp_amount
+        Then split 50/50 between assets.
+
+        Args:
+            lp_ticker: The LP token's ticker symbol (e.g., "TMPOOL2")
+            lp_name: The LP token's full name (e.g., "TinymanPool2.0 ALGO-USDC")
+            lp_amount: How many LP tokens the user holds
+            asset_id: The ASA ID of the LP token
+            get_price_fn: Function to fetch asset prices, signature:
+                          get_price_fn(ticker: str, asset_id: int) -> Optional[float]
+
+        Returns:
+            LPBreakdown dataclass with component amounts and USD values,
+            or None if the LP token cannot be parsed or priced.
+
+        Side Effects:
+            - Prints progress messages to console
+            - May query Algorand blockchain for pool state
+            - Caches pool info in self._pool_cache
         """
         # Parse the LP name to get underlying assets
         # Expected format: "TinymanPool2.0 XALGO-ALGO"
