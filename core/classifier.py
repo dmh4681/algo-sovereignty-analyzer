@@ -1,10 +1,12 @@
 import re
 from typing import Dict, Any, Optional
 from .models import AssetCategory
+from .corrections import get_corrections_manager
 
 class AssetClassifier:
     def __init__(self, classification_file: str = 'data/asset_classification.csv'):
         self.classifications: Dict[str, Dict[str, str]] = {}
+        self.corrections_manager = get_corrections_manager()
         self.load_classifications(classification_file)
 
     def load_classifications(self, filepath: str) -> None:
@@ -27,16 +29,28 @@ class AssetClassifier:
 
     def auto_classify_asset(self, asset_id: int, name: str, ticker: str) -> str:
         """
-        Hard money maximalist classification:
+        Hard money maximalist classification with learning hierarchy:
+        1. CSV manual overrides (highest priority)
+        2. User-submitted corrections (medium priority)
+        3. Auto-classification regex (lowest priority)
+
+        Categories:
         - Hard Money: BTC, Gold, Silver ONLY
+        - Algo: Native ALGO and liquid staking
         - Dollars: Stablecoins (fiat-pegged)
-        - Shitcoin: Everything else (including ALGO)
+        - Shitcoin: Everything else
         """
 
-        # Check manual overrides first
+        # 1. Check CSV manual overrides first (highest priority)
         if str(asset_id) in self.classifications:
             return self.classifications[str(asset_id)]['category']
 
+        # 2. Check user-submitted corrections (medium priority)
+        corrected_category = self.corrections_manager.get_correction(str(asset_id))
+        if corrected_category:
+            return corrected_category
+
+        # 3. Fall back to auto-classification (lowest priority)
         ticker_upper = ticker.upper()
 
         # HARD MONEY: Bitcoin, Gold, Silver

@@ -2478,3 +2478,182 @@ async def reseed_premium_data():
     except Exception as e:
         print(f"Error reseeding premium data: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# CLASSIFICATION CORRECTIONS ENDPOINTS
+# =============================================================================
+
+from core.corrections import get_corrections_manager, CorrectionStatus
+from .schemas import (
+    CorrectionSubmitRequest,
+    CorrectionResponse,
+    CorrectionsListResponse,
+    CorrectionStatsResponse
+)
+
+
+@router.post("/corrections", response_model=CorrectionResponse)
+async def submit_correction(request: CorrectionSubmitRequest):
+    """
+    Submit a classification correction.
+
+    Users can suggest corrections when they disagree with an asset's
+    auto-classification. Corrections are stored and used to improve
+    the classification system.
+
+    Valid categories: hard_money, algo, dollars, shitcoin
+    """
+    try:
+        manager = get_corrections_manager()
+
+        # Validate category
+        valid_categories = ['hard_money', 'algo', 'dollars', 'shitcoin']
+        if request.corrected_category not in valid_categories:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid category. Must be one of: {valid_categories}"
+            )
+
+        correction = manager.submit_correction(
+            asset_id=request.asset_id,
+            asset_name=request.asset_name,
+            ticker=request.ticker,
+            original_category=request.original_category,
+            corrected_category=request.corrected_category,
+            reason=request.reason,
+            submitted_by=request.submitted_by
+        )
+
+        return CorrectionResponse(
+            success=True,
+            message=f"Correction submitted for {request.ticker} ({request.asset_id})",
+            correction=correction.model_dump()
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Error submitting correction: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/corrections", response_model=CorrectionsListResponse)
+async def list_corrections(
+    status: Optional[str] = Query(None, description="Filter by status: active, pending, approved, rejected")
+):
+    """
+    List all submitted corrections.
+
+    Optionally filter by status.
+    """
+    try:
+        manager = get_corrections_manager()
+
+        status_filter = None
+        if status:
+            try:
+                status_filter = CorrectionStatus(status)
+            except ValueError:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid status. Must be one of: active, pending, approved, rejected"
+                )
+
+        corrections = manager.get_all_corrections(status=status_filter)
+
+        return CorrectionsListResponse(
+            corrections=[c.model_dump() for c in corrections],
+            count=len(corrections)
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error listing corrections: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/corrections/stats", response_model=CorrectionStatsResponse)
+async def get_correction_stats():
+    """
+    Get statistics about the corrections system.
+
+    Returns counts by status, most corrected category, and recent corrections.
+    """
+    try:
+        manager = get_corrections_manager()
+        stats = manager.get_stats()
+        return CorrectionStatsResponse(**stats.model_dump())
+    except Exception as e:
+        print(f"Error getting correction stats: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/corrections/{asset_id}")
+async def get_correction(asset_id: str = Path(..., description="The ASA ID")):
+    """
+    Get the correction for a specific asset.
+    """
+    try:
+        manager = get_corrections_manager()
+        corrections = manager.get_all_corrections()
+        correction = next((c for c in corrections if c.asset_id == asset_id), None)
+
+        if not correction:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No correction found for asset {asset_id}"
+            )
+
+        return correction.model_dump()
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error getting correction: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/corrections/{asset_id}")
+async def delete_correction(asset_id: str = Path(..., description="The ASA ID")):
+    """
+    Delete a correction.
+    """
+    try:
+        manager = get_corrections_manager()
+        deleted = manager.delete_correction(asset_id)
+
+        if not deleted:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No correction found for asset {asset_id}"
+            )
+
+        return {
+            'success': True,
+            'message': f"Correction deleted for asset {asset_id}"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error deleting correction: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/corrections/export/csv")
+async def export_corrections_csv():
+    """
+    Export approved corrections in CSV format.
+
+    Useful for reviewing corrections before adding them to the main
+    asset_classification.csv file.
+    """
+    try:
+        manager = get_corrections_manager()
+        csv_content = manager.export_to_csv_format()
+
+        return {
+            'csv': csv_content,
+            'instructions': "Add approved lines to data/asset_classification.csv"
+        }
+    except Exception as e:
+        print(f"Error exporting corrections: {e}")
+        raise HTTPException(status_code=500, detail=str(e))

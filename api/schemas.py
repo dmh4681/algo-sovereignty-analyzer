@@ -311,6 +311,58 @@ class MeldArbitrageResponse(BaseModel):
     timestamp: str = Field(..., description="ISO timestamp of analysis")
     data_complete: bool = Field(..., description="Whether all price data was available")
 
+
+# -----------------------------------------------------------------------------
+# Classification Corrections Schemas
+# -----------------------------------------------------------------------------
+
+class CorrectionSubmitRequest(BaseModel):
+    """Request to submit a classification correction."""
+    asset_id: str = Field(..., description="The ASA ID")
+    asset_name: str = Field(..., description="Human-readable asset name")
+    ticker: str = Field(..., description="Asset ticker symbol")
+    original_category: str = Field(..., description="The auto-classified category")
+    corrected_category: str = Field(..., description="Your suggested category (hard_money, algo, dollars, shitcoin)")
+    reason: Optional[str] = Field(None, description="Explanation for the correction")
+    submitted_by: Optional[str] = Field(None, description="Your wallet address (optional)")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "asset_id": "123456789",
+                "asset_name": "Example Token",
+                "ticker": "EXT",
+                "original_category": "shitcoin",
+                "corrected_category": "hard_money",
+                "reason": "This is a wrapped Bitcoin token",
+                "submitted_by": "ABC123..."
+            }
+        }
+
+
+class CorrectionResponse(BaseModel):
+    """Response after submitting a correction."""
+    success: bool = Field(..., description="Whether the correction was submitted")
+    message: str = Field(..., description="Status message")
+    correction: Optional[Dict[str, Any]] = Field(None, description="The submitted correction")
+
+
+class CorrectionsListResponse(BaseModel):
+    """Response listing all corrections."""
+    corrections: List[Dict[str, Any]] = Field(..., description="List of corrections")
+    count: int = Field(..., description="Number of corrections")
+
+
+class CorrectionStatsResponse(BaseModel):
+    """Statistics about the corrections system."""
+    total_corrections: int
+    active_corrections: int
+    pending_corrections: int
+    approved_corrections: int
+    rejected_corrections: int
+    most_corrected_category: Optional[str] = None
+    recent_corrections: List[Dict[str, Any]]
+
     class Config:
         json_schema_extra = {
             "example": {

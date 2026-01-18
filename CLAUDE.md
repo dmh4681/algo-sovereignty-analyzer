@@ -111,6 +111,31 @@ algo-sovereignty-analyzer/
 ### LP Token Handling
 LP tokens from Tinyman, Pact, and other DEXs are automatically decomposed into their underlying assets for accurate classification.
 
+### AI Asset Classification Training (January 2026)
+
+Users can submit corrections when they disagree with auto-classification. The system uses a learning hierarchy:
+
+1. **CSV manual overrides** (highest priority) - `data/asset_classification.csv`
+2. **User-submitted corrections** (medium priority) - `data/user_corrections.json`
+3. **Auto-classification regex** (lowest priority) - `core/classifier.py`
+
+**Key Files:**
+- `core/corrections.py` - CorrectionsManager class for CRUD operations
+- `api/schemas.py` - CorrectionSubmitRequest, CorrectionResponse schemas
+- `api/routes.py` - Correction API endpoints
+
+**Correction Workflow:**
+1. User submits correction via `POST /corrections` with asset_id, original_category, corrected_category, and reason
+2. Correction is immediately active (used in classification)
+3. Admin can review via `GET /corrections` and approve/reject
+4. Approved corrections can be exported to CSV format via `GET /corrections/export/csv`
+
+**Correction Statuses:**
+- `active` - In use but not formally approved
+- `pending` - Awaiting review
+- `approved` - Promoted to CSV
+- `rejected` - Determined incorrect
+
 ## API Endpoints
 
 **Base URL**: `http://localhost:8000/api/v1`
@@ -122,6 +147,12 @@ LP tokens from Tinyman, Pact, and other DEXs are automatically decomposed into t
 | GET | `/classifications` | Asset classification lookup |
 | POST | `/history/save` | Save wallet snapshot |
 | GET | `/history/{address}` | Get historical data |
+| POST | `/corrections` | Submit classification correction |
+| GET | `/corrections` | List all corrections (filter by status) |
+| GET | `/corrections/stats` | Correction system statistics |
+| GET | `/corrections/{asset_id}` | Get specific correction |
+| DELETE | `/corrections/{asset_id}` | Delete a correction |
+| GET | `/corrections/export/csv` | Export approved corrections |
 
 ### Example: Analyze Wallet
 ```bash
