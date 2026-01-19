@@ -1,37 +1,18 @@
 {
   "metadata": {
-    "analyzed_at": "2026-01-15T20:34:42.839514",
+    "analyzed_at": "2026-01-17T15:16:20.261685",
     "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
     "address_short": "I26BHULC...L3BIP4",
     "participation_status": "online"
   },
   "assets": {
-    "hard_money": [
-      {
-        "ticker": "GOLD$",
-        "name": "Meld Gold",
-        "amount": 5.047824,
-        "usd_value": 710.5578196285792
-      },
-      {
-        "ticker": "SILVER$",
-        "name": "Meld Silver",
-        "amount": 514.888826,
-        "usd_value": 1414.6771547939475
-      },
-      {
-        "ticker": "goBTC",
-        "name": "goBTC",
-        "amount": 0.01000794,
-        "usd_value": 947.6568825801814
-      }
-    ],
+    "hard_money": [],
     "algo": [
       {
         "ticker": "ALGO",
         "name": "Algorand (PARTICIPATING)",
-        "amount": 110018.722112,
-        "usd_value": 14096.808882932672
+        "amount": 109944.078193,
+        "usd_value": 38480.42736754999
       }
     ],
     "dollars": [],
@@ -39,8 +20,8 @@
       {
         "ticker": "iGA",
         "name": "iGetAlgo",
-        "amount": 10.007611,
-        "usd_value": 2331.3031464378764
+        "amount": 10.487312,
+        "usd_value": 2431.096112890238
       },
       {
         "ticker": "PLP",
@@ -63,7 +44,7 @@
     ]
   },
   "summary": {
-    "hard_money_count": 3,
+    "hard_money_count": 0,
     "dollars_count": 0,
     "shitcoin_count": 4,
     "total_algo": 0
