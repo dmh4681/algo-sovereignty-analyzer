@@ -278,6 +278,23 @@ cd web && npm run build
 - **Nested details**: Indented with left border accent
 - **Keyboard support**: `tabIndex={0}`, Enter/Space handlers
 
+### AI Sovereignty Coach (January 2026)
+- **CoachingPanel component** (`web/components/CoachingPanel.tsx`):
+  - Collapsible panel with Brain icon branding
+  - Auto-fetches personalized coaching on mount
+  - Loading state with pulsing animation
+  - Error state with retry button
+  - Renders Claude-generated advice as Markdown
+  - Refresh button for updated analysis
+- **Backend integration** (`api/agent.py`):
+  - SovereigntyCoach class with Claude AI
+  - Hard Money Maximalist coaching perspective
+  - Personalized advice based on portfolio composition
+- **API endpoint**: `POST /api/v1/agent/advice`
+  - Request: `{ address, analysis }`
+  - Response: `{ advice: string }` (Markdown formatted)
+  - 60-second timeout for long AI responses
+
 ## Caching
 
 - API responses cached 15 minutes in-memory (per address)

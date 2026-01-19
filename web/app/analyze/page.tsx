@@ -20,6 +20,7 @@ import { LoadingSpinner, LoadingState } from '@/components/LoadingState'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { HistoryChart } from '@/components/HistoryChart'
 import { BadgeSection } from '@/components/BadgeSection'
+import { CoachingPanel } from '@/components/CoachingPanel'
 import GoldSilverRatio from '@/components/GoldSilverRatio'
 import { MeldArbitrageSpotter } from '@/components/MeldArbitrageSpotter'
 import Link from 'next/link'
@@ -292,6 +293,13 @@ function AnalyzeContent() {
                   />
                 )
               })()}
+            </section>
+          )}
+
+          {/* AI Sovereignty Coach */}
+          {analysis.sovereignty_data && (
+            <section>
+              <CoachingPanel address={address} analysis={analysis} />
             </section>
           )}
 

@@ -1141,3 +1141,52 @@ export async function getDealerLeaderboard(
 
   return response.json()
 }
+
+// --- AI Sovereignty Coaching API ---
+
+export interface CoachingAdviceRequest {
+  address: string
+  analysis: Record<string, unknown>
+}
+
+export interface CoachingAdviceResponse {
+  advice: string
+}
+
+/**
+ * Get AI-powered sovereignty coaching advice based on portfolio analysis
+ * Uses Claude to analyze the portfolio and provide personalized recommendations
+ */
+export async function getSovereigntyCoaching(
+  request: CoachingAdviceRequest
+): Promise<CoachingAdviceResponse> {
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 60000) // 60 second timeout
+
+  try {
+    const response = await fetch(`${API_BASE}/agent/advice`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(request),
+      signal: controller.signal,
+    })
+
+    clearTimeout(timeoutId)
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new ApiError(
+        errorData.detail || 'Failed to get coaching advice',
+        response.status
+      )
+    }
+
+    return response.json()
+  } catch (error) {
+    clearTimeout(timeoutId)
+    if (error instanceof Error && error.name === 'AbortError') {
+      throw new ApiError('Coaching request timed out', 408)
+    }
+    throw error
+  }
+}
