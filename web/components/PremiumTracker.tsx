@@ -22,6 +22,7 @@ import {
   compareProductPrices,
   getBestDeals,
   getDealerLeaderboard,
+  getMeldArbitrage,
   PremiumProduct,
   ProductComparison,
   DealerRanking,
@@ -42,6 +43,9 @@ export function PremiumTracker() {
   const [comparison, setComparison] = useState<ProductComparison | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  // Live spot prices from arbitrage API (same source as MeldArbitrageSpotter)
+  const [liveGoldSpot, setLiveGoldSpot] = useState<number | null>(null)
+  const [liveSilverSpot, setLiveSilverSpot] = useState<number | null>(null)
 
   // Load summary and best deals
   useEffect(() => {
@@ -50,10 +54,18 @@ export function PremiumTracker() {
       Promise.all([
         getPremiumSummary(),
         getBestDeals(undefined, 8),
+        getMeldArbitrage(),
       ])
-        .then(([summaryRes, dealsRes]) => {
+        .then(([summaryRes, dealsRes, arbRes]) => {
           setSummary(summaryRes.stats)
           setBestDeals(dealsRes.deals as any)
+          // Set live spot prices from arbitrage API (same source as MeldArbitrageSpotter)
+          if (arbRes.gold && 'spot_per_oz' in arbRes.gold) {
+            setLiveGoldSpot(Math.round(arbRes.gold.spot_per_oz))
+          }
+          if (arbRes.silver && 'spot_per_oz' in arbRes.silver) {
+            setLiveSilverSpot(Math.round(arbRes.silver.spot_per_oz * 100) / 100)
+          }
           setError(null)
         })
         .catch((err) => setError(err.message))
@@ -120,14 +132,14 @@ export function PremiumTracker() {
           </p>
         </div>
 
-        {summary && (
+        {(liveGoldSpot || liveSilverSpot || summary) && (
           <div className="flex gap-4 text-sm">
             <div className="text-center">
-              <div className="text-amber-500 font-bold">${summary.spot_prices.gold?.toLocaleString()}</div>
+              <div className="text-amber-500 font-bold">${(liveGoldSpot || summary?.spot_prices.gold)?.toLocaleString()}</div>
               <div className="text-slate-500">Gold/oz</div>
             </div>
             <div className="text-center">
-              <div className="text-slate-400 font-bold">${summary.spot_prices.silver?.toFixed(2)}</div>
+              <div className="text-slate-400 font-bold">${(liveSilverSpot || summary?.spot_prices.silver)?.toFixed(2)}</div>
               <div className="text-slate-500">Silver/oz</div>
             </div>
           </div>

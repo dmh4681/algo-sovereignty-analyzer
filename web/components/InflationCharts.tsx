@@ -6,6 +6,7 @@ import {
   getInflationAdjustedPrices,
   getM2Comparison,
   getPurchasingPower,
+  getMeldArbitrage,
   type InflationSummary,
   type AdjustedPrice,
   type M2Comparison,
@@ -65,6 +66,9 @@ export function InflationCharts() {
     implication: string
   } | null>(null)
   const [purchasingPower, setPurchasingPower] = useState<PurchasingPower | null>(null)
+  // Live spot prices from arbitrage API (same source as MeldArbitrageSpotter)
+  const [liveGoldPrice, setLiveGoldPrice] = useState<number | null>(null)
+  const [liveSilverPrice, setLiveSilverPrice] = useState<number | null>(null)
 
   // Fetch data based on current view
   useEffect(() => {
@@ -73,9 +77,20 @@ export function InflationCharts() {
       setError(null)
 
       try {
-        // Always fetch summary for overview stats
-        const summaryRes = await getInflationSummary()
+        // Always fetch summary for overview stats and arbitrage prices
+        const [summaryRes, arbRes] = await Promise.all([
+          getInflationSummary(),
+          getMeldArbitrage()
+        ])
         setSummary(summaryRes.stats)
+
+        // Set live spot prices from arbitrage API (same source as MeldArbitrageSpotter)
+        if (arbRes.gold && 'spot_per_oz' in arbRes.gold) {
+          setLiveGoldPrice(Math.round(arbRes.gold.spot_per_oz))
+        }
+        if (arbRes.silver && 'spot_per_oz' in arbRes.silver) {
+          setLiveSilverPrice(Math.round(arbRes.silver.spot_per_oz * 100) / 100)
+        }
 
         if (view === 'real-vs-nominal') {
           const adjustedRes = await getInflationAdjustedPrices(metal, baseYear)
@@ -115,8 +130,8 @@ export function InflationCharts() {
               <p className="text-amber-200 font-medium">Did Gold Beat Its 1980 High?</p>
               <p className="text-amber-100/80 text-sm mt-1">
                 The 1980 gold peak of $850/oz equals <span className="font-mono font-bold text-amber-300">${summary.gold_1980_peak_in_todays_dollars.toLocaleString()}</span> in today's dollars.
-                {summary.current_gold && summary.current_gold_vs_1980_real_pct < 100 ? (
-                  <span> At ${summary.current_gold.toLocaleString()}, gold is only <span className="font-bold text-red-400">{summary.current_gold_vs_1980_real_pct.toFixed(0)}%</span> of its 1980 peak in real terms!</span>
+                {(liveGoldPrice || summary.current_gold) && summary.current_gold_vs_1980_real_pct < 100 ? (
+                  <span> At ${(liveGoldPrice || summary.current_gold)?.toLocaleString()}, gold is only <span className="font-bold text-red-400">{summary.current_gold_vs_1980_real_pct.toFixed(0)}%</span> of its 1980 peak in real terms!</span>
                 ) : (
                   <span> Gold has finally exceeded its 1980 peak in real terms.</span>
                 )}
@@ -162,7 +177,7 @@ export function InflationCharts() {
               <span>Gold Price</span>
             </div>
             <p className="text-3xl font-mono font-bold text-amber-400">
-              ${summary.current_gold?.toLocaleString() || 'N/A'}
+              ${(liveGoldPrice || summary.current_gold)?.toLocaleString() || 'N/A'}
             </p>
             <p className="text-xs text-slate-500 mt-1">
               Current spot price
