@@ -46,7 +46,7 @@ import { Button } from '@/components/ui/button'
 import {
   getMinerMetrics,
   getSectorStats,
-  getGoldSilverRatio,
+  getMeldArbitrage,
   type MinerMetric,
   type SectorStats
 } from '@/lib/api'
@@ -568,17 +568,19 @@ export function GoldTracker() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [metricsRes, statsRes, ratioRes] = await Promise.all([
+        const [metricsRes, statsRes, arbRes] = await Promise.all([
           getMinerMetrics(100),
           getSectorStats(),
-          getGoldSilverRatio()
+          getMeldArbitrage()
         ])
         setRawData(metricsRes.metrics)
         setStats(statsRes.stats)
-        // Set live gold price from API
-        const liveGoldPrice = Math.round(ratioRes.gold_price)
-        setCurrentGoldPrice(liveGoldPrice)
-        setGoldPrice(liveGoldPrice)
+        // Set live gold price from arbitrage API (same source as arbitrage page)
+        if (arbRes.gold && 'spot_per_oz' in arbRes.gold) {
+          const liveGoldPrice = Math.round(arbRes.gold.spot_per_oz)
+          setCurrentGoldPrice(liveGoldPrice)
+          setGoldPrice(liveGoldPrice)
+        }
         setError(null)
       } catch (err) {
         console.error('Error fetching data:', err)

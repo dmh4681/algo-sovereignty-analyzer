@@ -45,7 +45,7 @@ import { Button } from '@/components/ui/button'
 import {
   getSilverMetrics,
   getSilverSectorStats,
-  getGoldSilverRatio,
+  getMeldArbitrage,
   type MinerMetric,
   type SectorStats
 } from '@/lib/api'
@@ -568,17 +568,19 @@ export function SilverTracker() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        const [metricsRes, statsRes, ratioRes] = await Promise.all([
+        const [metricsRes, statsRes, arbRes] = await Promise.all([
           getSilverMetrics(150),
           getSilverSectorStats(),
-          getGoldSilverRatio()
+          getMeldArbitrage()
         ])
         setRawData(metricsRes.metrics)
         setStats(statsRes.stats)
-        // Set live silver price from API
-        const liveSilverPrice = Math.round(ratioRes.silver_price * 100) / 100
-        setCurrentSilverPrice(liveSilverPrice)
-        setSilverPrice(liveSilverPrice)
+        // Set live silver price from arbitrage API (same source as arbitrage page)
+        if (arbRes.silver && 'spot_per_oz' in arbRes.silver) {
+          const liveSilverPrice = Math.round(arbRes.silver.spot_per_oz * 100) / 100
+          setCurrentSilverPrice(liveSilverPrice)
+          setSilverPrice(liveSilverPrice)
+        }
         setError(null)
       } catch (err) {
         console.error('Error fetching data:', err)
