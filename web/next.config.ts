@@ -11,11 +11,12 @@ const nextConfig: NextConfig = {
     ];
   },
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    // NEXT_PUBLIC_API_URL should include /api/v1 (e.g., https://api.algosovereignty.com/api/v1)
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
     return [
       {
-        source: '/api/:path*',
-        destination: `${apiUrl}/api/:path*`, // Proxy to FastAPI backend (Railway in production)
+        source: '/api/v1/:path*',
+        destination: `${apiUrl}/:path*`, // Proxy to FastAPI backend (Railway in production)
       },
     ];
   },
