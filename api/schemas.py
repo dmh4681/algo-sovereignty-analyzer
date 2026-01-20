@@ -396,3 +396,48 @@ class CorrectionStatsResponse(BaseModel):
                 "data_complete": True
             }
         }
+
+
+# -----------------------------------------------------------------------------
+# DeFi Sovereignty Cost Schemas
+# -----------------------------------------------------------------------------
+
+class LPSovereigntyCostResponse(BaseModel):
+    """Sovereignty cost analysis for a single LP position."""
+    lp_name: str = Field(..., description="Name of the LP token")
+    lp_ticker: str = Field(..., description="Ticker of the LP token")
+    total_usd_value: float = Field(..., description="Total USD value of the LP position")
+    asset1_ticker: str = Field(..., description="First underlying asset")
+    asset1_usd: float = Field(..., description="USD value of first asset")
+    asset1_tier: str = Field(..., description="Sovereignty tier (HARD_MONEY, ALGORAND, STABLECOIN, SHITCOIN)")
+    asset2_ticker: str = Field(..., description="Second underlying asset")
+    asset2_usd: float = Field(..., description="USD value of second asset")
+    asset2_tier: str = Field(..., description="Sovereignty tier of second asset")
+    current_sovereignty_score: float = Field(..., description="Current weighted sovereignty contribution")
+    potential_sovereignty_score: float = Field(..., description="Score if 100% was best asset")
+    sovereignty_cost: float = Field(..., description="Difference (potential - current)")
+    sovereignty_cost_percent: float = Field(..., description="Cost as percentage of potential")
+    estimated_apy: Optional[float] = Field(None, description="Estimated annual yield if provided")
+    break_even_years: Optional[float] = Field(None, description="Years until yield covers sovereignty cost")
+    recommendation: str = Field(..., description="Human-readable recommendation")
+
+
+class DeFiSovereigntyCostRequest(BaseModel):
+    """Request for DeFi sovereignty cost analysis."""
+    address: str = Field(..., description="Algorand wallet address")
+    apy_estimates: Optional[Dict[str, float]] = Field(
+        None,
+        description="Optional APY estimates by LP ticker (e.g., {'TMPOOL2-ALGO-USDC': 10.5})"
+    )
+
+
+class DeFiSovereigntyCostResponse(BaseModel):
+    """Portfolio-level DeFi sovereignty cost summary."""
+    total_lp_value_usd: float = Field(..., description="Total value in LP positions")
+    total_current_score: float = Field(..., description="Current weighted sovereignty score")
+    total_potential_score: float = Field(..., description="Score if optimally allocated")
+    total_sovereignty_cost: float = Field(..., description="Sum of all costs")
+    total_sovereignty_cost_percent: float = Field(..., description="Overall cost percentage")
+    total_estimated_apy_earnings: float = Field(..., description="Estimated annual yield in USD")
+    overall_recommendation: str = Field(..., description="Portfolio-level recommendation")
+    lp_details: List[LPSovereigntyCostResponse] = Field(..., description="Per-LP breakdown")

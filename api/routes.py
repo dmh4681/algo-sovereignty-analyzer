@@ -242,6 +242,105 @@ async def get_classifications() -> Dict[str, Dict[str, str]]:
     return analyzer.classifier.classifications
 
 
+@router.post("/defi/sovereignty-cost")
+async def analyze_defi_sovereignty_cost(
+    request: Dict[str, Any],
+    use_local_node: bool = Query(False)
+):
+    """
+    Analyze the sovereignty cost of DeFi yield farming positions.
+
+    Calculates how much sovereignty score is "sacrificed" for yield by holding
+    LP tokens instead of 100% hard money assets.
+
+    Request body:
+    - address: Algorand wallet address
+    - apy_estimates: Optional dict mapping LP ticker to APY (e.g., {"TMPOOL2-ALGO-USDC": 10.5})
+
+    Returns:
+    - total_lp_value_usd: Total value in LP positions
+    - total_sovereignty_cost: Score difference vs optimal allocation
+    - total_sovereignty_cost_percent: Cost as percentage
+    - overall_recommendation: What to do about it
+    - lp_details: Per-LP breakdown with recommendations
+    """
+    from core.defi_sovereignty_cost import analyze_wallet_lp_costs
+
+    address = request.get('address')
+    apy_estimates = request.get('apy_estimates')
+
+    # Validate address
+    validate_algorand_address(address)
+
+    # First, analyze the wallet to get categories
+    cached = get_cached_analysis(address) if not use_local_node else None
+
+    if cached:
+        categories = cached['categories']
+    else:
+        analyzer = AlgorandSovereigntyAnalyzer(use_local_node=use_local_node)
+        categories = analyzer.analyze_wallet(address)
+
+        if not categories:
+            raise NotFoundException(
+                detail="Wallet not found or contains no assets",
+                error_code="WALLET_NOT_FOUND",
+                details={"address": address}
+            )
+
+        if not use_local_node:
+            cache_analysis(address, {
+                'categories': categories,
+                'is_participating': analyzer.last_is_participating,
+                'hard_money_algo': analyzer.last_hard_money_algo,
+                'participation_info': analyzer.last_participation_info
+            })
+
+    # Analyze LP sovereignty costs
+    result = analyze_wallet_lp_costs(categories, apy_estimates)
+
+    if not result:
+        return {
+            "message": "No LP positions found in this wallet",
+            "total_lp_value_usd": 0,
+            "total_sovereignty_cost": 0,
+            "total_sovereignty_cost_percent": 0,
+            "lp_details": []
+        }
+
+    # Convert dataclasses to dict for JSON response
+    return {
+        "total_lp_value_usd": result.total_lp_value_usd,
+        "total_current_score": result.total_current_score,
+        "total_potential_score": result.total_potential_score,
+        "total_sovereignty_cost": result.total_sovereignty_cost,
+        "total_sovereignty_cost_percent": result.total_sovereignty_cost_percent,
+        "total_estimated_apy_earnings": result.total_estimated_apy_earnings,
+        "overall_recommendation": result.overall_recommendation,
+        "lp_details": [
+            {
+                "lp_name": lp.lp_name,
+                "lp_ticker": lp.lp_ticker,
+                "total_usd_value": lp.total_usd_value,
+                "asset1_ticker": lp.asset1_ticker,
+                "asset1_usd": lp.asset1_usd,
+                "asset1_tier": lp.asset1_tier.name,
+                "asset2_ticker": lp.asset2_ticker,
+                "asset2_usd": lp.asset2_usd,
+                "asset2_tier": lp.asset2_tier.name,
+                "current_sovereignty_score": lp.current_sovereignty_score,
+                "potential_sovereignty_score": lp.potential_sovereignty_score,
+                "sovereignty_cost": lp.sovereignty_cost,
+                "sovereignty_cost_percent": lp.sovereignty_cost_percent,
+                "estimated_apy": lp.estimated_apy,
+                "break_even_years": lp.break_even_years,
+                "recommendation": lp.recommendation
+            }
+            for lp in result.lp_details
+        ]
+    }
+
+
 def _create_and_save_snapshot(
     address: str,
     categories: Dict[str, List[Dict[str, Any]]],
@@ -2657,3 +2756,181 @@ async def export_corrections_csv():
     except Exception as e:
         print(f"Error exporting corrections: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Wallet Monitoring Endpoints
+# =============================================================================
+
+@router.get("/monitor/wallets")
+async def list_monitored_wallets():
+    """
+    List all monitored wallets with their configurations.
+    """
+    from core.wallet_monitor import get_wallet_monitor
+
+    monitor = get_wallet_monitor()
+    wallets = monitor.list_wallets()
+
+    return {
+        "wallets": [
+            {
+                "address": w.address,
+                "label": w.label,
+                "min_sovereignty_score": w.min_sovereignty_score,
+                "monthly_fixed_expenses": w.monthly_fixed_expenses,
+                "alert_on_drops": w.alert_on_drops,
+                "alert_on_milestones": w.alert_on_milestones,
+                "max_concentration": w.max_concentration,
+                "last_checked": w.last_checked.isoformat() if w.last_checked else None,
+                "last_score": w.last_score,
+                "created_at": w.created_at.isoformat()
+            }
+            for w in wallets
+        ],
+        "count": len(wallets)
+    }
+
+
+@router.post("/monitor/wallets")
+async def add_monitored_wallet(request: Dict[str, Any]):
+    """
+    Add a wallet to be monitored.
+
+    Request body:
+    - address: Algorand wallet address (required)
+    - label: User-friendly name
+    - min_sovereignty_score: Alert threshold (default 1.0)
+    - monthly_fixed_expenses: For sovereignty calculation
+    - alert_on_drops: Alert on score decreases (default true)
+    - alert_on_milestones: Alert on milestones (default true)
+    - max_concentration: Max single-asset concentration (default 0.5)
+    """
+    from core.wallet_monitor import get_wallet_monitor
+
+    address = request.get('address')
+    if not address:
+        raise HTTPException(status_code=400, detail="Address is required")
+
+    validate_algorand_address(address)
+
+    monitor = get_wallet_monitor()
+    config = monitor.add_wallet(
+        address=address,
+        label=request.get('label', ''),
+        min_sovereignty_score=request.get('min_sovereignty_score', 1.0),
+        monthly_fixed_expenses=request.get('monthly_fixed_expenses', 0.0),
+        alert_on_drops=request.get('alert_on_drops', True),
+        alert_on_milestones=request.get('alert_on_milestones', True),
+        max_concentration=request.get('max_concentration', 0.5)
+    )
+
+    return {
+        "success": True,
+        "message": f"Wallet {config.label} added to monitoring",
+        "wallet": {
+            "address": config.address,
+            "label": config.label,
+            "min_sovereignty_score": config.min_sovereignty_score
+        }
+    }
+
+
+@router.delete("/monitor/wallets/{address}")
+async def remove_monitored_wallet(address: str):
+    """
+    Remove a wallet from monitoring.
+    """
+    from core.wallet_monitor import get_wallet_monitor
+
+    monitor = get_wallet_monitor()
+    removed = monitor.remove_wallet(address)
+
+    if not removed:
+        raise NotFoundException(
+            detail="Wallet not found in monitoring list",
+            error_code="WALLET_NOT_MONITORED",
+            details={"address": address}
+        )
+
+    return {
+        "success": True,
+        "message": f"Wallet {address[:8]}... removed from monitoring"
+    }
+
+
+@router.post("/monitor/wallets/{address}/check")
+async def check_monitored_wallet(address: str, use_local_node: bool = Query(False)):
+    """
+    Check a monitored wallet and generate alerts.
+
+    Returns list of alerts for this wallet based on configured thresholds.
+    """
+    from core.wallet_monitor import get_wallet_monitor
+
+    validate_algorand_address(address)
+
+    monitor = get_wallet_monitor()
+    if not monitor.get_wallet(address):
+        raise NotFoundException(
+            detail="Wallet not found in monitoring list",
+            error_code="WALLET_NOT_MONITORED",
+            details={"address": address}
+        )
+
+    # Create analyzer functions
+    def analyzer_fn(addr):
+        analyzer = AlgorandSovereigntyAnalyzer(use_local_node=use_local_node)
+        return analyzer.analyze_wallet(addr)
+
+    def sovereignty_fn(categories, expenses):
+        analyzer = AlgorandSovereigntyAnalyzer(use_local_node=use_local_node)
+        return analyzer.calculate_sovereignty_metrics(categories, expenses)
+
+    alerts = monitor.check_wallet(address, analyzer_fn, sovereignty_fn)
+
+    return {
+        "address": address,
+        "alerts": [alert.to_dict() for alert in alerts],
+        "alert_count": len(alerts)
+    }
+
+
+@router.get("/monitor/arbitrage")
+async def get_arbitrage_opportunities():
+    """
+    Get current gold/silver/BTC arbitrage opportunities.
+
+    Compares Algorand DEX prices (MELD Gold$/Silver$, goBTC) to spot prices
+    and identifies when premiums or discounts create trading opportunities.
+    """
+    from core.wallet_monitor import get_wallet_monitor
+
+    monitor = get_wallet_monitor()
+    opportunities = monitor.check_arbitrage_opportunities()
+
+    return {
+        "opportunities": [opp.to_dict() for opp in opportunities],
+        "count": len(opportunities),
+        "thresholds": {
+            "gold_premium": monitor.GOLD_PREMIUM_THRESHOLD,
+            "gold_discount": monitor.GOLD_DISCOUNT_THRESHOLD,
+            "silver_premium": monitor.SILVER_PREMIUM_THRESHOLD,
+            "silver_discount": monitor.SILVER_DISCOUNT_THRESHOLD,
+            "btc_premium": monitor.BTC_PREMIUM_THRESHOLD,
+            "btc_discount": monitor.BTC_DISCOUNT_THRESHOLD
+        }
+    }
+
+
+@router.get("/monitor/summary")
+async def get_monitoring_summary():
+    """
+    Get a summary of the monitoring system status.
+
+    Returns wallet count, wallets needing check, and active arbitrage opportunities.
+    """
+    from core.wallet_monitor import get_wallet_monitor
+
+    monitor = get_wallet_monitor()
+    return monitor.get_monitoring_summary()
