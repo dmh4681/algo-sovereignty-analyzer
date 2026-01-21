@@ -14,6 +14,9 @@ import {
   WalletParticipationResponse,
   MeldArbitrageResponse,
   BTCHistoryResponse,
+  PaginatedAssetsResponse,
+  QuickSovereigntyResponse,
+  CategoryType,
 } from './types'
 
 // Use direct backend URL to avoid Next.js proxy timeout issues
@@ -1189,4 +1192,67 @@ export async function getSovereigntyCoaching(
     }
     throw error
   }
+}
+
+// --- Progressive Loading / Pagination API ---
+
+/**
+ * Get quick sovereignty metrics without full asset details.
+ * Returns sovereignty score and category totals immediately for fast initial render.
+ */
+export async function getQuickSovereignty(
+  address: string,
+  monthlyFixedExpenses?: number
+): Promise<QuickSovereigntyResponse> {
+  const params = new URLSearchParams()
+  if (monthlyFixedExpenses) {
+    params.append('monthly_fixed_expenses', monthlyFixedExpenses.toString())
+  }
+
+  const url = params.toString()
+    ? `${API_BASE}/analyze/quick/${address}?${params}`
+    : `${API_BASE}/analyze/quick/${address}`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new ApiError(
+      errorData.detail || 'Failed to fetch quick sovereignty data',
+      response.status,
+      errorData.code
+    )
+  }
+
+  return response.json()
+}
+
+/**
+ * Get paginated assets for a specific category.
+ * Use this for lazy loading large asset lists.
+ */
+export async function getPaginatedAssets(
+  address: string,
+  category: CategoryType,
+  page: number = 1,
+  pageSize: number = 20
+): Promise<PaginatedAssetsResponse> {
+  const params = new URLSearchParams()
+  params.append('page', page.toString())
+  params.append('page_size', pageSize.toString())
+
+  const response = await fetch(
+    `${API_BASE}/assets/${address}/${category}?${params}`
+  )
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    throw new ApiError(
+      errorData.detail || `Failed to fetch ${category} assets`,
+      response.status,
+      errorData.code
+    )
+  }
+
+  return response.json()
 }

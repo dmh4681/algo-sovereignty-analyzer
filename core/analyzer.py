@@ -30,9 +30,9 @@ Architecture Notes:
 import requests
 import json
 from datetime import datetime
-from typing import Dict, List, Optional, Any, TYPE_CHECKING
+from typing import Dict, List, Optional, Any, TYPE_CHECKING, Tuple
 
-from .models import AssetCategory, SovereigntyData
+from .models import AssetCategory, SovereigntyData, PaginatedAssets, AssetPage
 from .classifier import AssetClassifier
 from .pricing import get_algo_price, get_asset_price
 from .lp_parser import LPParser
@@ -709,3 +709,171 @@ class AlgorandSovereigntyAnalyzer:
             history=history,
             user_prefs=user_prefs
         )
+
+    # -------------------------------------------------------------------------
+    # Pagination Support for Large Wallets
+    # -------------------------------------------------------------------------
+
+    # Default page size for asset pagination
+    DEFAULT_PAGE_SIZE = 20
+    # Threshold above which we paginate a category
+    PAGINATION_THRESHOLD = 50
+
+    def get_paginated_assets(
+        self,
+        category: str,
+        page: int = 1,
+        page_size: int = DEFAULT_PAGE_SIZE
+    ) -> Optional[PaginatedAssets]:
+        """
+        Get a paginated subset of assets for a specific category.
+
+        Uses cached data from the most recent analyze_wallet() call.
+
+        Args:
+            category: Asset category ('hard_money', 'algo', 'dollars', 'shitcoin')
+            page: Page number (1-indexed)
+            page_size: Number of items per page
+
+        Returns:
+            PaginatedAssets object or None if no cached data
+        """
+        if not self.last_categories or category not in self.last_categories:
+            return None
+
+        assets = self.last_categories[category]
+        total = len(assets)
+
+        # Calculate pagination
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        page_items = assets[start_idx:end_idx]
+        has_more = end_idx < total
+
+        # Calculate category total USD
+        category_total_usd = sum(a.get('usd_value', 0) for a in assets)
+
+        return PaginatedAssets(
+            category=category,
+            page=AssetPage(
+                items=page_items,
+                total=total,
+                page=page,
+                page_size=page_size,
+                has_more=has_more
+            ),
+            category_total_usd=category_total_usd
+        )
+
+    def get_quick_sovereignty_summary(
+        self,
+        categories: Dict[str, List[Dict[str, Any]]],
+        monthly_fixed_expenses: Optional[float] = None
+    ) -> Dict[str, Any]:
+        """
+        Get a quick sovereignty summary without full asset details.
+
+        This is designed for progressive loading - returns sovereignty metrics
+        and category totals immediately, without the full asset list.
+
+        Args:
+            categories: Asset categories from analyze_wallet()
+            monthly_fixed_expenses: Optional monthly expenses for ratio calculation
+
+        Returns:
+            Dict with sovereignty metrics and category summaries
+        """
+        # Calculate category totals
+        hard_money_total = sum(a.get('usd_value', 0) for a in categories.get('hard_money', []))
+        algo_total = sum(a.get('usd_value', 0) for a in categories.get('algo', []))
+        dollars_total = sum(a.get('usd_value', 0) for a in categories.get('dollars', []))
+        shitcoin_total = sum(a.get('usd_value', 0) for a in categories.get('shitcoin', []))
+        portfolio_total = hard_money_total + algo_total + dollars_total + shitcoin_total
+
+        # Get ALGO price
+        algo_price = get_algo_price() or 0.174
+
+        # Asset counts per category
+        asset_counts = {
+            'hard_money': len(categories.get('hard_money', [])),
+            'algo': len(categories.get('algo', [])),
+            'dollars': len(categories.get('dollars', [])),
+            'shitcoin': len(categories.get('shitcoin', []))
+        }
+
+        result = {
+            'portfolio_usd': portfolio_total,
+            'algo_price': algo_price,
+            'hard_money_total_usd': hard_money_total,
+            'algo_total_usd': algo_total,
+            'dollars_total_usd': dollars_total,
+            'shitcoin_total_usd': shitcoin_total,
+            'asset_counts': asset_counts,
+            'sovereignty_ratio': None,
+            'sovereignty_status': None,
+            'years_of_runway': None
+        }
+
+        # Calculate sovereignty ratio if expenses provided
+        if monthly_fixed_expenses and monthly_fixed_expenses > 0:
+            annual_fixed = monthly_fixed_expenses * 12
+            sovereignty_ratio = portfolio_total / annual_fixed if annual_fixed > 0 else 0
+
+            # Determine status
+            if sovereignty_ratio >= 20:
+                status = "Generationally Sovereign"
+            elif sovereignty_ratio >= 6:
+                status = "Antifragile"
+            elif sovereignty_ratio >= 3:
+                status = "Robust"
+            elif sovereignty_ratio >= 1:
+                status = "Fragile"
+            else:
+                status = "Vulnerable"
+
+            result['sovereignty_ratio'] = round(sovereignty_ratio, 2)
+            result['sovereignty_status'] = status
+            result['years_of_runway'] = round(sovereignty_ratio, 1)
+
+        return result
+
+    def needs_pagination(self, categories: Dict[str, List[Dict[str, Any]]]) -> Dict[str, bool]:
+        """
+        Determine which categories need pagination based on asset count.
+
+        Args:
+            categories: Asset categories from analyze_wallet()
+
+        Returns:
+            Dict mapping category names to whether they need pagination
+        """
+        return {
+            category: len(assets) > self.PAGINATION_THRESHOLD
+            for category, assets in categories.items()
+        }
+
+    def get_initial_assets_for_display(
+        self,
+        categories: Dict[str, List[Dict[str, Any]]],
+        initial_limit: int = 10
+    ) -> Tuple[Dict[str, List[Dict[str, Any]]], Dict[str, int]]:
+        """
+        Get initial assets for each category (for first render) plus total counts.
+
+        Returns limited assets for immediate display while indicating more are available.
+
+        Args:
+            categories: Full asset categories from analyze_wallet()
+            initial_limit: Maximum assets to return per category initially
+
+        Returns:
+            Tuple of (limited_categories, total_counts)
+        """
+        limited = {}
+        totals = {}
+
+        for category, assets in categories.items():
+            totals[category] = len(assets)
+            limited[category] = assets[:initial_limit]
+
+        return limited, totals

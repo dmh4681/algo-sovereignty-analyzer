@@ -510,3 +510,43 @@ export interface BTCHistoryResponse {
   hours_requested: number
   timestamp: string
 }
+
+// -----------------------------------------------------------------------------
+// Pagination Types for Large Wallets
+// -----------------------------------------------------------------------------
+
+export interface AssetPageResponse {
+  items: Asset[]
+  total: number
+  page: number
+  page_size: number
+  has_more: boolean
+}
+
+export interface PaginatedAssetsResponse {
+  address: string
+  category: CategoryType
+  page: AssetPageResponse
+  category_total_usd: number
+}
+
+export interface QuickSovereigntyResponse {
+  address: string
+  is_participating: boolean
+  sovereignty_ratio: number | null
+  sovereignty_status: string | null
+  portfolio_usd: number
+  algo_price: number
+  years_of_runway: number | null
+  category_totals: Record<CategoryType, number>
+  asset_counts: Record<CategoryType, number>
+  needs_pagination: Record<CategoryType, boolean>
+  participation_info?: {
+    staked_amount: number
+    vote_first_valid: number | null
+    vote_last_valid: number | null
+    key_expiration_rounds: number | null
+    is_incentive_eligible: boolean
+    estimated_apy: number
+  }
+}
