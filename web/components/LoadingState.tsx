@@ -142,3 +142,86 @@ export function DashboardLoadingSkeleton() {
     </div>
   )
 }
+
+// Section loading indicator - subtle inline loading for individual sections
+interface SectionLoadingProps {
+  title?: string
+  description?: string
+}
+
+export function SectionLoading({ title, description }: SectionLoadingProps) {
+  return (
+    <div className="flex items-center gap-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+      <Loader2 className="h-5 w-5 text-orange-500 animate-spin flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        {title && <div className="text-sm font-medium text-slate-200">{title}</div>}
+        {description && <div className="text-xs text-slate-400">{description}</div>}
+      </div>
+    </div>
+  )
+}
+
+// Progressive loading indicator showing what's loaded and what's pending
+interface ProgressiveLoadingIndicatorProps {
+  stages: {
+    id: string
+    label: string
+    status: 'pending' | 'loading' | 'complete' | 'error'
+  }[]
+}
+
+export function ProgressiveLoadingIndicator({ stages }: ProgressiveLoadingIndicatorProps) {
+  return (
+    <div className="space-y-2 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
+      <div className="text-sm font-medium text-slate-300 mb-3">Loading Analysis</div>
+      {stages.map((stage) => (
+        <div key={stage.id} className="flex items-center gap-3">
+          {stage.status === 'loading' && (
+            <Loader2 className="h-4 w-4 text-orange-500 animate-spin" />
+          )}
+          {stage.status === 'complete' && (
+            <div className="h-4 w-4 rounded-full bg-green-500/20 flex items-center justify-center">
+              <div className="h-2 w-2 rounded-full bg-green-500" />
+            </div>
+          )}
+          {stage.status === 'pending' && (
+            <div className="h-4 w-4 rounded-full bg-slate-600/50" />
+          )}
+          {stage.status === 'error' && (
+            <div className="h-4 w-4 rounded-full bg-red-500/20 flex items-center justify-center">
+              <div className="h-2 w-2 rounded-full bg-red-500" />
+            </div>
+          )}
+          <span className={`text-sm ${
+            stage.status === 'complete' ? 'text-slate-400' :
+            stage.status === 'loading' ? 'text-orange-400' :
+            stage.status === 'error' ? 'text-red-400' :
+            'text-slate-500'
+          }`}>
+            {stage.label}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// Category summary loading skeleton for quick view
+export function CategorySummarySkeleton() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <div key={i} className="rounded-lg bg-slate-800 p-4 animate-pulse">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-6 w-6 rounded" />
+              <Skeleton className="h-5 w-20" />
+            </div>
+            <Skeleton className="h-6 w-16" />
+          </div>
+          <Skeleton className="h-4 w-12 mt-2 ml-auto" />
+        </div>
+      ))}
+    </div>
+  )
+}

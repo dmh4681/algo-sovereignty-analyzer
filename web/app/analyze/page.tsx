@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useCallback, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
 import { ArrowLeft, CheckCircle2, Circle, Clock, RefreshCw, AlertTriangle } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -9,14 +9,17 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { SearchBar } from '@/components/SearchBar'
 import { NodeStatusCard } from '@/components/NodeStatusCard'
 
-// ... (existing imports)
-
-
-
 import { SovereigntyScore } from '@/components/SovereigntyScore'
 import { AssetBreakdown, AssetBreakdownSummary } from '@/components/AssetBreakdown'
+import { AssetList, AssetListSummary } from '@/components/AssetList'
 import { RunwayCalculator, NextMilestone } from '@/components/RunwayCalculator'
-import { LoadingSpinner, LoadingState } from '@/components/LoadingState'
+import {
+  LoadingSpinner,
+  LoadingState,
+  SovereigntyScoreSkeleton,
+  CategorySummarySkeleton,
+  SectionLoading
+} from '@/components/LoadingState'
 import { ErrorAlert } from '@/components/ErrorAlert'
 import { HistoryChart } from '@/components/HistoryChart'
 import { BadgeSection } from '@/components/BadgeSection'
@@ -24,20 +27,49 @@ import { CoachingPanel } from '@/components/CoachingPanel'
 import GoldSilverRatio from '@/components/GoldSilverRatio'
 import { MeldArbitrageSpotter } from '@/components/MeldArbitrageSpotter'
 import Link from 'next/link'
-import { analyzeWallet, ApiError } from '@/lib/api'
-import { AnalysisResponse } from '@/lib/types'
+import { analyzeWallet, getQuickSovereignty, ApiError } from '@/lib/api'
+import { AnalysisResponse, QuickSovereigntyResponse, CategoryType, CATEGORY_CONFIGS } from '@/lib/types'
 import { truncateAddress } from '@/lib/utils'
+
+// Cache for storing analysis results per address
+const analysisCache = new Map<string, { data: AnalysisResponse; timestamp: number }>()
+const CACHE_TTL_MS = 15 * 60 * 1000 // 15 minutes
+
+function getCachedAnalysis(address: string): AnalysisResponse | null {
+  const cached = analysisCache.get(address)
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return cached.data
+  }
+  return null
+}
+
+function setCachedAnalysis(address: string, data: AnalysisResponse) {
+  analysisCache.set(address, { data, timestamp: Date.now() })
+}
 
 function AnalyzeContent() {
   const searchParams = useSearchParams()
   const router = useRouter()
+
+  // Full analysis state (includes detailed asset breakdown)
   const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null)
-  const [loading, setLoading] = useState(false)
+  // Quick sovereignty data (loaded first for fast display)
+  const [quickData, setQuickData] = useState<QuickSovereigntyResponse | null>(null)
+
+  // Loading states for progressive loading
+  const [loadingQuick, setLoadingQuick] = useState(false)
+  const [loadingDetails, setLoadingDetails] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [expenses, setExpenses] = useState<number | null>(null)
 
+  // Track if we should use progressive loading (for large wallets)
+  const [useProgressiveLoading, setUseProgressiveLoading] = useState(false)
+
   const address = searchParams.get('address') || ''
   const expensesParam = searchParams.get('expenses')
+
+  // Ref to prevent duplicate fetches
+  const fetchingRef = useRef(false)
 
   useEffect(() => {
     if (expensesParam) {
@@ -45,41 +77,89 @@ function AnalyzeContent() {
     }
   }, [expensesParam])
 
+  // Progressive loading: first fetch quick sovereignty data, then full details
   useEffect(() => {
     async function doFetch() {
-      if (address && address.length === 58) {
-        setLoading(true)
-        setError(null)
-        try {
-          const data = await analyzeWallet({
-            address,
-            monthly_fixed_expenses: expenses || undefined,
-          })
-          setAnalysis(data)
-        } catch (err) {
-          if (err instanceof ApiError) {
-            setError(err.message)
-          } else {
-            setError('Failed to analyze wallet. Please try again.')
-          }
-        } finally {
-          setLoading(false)
+      if (!address || address.length !== 58 || fetchingRef.current) return
+
+      // Check cache first
+      const cached = getCachedAnalysis(address)
+      if (cached) {
+        setAnalysis(cached)
+        setQuickData(null)
+        setUseProgressiveLoading(false)
+        return
+      }
+
+      fetchingRef.current = true
+      setError(null)
+
+      try {
+        // Step 1: Fetch quick sovereignty data first (fast)
+        setLoadingQuick(true)
+        const quick = await getQuickSovereignty(address, expenses || undefined)
+        setQuickData(quick)
+        setLoadingQuick(false)
+
+        // Determine if we need progressive loading based on asset counts
+        const totalAssets = Object.values(quick.asset_counts).reduce((sum, count) => sum + count, 0)
+        const hasLargeCategories = Object.values(quick.needs_pagination).some(v => v)
+
+        if (totalAssets > 50 || hasLargeCategories) {
+          setUseProgressiveLoading(true)
         }
+
+        // Step 2: Fetch full analysis (may be slower for large wallets)
+        setLoadingDetails(true)
+        const data = await analyzeWallet({
+          address,
+          monthly_fixed_expenses: expenses || undefined,
+        })
+        setAnalysis(data)
+        setCachedAnalysis(address, data)
+        setQuickData(null) // Clear quick data once we have full data
+        setUseProgressiveLoading(false)
+
+      } catch (err) {
+        if (err instanceof ApiError) {
+          setError(err.message)
+        } else {
+          setError('Failed to analyze wallet. Please try again.')
+        }
+      } finally {
+        setLoadingQuick(false)
+        setLoadingDetails(false)
+        fetchingRef.current = false
       }
     }
     doFetch()
   }, [address, expenses])
 
-  const fetchAnalysis = async () => {
-    setLoading(true)
+  const fetchAnalysis = async (forceRefresh = false) => {
+    if (forceRefresh) {
+      // Clear cache for this address
+      analysisCache.delete(address)
+    }
+
+    setLoadingQuick(true)
+    setLoadingDetails(true)
     setError(null)
+    setQuickData(null)
 
     try {
+      // Fetch quick data first for immediate display
+      const quick = await getQuickSovereignty(address, expenses || undefined)
+      setQuickData(quick)
+      setLoadingQuick(false)
+
+      // Then fetch full details
       const data = await analyzeWallet({
         address,
         monthly_fixed_expenses: expenses || undefined,
       })
       setAnalysis(data)
+      setCachedAnalysis(address, data)
+      setQuickData(null)
     } catch (err) {
       if (err instanceof ApiError) {
         setError(err.message)
@@ -87,9 +167,15 @@ function AnalyzeContent() {
         setError('Failed to analyze wallet. Please try again.')
       }
     } finally {
-      setLoading(false)
+      setLoadingQuick(false)
+      setLoadingDetails(false)
     }
   }
+
+  // Computed loading state
+  const loading = loadingQuick || loadingDetails
+  const hasQuickData = quickData !== null
+  const hasFullData = analysis !== null
 
   const handleExpenseUpdate = async (newExpenses: number) => {
     setExpenses(newExpenses)
@@ -98,18 +184,20 @@ function AnalyzeContent() {
     params.set('expenses', newExpenses.toString())
     router.replace(`/analyze?${params.toString()}`, { scroll: false })
 
-    // Re-fetch with new expenses
-    setLoading(true)
+    // Clear cache and re-fetch with new expenses
+    analysisCache.delete(address)
+    setLoadingDetails(true)
     try {
       const data = await analyzeWallet({
         address,
         monthly_fixed_expenses: newExpenses,
       })
       setAnalysis(data)
+      setCachedAnalysis(address, data)
     } catch (err) {
       console.error('Failed to update analysis:', err)
     } finally {
-      setLoading(false)
+      setLoadingDetails(false)
     }
   }
 
@@ -144,10 +232,10 @@ function AnalyzeContent() {
             <h1 className="text-xl font-semibold">
               Analyzing: <span className="font-mono text-orange-500">{truncateAddress(address)}</span>
             </h1>
-            {analysis && (
+            {(hasFullData || hasQuickData) && (
               <div className="flex items-center gap-4 text-sm text-slate-400 mt-1">
                 <span className="flex items-center gap-1">
-                  {analysis.is_participating ? (
+                  {(analysis?.is_participating || quickData?.is_participating) ? (
                     <>
                       <CheckCircle2 className="h-4 w-4 text-green-500" />
                       <span className="text-green-500">PARTICIPATING</span>
@@ -170,7 +258,7 @@ function AnalyzeContent() {
         <Button
           variant="outline"
           size="sm"
-          onClick={fetchAnalysis}
+          onClick={() => fetchAnalysis(true)}
           disabled={loading}
         >
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
@@ -184,16 +272,97 @@ function AnalyzeContent() {
           message={error === 'Wallet not found or empty'
             ? 'This wallet was not found or has no assets. Please check the address and try again.'
             : error}
-          onRetry={fetchAnalysis}
+          onRetry={() => fetchAnalysis(true)}
           onDismiss={() => setError(null)}
         />
       )}
 
-      {/* Loading State */}
-      {loading && !analysis && <LoadingSpinner text="Fetching wallet data from Algorand..." />}
+      {/* Loading State - Show different states based on progressive loading */}
+      {loadingQuick && !hasQuickData && !hasFullData && (
+        <LoadingSpinner text="Fetching wallet data from Algorand..." />
+      )}
 
-      {/* Analysis Results */}
-      {analysis && !loading && (
+      {/* Quick Data Display - Sovereignty Score First (Progressive Loading Stage 1) */}
+      {hasQuickData && !hasFullData && (
+        <div className="space-y-8 animate-in fade-in duration-300">
+          {/* Quick Sovereignty Score */}
+          {quickData.sovereignty_ratio !== null && quickData.sovereignty_status && (
+            <SovereigntyScore
+              data={{
+                monthly_fixed_expenses: expenses || 0,
+                annual_fixed_expenses: (expenses || 0) * 12,
+                algo_price: quickData.algo_price,
+                portfolio_usd: quickData.portfolio_usd,
+                sovereignty_ratio: quickData.sovereignty_ratio,
+                sovereignty_status: quickData.sovereignty_status,
+                years_of_runway: quickData.years_of_runway || quickData.sovereignty_ratio
+              }}
+            />
+          )}
+
+          {/* Quick Portfolio Overview (no expenses) */}
+          {quickData.sovereignty_ratio === null && (
+            <Card className="bg-gradient-to-br from-slate-800 to-slate-900">
+              <CardContent className="py-6">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-xl font-semibold mb-2">Portfolio Overview</h2>
+                    <div className="flex flex-wrap gap-4">
+                      {CATEGORY_CONFIGS.map((config) => (
+                        <div key={config.key} className="flex items-center gap-2">
+                          <span>{config.emoji}</span>
+                          <span className={`font-medium ${config.colorClass}`}>
+                            {quickData.asset_counts[config.key as CategoryType]}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-slate-400">Total Portfolio</div>
+                    <div className="text-3xl font-bold text-orange-500 tabular-nums">
+                      ${quickData.portfolio_usd.toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Category Summaries (Quick View) */}
+          <section>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">Asset Breakdown</h2>
+              <span className="text-sm text-slate-400 flex items-center gap-2">
+                <span className="inline-block h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
+                Loading details...
+              </span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {CATEGORY_CONFIGS.map((config) => (
+                <AssetListSummary
+                  key={config.key}
+                  category={config.key}
+                  count={quickData.asset_counts[config.key as CategoryType]}
+                  totalUsd={quickData.category_totals[config.key as CategoryType]}
+                  isLoading={loadingDetails}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* Node Status (quick data includes participation info) */}
+          <section>
+            <NodeStatusCard
+              isParticipating={quickData.is_participating}
+              participationInfo={quickData.participation_info}
+            />
+          </section>
+        </div>
+      )}
+
+      {/* Full Analysis Results */}
+      {hasFullData && !loadingQuick && (
         <div className="space-y-8">
           {/* Sovereignty Score (if expenses provided) */}
           {analysis.sovereignty_data && (
@@ -348,9 +517,9 @@ function AnalyzeContent() {
         </div>
       )}
 
-      {/* Empty Loading State */}
-      {loading && analysis && (
-        <div className="absolute inset-0 bg-slate-950/50 flex items-center justify-center">
+      {/* Overlay Loading State when refreshing */}
+      {loadingDetails && hasFullData && (
+        <div className="fixed inset-0 bg-slate-950/50 flex items-center justify-center z-50">
           <LoadingSpinner text="Updating analysis..." />
         </div>
       )}

@@ -242,6 +242,227 @@ async def get_classifications() -> Dict[str, Dict[str, str]]:
     return analyzer.classifier.classifications
 
 
+# -----------------------------------------------------------------------------
+# Pagination Endpoints for Large Wallets
+# -----------------------------------------------------------------------------
+
+# Cache for storing full analysis results keyed by address for pagination
+_pagination_cache: Dict[str, Tuple[dict, datetime]] = {}
+PAGINATION_CACHE_TTL_MINUTES = 15
+
+
+def get_pagination_cached_analysis(address: str) -> Optional[dict]:
+    """Get cached analysis for pagination requests."""
+    if address in _pagination_cache:
+        result, timestamp = _pagination_cache[address]
+        if datetime.now() - timestamp < timedelta(minutes=PAGINATION_CACHE_TTL_MINUTES):
+            return result
+    # Fall back to main cache
+    return get_cached_analysis(address)
+
+
+def cache_for_pagination(address: str, result: dict):
+    """Store analysis result in pagination cache."""
+    _pagination_cache[address] = (result, datetime.now())
+
+
+@router.get("/assets/{address}/{category}")
+async def get_paginated_assets(
+    address: str = Path(..., description="Algorand wallet address"),
+    category: str = Path(..., description="Asset category (hard_money, algo, dollars, shitcoin)"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page")
+):
+    """
+    Get paginated assets for a specific category.
+
+    This endpoint is designed for lazy loading large asset lists.
+    The wallet must have been analyzed first (via /analyze endpoint).
+    """
+    from .schemas import PaginatedAssetsResponse, AssetPageResponse
+
+    # Validate address
+    validate_algorand_address(address)
+
+    # Validate category
+    valid_categories = ['hard_money', 'algo', 'dollars', 'shitcoin']
+    if category not in valid_categories:
+        raise ValidationException(
+            detail=f"Invalid category. Must be one of: {', '.join(valid_categories)}",
+            error_code="INVALID_CATEGORY",
+            details={"category": category, "valid_categories": valid_categories}
+        )
+
+    # Try to get cached analysis
+    cached = get_pagination_cached_analysis(address)
+
+    if not cached:
+        # Need to analyze the wallet first
+        analyzer = AlgorandSovereigntyAnalyzer(use_local_node=False)
+        categories = analyzer.analyze_wallet(address)
+
+        if not categories:
+            raise NotFoundException(
+                detail="Wallet not found or contains no assets",
+                error_code="WALLET_NOT_FOUND",
+                details={"address": address}
+            )
+
+        # Cache for subsequent pagination requests
+        cached = {
+            'categories': categories,
+            'is_participating': analyzer.last_is_participating,
+            'hard_money_algo': analyzer.last_hard_money_algo,
+            'participation_info': analyzer.last_participation_info
+        }
+        cache_for_pagination(address, cached)
+        cache_analysis(address, cached)
+
+    categories = cached['categories']
+    assets = categories.get(category, [])
+    total = len(assets)
+
+    # Calculate pagination
+    start_idx = (page - 1) * page_size
+    end_idx = start_idx + page_size
+    page_items = assets[start_idx:end_idx]
+    has_more = end_idx < total
+
+    # Calculate category total USD
+    category_total_usd = sum(a.get('usd_value', 0) for a in assets)
+
+    return PaginatedAssetsResponse(
+        address=address,
+        category=category,
+        page=AssetPageResponse(
+            items=page_items,
+            total=total,
+            page=page,
+            page_size=page_size,
+            has_more=has_more
+        ),
+        category_total_usd=category_total_usd
+    )
+
+
+@router.get("/analyze/quick/{address}")
+async def get_quick_sovereignty(
+    address: str = Path(..., description="Algorand wallet address"),
+    monthly_fixed_expenses: Optional[float] = Query(None, description="Monthly fixed expenses"),
+    use_local_node: bool = Query(False)
+):
+    """
+    Get quick sovereignty metrics without full asset details.
+
+    Returns sovereignty score and category totals immediately for fast initial render.
+    Use /assets/{address}/{category} to load detailed asset lists progressively.
+    """
+    from .schemas import QuickSovereigntyResponse
+
+    # Validate address
+    validate_algorand_address(address)
+
+    # Try cache first
+    cached = get_pagination_cached_analysis(address) if not use_local_node else None
+
+    if cached:
+        categories = cached['categories']
+        is_participating = cached['is_participating']
+        participation_info = cached.get('participation_info')
+    else:
+        # Analyze wallet
+        analyzer = AlgorandSovereigntyAnalyzer(use_local_node=use_local_node)
+        categories = analyzer.analyze_wallet(address)
+
+        if not categories:
+            raise NotFoundException(
+                detail="Wallet not found or contains no assets",
+                error_code="WALLET_NOT_FOUND",
+                details={"address": address}
+            )
+
+        is_participating = analyzer.last_is_participating
+        participation_info = analyzer.last_participation_info
+
+        # Cache for subsequent requests
+        if not use_local_node:
+            cached_data = {
+                'categories': categories,
+                'is_participating': is_participating,
+                'hard_money_algo': analyzer.last_hard_money_algo,
+                'participation_info': participation_info
+            }
+            cache_for_pagination(address, cached_data)
+            cache_analysis(address, cached_data)
+
+    # Calculate totals
+    from core.pricing import get_algo_price
+    hard_money_total = sum(a.get('usd_value', 0) for a in categories.get('hard_money', []))
+    algo_total = sum(a.get('usd_value', 0) for a in categories.get('algo', []))
+    dollars_total = sum(a.get('usd_value', 0) for a in categories.get('dollars', []))
+    shitcoin_total = sum(a.get('usd_value', 0) for a in categories.get('shitcoin', []))
+    portfolio_total = hard_money_total + algo_total + dollars_total + shitcoin_total
+
+    algo_price = get_algo_price() or 0.174
+
+    # Asset counts
+    asset_counts = {
+        'hard_money': len(categories.get('hard_money', [])),
+        'algo': len(categories.get('algo', [])),
+        'dollars': len(categories.get('dollars', [])),
+        'shitcoin': len(categories.get('shitcoin', []))
+    }
+
+    # Determine which categories need pagination (>50 assets)
+    pagination_threshold = 50
+    needs_pagination = {
+        cat: count > pagination_threshold
+        for cat, count in asset_counts.items()
+    }
+
+    # Calculate sovereignty ratio if expenses provided
+    sovereignty_ratio = None
+    sovereignty_status = None
+    years_of_runway = None
+
+    if monthly_fixed_expenses and monthly_fixed_expenses > 0:
+        annual_fixed = monthly_fixed_expenses * 12
+        sovereignty_ratio = portfolio_total / annual_fixed if annual_fixed > 0 else 0
+
+        if sovereignty_ratio >= 20:
+            sovereignty_status = "Generationally Sovereign"
+        elif sovereignty_ratio >= 6:
+            sovereignty_status = "Antifragile"
+        elif sovereignty_ratio >= 3:
+            sovereignty_status = "Robust"
+        elif sovereignty_ratio >= 1:
+            sovereignty_status = "Fragile"
+        else:
+            sovereignty_status = "Vulnerable"
+
+        sovereignty_ratio = round(sovereignty_ratio, 2)
+        years_of_runway = round(sovereignty_ratio, 1)
+
+    return QuickSovereigntyResponse(
+        address=address,
+        is_participating=is_participating,
+        sovereignty_ratio=sovereignty_ratio,
+        sovereignty_status=sovereignty_status,
+        portfolio_usd=portfolio_total,
+        algo_price=algo_price,
+        years_of_runway=years_of_runway,
+        category_totals={
+            'hard_money': hard_money_total,
+            'algo': algo_total,
+            'dollars': dollars_total,
+            'shitcoin': shitcoin_total
+        },
+        asset_counts=asset_counts,
+        needs_pagination=needs_pagination,
+        participation_info=participation_info
+    )
+
+
 @router.post("/defi/sovereignty-cost")
 async def analyze_defi_sovereignty_cost(
     request: Dict[str, Any],

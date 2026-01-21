@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from core.models import AssetCategory, SovereigntyData
+from core.models import AssetCategory, SovereigntyData, AssetPage, PaginatedAssets
 from core.history import SovereigntySnapshot
 
 
@@ -441,3 +441,46 @@ class DeFiSovereigntyCostResponse(BaseModel):
     total_estimated_apy_earnings: float = Field(..., description="Estimated annual yield in USD")
     overall_recommendation: str = Field(..., description="Portfolio-level recommendation")
     lp_details: List[LPSovereigntyCostResponse] = Field(..., description="Per-LP breakdown")
+
+
+# -----------------------------------------------------------------------------
+# Pagination Schemas for Large Wallets
+# -----------------------------------------------------------------------------
+
+class AssetPageResponse(BaseModel):
+    """A page of assets for a single category."""
+    items: List[Dict[str, Any]] = Field(..., description="List of assets on this page")
+    total: int = Field(..., description="Total number of assets in this category")
+    page: int = Field(..., description="Current page number (1-indexed)")
+    page_size: int = Field(..., description="Number of items per page")
+    has_more: bool = Field(..., description="Whether more pages are available")
+
+
+class PaginatedAssetsResponse(BaseModel):
+    """Response for paginated asset requests."""
+    address: str = Field(..., description="Wallet address")
+    category: str = Field(..., description="Asset category (hard_money, algo, dollars, shitcoin)")
+    page: AssetPageResponse = Field(..., description="Page of assets")
+    category_total_usd: float = Field(..., description="Total USD value for this category")
+
+
+class QuickSovereigntyResponse(BaseModel):
+    """Lightweight sovereignty data for quick initial display."""
+    address: str = Field(..., description="Wallet address")
+    is_participating: bool = Field(..., description="Whether wallet participates in consensus")
+    sovereignty_ratio: Optional[float] = Field(None, description="Sovereignty ratio (requires expenses)")
+    sovereignty_status: Optional[str] = Field(None, description="Status text (requires expenses)")
+    portfolio_usd: float = Field(..., description="Total portfolio value in USD")
+    algo_price: float = Field(..., description="Current ALGO price")
+    years_of_runway: Optional[float] = Field(None, description="Years of runway (requires expenses)")
+    category_totals: Dict[str, float] = Field(..., description="USD totals by category")
+    asset_counts: Dict[str, int] = Field(..., description="Asset counts by category")
+    needs_pagination: Dict[str, bool] = Field(..., description="Whether each category needs pagination")
+    participation_info: Optional[Dict[str, Any]] = Field(None, description="Participation key details")
+
+
+class PaginatedAnalyzeRequest(BaseModel):
+    """Request for paginated wallet analysis."""
+    address: str = Field(..., description="Algorand wallet address")
+    monthly_fixed_expenses: Optional[float] = Field(None, description="Monthly fixed expenses for ratio calculation")
+    initial_page_size: int = Field(default=10, description="Initial number of assets per category")
