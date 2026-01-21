@@ -1,18 +1,25 @@
 {
   "metadata": {
-    "analyzed_at": "2026-01-17T15:16:20.261685",
+    "analyzed_at": "2026-01-20T21:27:14.406969",
     "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
     "address_short": "I26BHULC...L3BIP4",
     "participation_status": "online"
   },
   "assets": {
-    "hard_money": [],
+    "hard_money": [
+      {
+        "ticker": "GOLD$",
+        "name": "Meld Gold",
+        "amount": 7.780573,
+        "usd_value": 1193.991383609866
+      }
+    ],
     "algo": [
       {
         "ticker": "ALGO",
         "name": "Algorand (PARTICIPATING)",
-        "amount": 109944.078193,
-        "usd_value": 38480.42736754999
+        "amount": 110000.863007,
+        "usd_value": 38500.30205245
       }
     ],
     "dollars": [],
@@ -20,8 +27,14 @@
       {
         "ticker": "iGA",
         "name": "iGetAlgo",
-        "amount": 10.487312,
-        "usd_value": 2431.096112890238
+        "amount": 11.001228,
+        "usd_value": 2384.4040551500784
+      },
+      {
+        "ticker": "FOLKS",
+        "name": "Folks Finance",
+        "amount": 380.783849,
+        "usd_value": 913.7346825995634
       },
       {
         "ticker": "PLP",
@@ -44,9 +57,9 @@
     ]
   },
   "summary": {
-    "hard_money_count": 0,
+    "hard_money_count": 1,
     "dollars_count": 0,
-    "shitcoin_count": 4,
+    "shitcoin_count": 5,
     "total_algo": 0
   }
 }

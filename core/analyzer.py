@@ -36,6 +36,7 @@ from .models import AssetCategory, SovereigntyData
 from .classifier import AssetClassifier
 from .pricing import get_algo_price, get_asset_price
 from .lp_parser import LPParser
+from .secrets import get_algorand_node_config
 
 if TYPE_CHECKING:
     from .alerts import AlertEngine, Alert
@@ -76,13 +77,27 @@ class AlgorandSovereigntyAnalyzer:
     NFT_MAX_AMOUNT = 10
 
     def __init__(self, use_local_node: bool = True):
-        if use_local_node:
-            # Your local node
-            self.algod_address = "http://127.0.0.1:8080"
-            self.algod_token = "c61cbf17f80a4c5001ba61a1f7840b2cfb5f32fe65e0479257acc6dd71da0ad5"
-            self.headers = {"Authorization": f"Bearer {self.algod_token}"}
+        """
+        Initialize the sovereignty analyzer.
+
+        Args:
+            use_local_node: If True and ALGORAND_NODE_URL is set, use the configured
+                node. If False, always use the public AlgoNode API.
+
+        Environment Variables:
+            ALGORAND_NODE_URL: URL for Algorand node (default: AlgoNode public API)
+            ALGORAND_NODE_TOKEN: Auth token for private nodes (optional)
+        """
+        # Get node configuration from environment (secure, no hardcoded secrets)
+        node_url, node_token, headers = get_algorand_node_config()
+
+        if use_local_node and node_url != "https://mainnet-api.algonode.cloud":
+            # Use configured node from environment
+            self.algod_address = node_url
+            self.algod_token = node_token
+            self.headers = headers
         else:
-            # Public AlgoNode API
+            # Use public AlgoNode API (no authentication needed)
             self.algod_address = "https://mainnet-api.algonode.cloud"
             self.algod_token = ""
             self.headers = {}

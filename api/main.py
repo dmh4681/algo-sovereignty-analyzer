@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 
 # Load environment variables explicitly from root directory
+# SECURITY: .env file should never be committed to version control
 env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(dotenv_path=env_path, override=True)
 
@@ -19,6 +20,7 @@ from .middleware import LoggingMiddleware, get_current_request_id
 from .security import RateLimitMiddleware, SecurityHeadersMiddleware
 from core.miner_metrics import get_miner_metrics_db
 from core.silver_metrics import get_silver_metrics_db
+from core.secrets import check_optional_secrets, get_secret, mask_secret
 
 app = FastAPI(
     title="Algorand Sovereignty Analyzer API",
@@ -29,7 +31,43 @@ app = FastAPI(
 
 @app.on_event("startup")
 async def startup_event():
-    """Handle startup tasks including optional database reseed."""
+    """
+    Handle startup tasks including environment validation and optional database reseed.
+
+    Security: Validates required environment variables are present before starting.
+    """
+    # -------------------------------------------------------------------------
+    # SECURITY: Validate environment configuration at startup
+    # -------------------------------------------------------------------------
+    print("[Startup] Validating environment configuration...")
+
+    secrets_status = check_optional_secrets()
+    missing_optional = []
+
+    for name, status in secrets_status.items():
+        if status["is_set"]:
+            # Log that secret is configured (never log actual values)
+            print(f"[Startup]   {name}: configured")
+        elif status["has_default"]:
+            print(f"[Startup]   {name}: using default")
+        else:
+            missing_optional.append(name)
+            print(f"[Startup]   {name}: not set (optional)")
+
+    # Warn about important missing secrets
+    anthropic_key = get_secret("ANTHROPIC_API_KEY")
+    if not anthropic_key:
+        print("[Startup] WARNING: ANTHROPIC_API_KEY not set - AI coaching feature will be unavailable")
+    else:
+        # SECURITY: Use strict masking for API keys to avoid exposing any portion
+        print(f"[Startup]   ANTHROPIC_API_KEY: {mask_secret(anthropic_key, strict=True)} (configured)")
+
+    print("[Startup] Environment validation complete")
+    print("")
+
+    # -------------------------------------------------------------------------
+    # Database reseed tasks
+    # -------------------------------------------------------------------------
     # Check if RESEED_MINERS env var is set to trigger database reseed
     reseed_miners = os.environ.get('RESEED_MINERS', '').lower() in ('true', '1', 'yes')
     if reseed_miners:
@@ -152,3 +190,59 @@ app.include_router(rebalance_router, prefix="/api/v1")
 @app.get("/")
 async def root():
     return {"message": "Welcome to the Algorand Sovereignty Analyzer API"}
+
+
+# -----------------------------------------------------------------------------
+# Health & Status Endpoints
+# -----------------------------------------------------------------------------
+
+@app.get("/health")
+async def health_check():
+    """
+    Basic health check endpoint.
+
+    Returns 200 if the API is running.
+    """
+    return {"status": "healthy", "service": "algorand-sovereignty-analyzer"}
+
+
+@app.get("/health/config")
+async def config_status():
+    """
+    Report environment configuration status for operational monitoring.
+
+    SECURITY: This endpoint reports which secrets are configured (is_set: true/false)
+    but NEVER exposes actual secret values. Safe for monitoring dashboards.
+
+    Returns status of each registered environment variable:
+    - is_set: Whether the variable has a non-empty value
+    - required: Whether the variable is required for core functionality
+    - has_default: Whether a default value is available
+    - description: What the variable is used for
+    """
+    from core.secrets import check_optional_secrets
+
+    secrets_status = check_optional_secrets()
+
+    # Build response with clear status indicators
+    config_report = {}
+    warnings = []
+
+    for name, status in secrets_status.items():
+        config_report[name] = {
+            "configured": status["is_set"],
+            "using_default": not status["is_set"] and status["has_default"],
+            "required": status["required"],
+            "description": status["description"]
+        }
+
+        # Add warnings for important missing configs
+        if name == "ANTHROPIC_API_KEY" and not status["is_set"]:
+            warnings.append("AI coaching feature unavailable (ANTHROPIC_API_KEY not set)")
+
+    return {
+        "status": "ok" if not warnings else "degraded",
+        "config": config_report,
+        "warnings": warnings,
+        "note": "Secret values are never exposed via this endpoint"
+    }

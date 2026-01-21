@@ -29,11 +29,17 @@ class TestAlgorandSovereigntyAnalyzer:
             assert analyzer.algod_token == ""
 
     def test_initialization_local_node(self):
-        """Analyzer should initialize with local node settings."""
-        with patch('core.analyzer.requests.get'):
+        """Analyzer should use custom node when ALGORAND_NODE_URL is configured."""
+        # SECURITY: Node configuration now comes from environment variables
+        # via core.secrets module instead of hardcoded values
+        with patch('core.analyzer.requests.get'), \
+             patch.dict('os.environ', {
+                 'ALGORAND_NODE_URL': 'http://127.0.0.1:8080',
+                 'ALGORAND_NODE_TOKEN': 'test-token-12345'
+             }):
             analyzer = AlgorandSovereigntyAnalyzer(use_local_node=True)
             assert "127.0.0.1" in analyzer.algod_address
-            assert analyzer.algod_token != ""
+            assert analyzer.algod_token == "test-token-12345"
 
     def test_dust_threshold_constant(self, analyzer):
         """Dust threshold should be $10 USD."""

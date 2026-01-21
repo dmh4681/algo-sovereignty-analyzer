@@ -1,3 +1,23 @@
+"""
+Pricing Module - Multi-source price fetching for cryptocurrency and precious metals.
+
+This module provides price data from various public APIs including:
+- CoinGecko (crypto prices)
+- Coinbase (BTC spot price)
+- Yahoo Finance (gold/silver futures)
+- Vestige Labs (Algorand ASA prices)
+
+Security Note:
+    This module uses only PUBLIC APIs that require NO authentication.
+    No API keys or secrets are used in this module.
+    If authenticated APIs are needed in the future, use core.secrets.get_secret()
+    to retrieve credentials securely.
+
+Caching:
+    Prices are cached for 5 minutes (MELD_CACHE_TTL_SECONDS) to reduce API calls
+    and improve performance. Hardcoded fallback prices are used when APIs fail.
+"""
+
 import requests
 import time
 from typing import Optional

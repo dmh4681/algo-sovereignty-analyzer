@@ -1,17 +1,29 @@
-import os
 import traceback
 import anthropic
 from pydantic import BaseModel
+
+from core.secrets import get_secret
 
 class AdviceRequest(BaseModel):
     address: str
     analysis: dict
 
 class SovereigntyCoach:
+    """
+    AI-powered financial sovereignty coach using Claude.
+
+    Security Note:
+        API key is retrieved via core.secrets module which provides
+        centralized, auditable access to sensitive configuration.
+    """
     def __init__(self):
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        # SECURITY: Use centralized secrets module instead of direct os.getenv
+        api_key = get_secret("ANTHROPIC_API_KEY")
         if not api_key:
-            raise ValueError("ANTHROPIC_API_KEY environment variable is required")
+            raise ValueError(
+                "ANTHROPIC_API_KEY environment variable is required for AI coaching. "
+                "See .env.example for configuration instructions."
+            )
 
         self.client = anthropic.Anthropic(api_key=api_key)
 

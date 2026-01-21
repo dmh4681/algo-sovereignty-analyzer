@@ -181,10 +181,43 @@ curl -X POST http://localhost:8000/api/v1/analyze \
 
 ## Environment Variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root by copying `.env.example`:
+
+```bash
+cp .env.example .env
 ```
-ANTHROPIC_API_KEY=your_key_here
-```
+
+**SECURITY**: Never commit `.env` to version control. The `.gitignore` should already exclude it.
+
+### Required Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `ANTHROPIC_API_KEY` | API key for Claude AI coaching feature | For AI features |
+
+### Optional Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ALGORAND_NODE_URL` | `https://mainnet-api.algonode.cloud` | URL for Algorand node API |
+| `ALGORAND_NODE_TOKEN` | (empty) | Auth token for private Algorand nodes |
+| `CORS_ORIGINS` | `*` | Comma-separated allowed origins for CORS |
+| `RESEED_MINERS` | `false` | Set to `true` to reseed gold miner DB on startup |
+| `RESEED_SILVER` | `false` | Set to `true` to reseed silver miner DB on startup |
+
+### Secrets Management
+
+All secrets are managed through `core/secrets.py` which provides:
+
+- `get_secret(name, default)` - Retrieve a secret from environment
+- `validate_required_secrets(list)` - Validate required secrets at startup
+- `get_algorand_node_config()` - Get Algorand node configuration
+- `check_optional_secrets()` - Get status of all registered secrets
+- `mask_secret(value)` - Safely mask secrets for logging
+
+### Startup Validation
+
+The API server validates environment configuration at startup and logs the status of each configured secret (without exposing values). Missing optional secrets trigger warnings but don't prevent startup.
 
 ## Key Files to Know
 
