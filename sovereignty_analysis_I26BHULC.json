@@ -1,6 +1,6 @@
 {
   "metadata": {
-    "analyzed_at": "2026-01-20T21:27:14.406969",
+    "analyzed_at": "2026-01-21T09:09:28.757046",
     "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
     "address_short": "I26BHULC...L3BIP4",
     "participation_status": "online"
@@ -11,7 +11,7 @@
         "ticker": "GOLD$",
         "name": "Meld Gold",
         "amount": 7.780573,
-        "usd_value": 1193.991383609866
+        "usd_value": 1193.5231796590897
       }
     ],
     "algo": [
@@ -19,7 +19,7 @@
         "ticker": "ALGO",
         "name": "Algorand (PARTICIPATING)",
         "amount": 110000.863007,
-        "usd_value": 38500.30205245
+        "usd_value": 12981.311844319078
       }
     ],
     "dollars": [],
@@ -28,13 +28,13 @@
         "ticker": "iGA",
         "name": "iGetAlgo",
         "amount": 11.001228,
-        "usd_value": 2384.4040551500784
+        "usd_value": 2421.3621903080984
       },
       {
         "ticker": "FOLKS",
         "name": "Folks Finance",
         "amount": 380.783849,
-        "usd_value": 913.7346825995634
+        "usd_value": 912.7517997138152
       },
       {
         "ticker": "PLP",

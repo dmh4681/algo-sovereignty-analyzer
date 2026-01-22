@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "analyzed_at": "2026-01-21T09:18:41.898583",
+    "address": "PRICING_TEST_ADDR",
+    "address_short": "PRICING_...T_ADDR",
+    "participation_status": "offline"
+  },
+  "assets": {
+    "hard_money": [],
+    "algo": [
+      {
+        "ticker": "ALGO",
+        "name": "Algorand (NOT PARTICIPATING)",
+        "amount": 1000.0,
+        "usd_value": 350.0
+      }
+    ],
+    "dollars": [
+      {
+        "ticker": "USDC",
+        "name": "USDC",
+        "amount": 1000.0,
+        "usd_value": 999.9
+      }
+    ],
+    "shitcoin": []
+  },
+  "summary": {
+    "hard_money_count": 0,
+    "dollars_count": 1,
+    "shitcoin_count": 0,
+    "total_algo": 0
+  }
+}

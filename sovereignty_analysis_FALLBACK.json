@@ -1,0 +1,27 @@
+{
+  "metadata": {
+    "analyzed_at": "2026-01-21T09:18:41.901224",
+    "address": "FALLBACK_TEST",
+    "address_short": "FALLBACK...K_TEST",
+    "participation_status": "offline"
+  },
+  "assets": {
+    "hard_money": [],
+    "algo": [
+      {
+        "ticker": "ALGO",
+        "name": "Algorand (NOT PARTICIPATING)",
+        "amount": 1000.0,
+        "usd_value": 350.0
+      }
+    ],
+    "dollars": [],
+    "shitcoin": []
+  },
+  "summary": {
+    "hard_money_count": 0,
+    "dollars_count": 0,
+    "shitcoin_count": 0,
+    "total_algo": 0
+  }
+}

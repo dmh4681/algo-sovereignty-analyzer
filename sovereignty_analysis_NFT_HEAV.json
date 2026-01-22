@@ -1,0 +1,34 @@
+{
+  "metadata": {
+    "analyzed_at": "2026-01-21T09:18:40.623447",
+    "address": "NFT_HEAVY_WALLET",
+    "address_short": "NFT_HEAV...WALLET",
+    "participation_status": "offline"
+  },
+  "assets": {
+    "hard_money": [],
+    "algo": [
+      {
+        "ticker": "ALGO",
+        "name": "Algorand (NOT PARTICIPATING)",
+        "amount": 1000.0,
+        "usd_value": 350.0
+      }
+    ],
+    "dollars": [
+      {
+        "ticker": "USDC",
+        "name": "USDC",
+        "amount": 100.0,
+        "usd_value": 100.0
+      }
+    ],
+    "shitcoin": []
+  },
+  "summary": {
+    "hard_money_count": 0,
+    "dollars_count": 1,
+    "shitcoin_count": 0,
+    "total_algo": 0
+  }
+}

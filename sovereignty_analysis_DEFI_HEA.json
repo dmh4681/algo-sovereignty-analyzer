@@ -1,0 +1,59 @@
+{
+  "metadata": {
+    "analyzed_at": "2026-01-21T09:18:40.620418",
+    "address": "DEFI_HEAVY_WALLET",
+    "address_short": "DEFI_HEA...WALLET",
+    "participation_status": "online"
+  },
+  "assets": {
+    "hard_money": [],
+    "algo": [
+      {
+        "ticker": "ALGO",
+        "name": "Algorand (PARTICIPATING)",
+        "amount": 50000.0,
+        "usd_value": 17500.0
+      },
+      {
+        "ticker": "xALGO",
+        "name": "xAlgo",
+        "amount": 25000.0,
+        "usd_value": 0.0
+      },
+      {
+        "ticker": "FALGO",
+        "name": "Folks ALGO",
+        "amount": 10000.0,
+        "usd_value": 3500.0
+      }
+    ],
+    "dollars": [
+      {
+        "ticker": "USDC",
+        "name": "USDC",
+        "amount": 10000.0,
+        "usd_value": 10000.0
+      },
+      {
+        "ticker": "USDt",
+        "name": "Tether USDt",
+        "amount": 5000.0,
+        "usd_value": 5000.0
+      }
+    ],
+    "shitcoin": [
+      {
+        "ticker": "TMPOOL2",
+        "name": "TinymanPool2.0 ALGO-USDC",
+        "amount": 1000.0,
+        "usd_value": 0.0
+      }
+    ]
+  },
+  "summary": {
+    "hard_money_count": 0,
+    "dollars_count": 2,
+    "shitcoin_count": 1,
+    "total_algo": 0
+  }
+}
