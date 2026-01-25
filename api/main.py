@@ -2,8 +2,10 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from dotenv import load_dotenv
 import os
+import logging
 from pathlib import Path
 
 # Load environment variables explicitly from root directory
@@ -15,12 +17,20 @@ from .routes import router
 from .news.routes import router as news_router
 from .services.infra_routes import router as infra_router
 from .alerts_routes import router as alerts_router, rebalance_router
-from .errors import ApiException
+from .errors import (
+    ApiException,
+    TimeoutException,
+    ServiceUnavailableException,
+    RateLimitException,
+)
 from .middleware import LoggingMiddleware, get_current_request_id
 from .security import RateLimitMiddleware, SecurityHeadersMiddleware
 from core.miner_metrics import get_miner_metrics_db
 from core.silver_metrics import get_silver_metrics_db
 from core.secrets import check_optional_secrets, get_secret, mask_secret
+
+# Configure module logger for exception handlers
+logger = logging.getLogger("api.exceptions")
 
 app = FastAPI(
     title="Algorand Sovereignty Analyzer API",
@@ -113,21 +123,103 @@ app.add_middleware(LoggingMiddleware)
 # Exception Handlers
 # -----------------------------------------------------------------------------
 
+def _build_error_response(
+    status_code: int,
+    error_code: str,
+    message: str,
+    request_id: str,
+    details: dict = None,
+    headers: dict = None
+) -> JSONResponse:
+    """Build a consistent error response with correlation ID."""
+    response = JSONResponse(
+        status_code=status_code,
+        content={
+            "success": False,
+            "error": {
+                "code": error_code,
+                "message": message,
+                "details": details,
+                "request_id": request_id
+            }
+        }
+    )
+    if headers:
+        for key, value in headers.items():
+            response.headers[key] = str(value)
+    return response
+
+
 @app.exception_handler(ApiException)
 async def api_exception_handler(request: Request, exc: ApiException) -> JSONResponse:
     """Handle custom API exceptions with structured error responses."""
     request_id = get_current_request_id() or getattr(request.state, "request_id", None)
-    return JSONResponse(
+
+    # Log the error with context
+    logger.warning(
+        f"API error [request_id={request_id}] [{exc.error_code}]: {exc.detail}",
+        extra={"request_id": request_id, "error_code": exc.error_code}
+    )
+
+    # Build headers for rate limit exceptions
+    headers = {}
+    if isinstance(exc, RateLimitException) and exc.retry_after:
+        headers["Retry-After"] = exc.retry_after
+    elif isinstance(exc, ServiceUnavailableException) and exc.retry_after:
+        headers["Retry-After"] = exc.retry_after
+
+    return _build_error_response(
         status_code=exc.status_code,
-        content={
-            "success": False,
-            "error": {
-                "code": exc.error_code,
-                "message": exc.detail,
-                "details": exc.details,
-                "request_id": request_id
-            }
-        }
+        error_code=exc.error_code,
+        message=exc.detail,
+        request_id=request_id,
+        details=exc.details,
+        headers=headers if headers else None
+    )
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+    """Handle standard HTTP exceptions (404, 405, etc.) with structured responses."""
+    request_id = get_current_request_id() or getattr(request.state, "request_id", None)
+
+    # Map common HTTP status codes to error codes
+    error_code_map = {
+        400: "BAD_REQUEST",
+        401: "UNAUTHORIZED",
+        403: "FORBIDDEN",
+        404: "NOT_FOUND",
+        405: "METHOD_NOT_ALLOWED",
+        408: "REQUEST_TIMEOUT",
+        409: "CONFLICT",
+        422: "UNPROCESSABLE_ENTITY",
+        429: "RATE_LIMIT_EXCEEDED",
+        500: "INTERNAL_ERROR",
+        502: "BAD_GATEWAY",
+        503: "SERVICE_UNAVAILABLE",
+        504: "GATEWAY_TIMEOUT",
+    }
+
+    error_code = error_code_map.get(exc.status_code, f"HTTP_{exc.status_code}")
+
+    # Log 5xx errors as errors, others as warnings
+    if exc.status_code >= 500:
+        logger.error(
+            f"HTTP error [request_id={request_id}] [{error_code}]: {exc.detail}",
+            extra={"request_id": request_id, "status_code": exc.status_code}
+        )
+    else:
+        logger.warning(
+            f"HTTP error [request_id={request_id}] [{error_code}]: {exc.detail}",
+            extra={"request_id": request_id, "status_code": exc.status_code}
+        )
+
+    return _build_error_response(
+        status_code=exc.status_code,
+        error_code=error_code,
+        message=str(exc.detail),
+        request_id=request_id,
+        details={"path": str(request.url.path)}
     )
 
 
@@ -136,48 +228,108 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     """Handle Pydantic validation errors with structured error responses."""
     request_id = get_current_request_id() or getattr(request.state, "request_id", None)
     errors = exc.errors()
+
     # Extract field-level details from validation errors
-    details = {
-        "validation_errors": [
-            {
-                "field": ".".join(str(loc) for loc in err.get("loc", [])),
-                "message": err.get("msg", "Validation error"),
-                "type": err.get("type", "unknown")
-            }
-            for err in errors
-        ]
-    }
-    return JSONResponse(
+    validation_errors = []
+    for err in errors:
+        field_path = ".".join(str(loc) for loc in err.get("loc", []))
+        validation_errors.append({
+            "field": field_path,
+            "message": err.get("msg", "Validation error"),
+            "type": err.get("type", "unknown"),
+            "input": _sanitize_input(err.get("input"))
+        })
+
+    details = {"validation_errors": validation_errors}
+
+    logger.warning(
+        f"Validation error [request_id={request_id}]: {len(validation_errors)} field(s) failed",
+        extra={"request_id": request_id, "error_count": len(validation_errors)}
+    )
+
+    return _build_error_response(
         status_code=400,
-        content={
-            "success": False,
-            "error": {
-                "code": "VALIDATION_ERROR",
-                "message": "Request validation failed",
-                "details": details,
-                "request_id": request_id
-            }
-        }
+        error_code="VALIDATION_ERROR",
+        message="Request validation failed",
+        request_id=request_id,
+        details=details
+    )
+
+
+def _sanitize_input(value) -> str:
+    """Sanitize input values for error responses (truncate, mask sensitive data)."""
+    if value is None:
+        return None
+    value_str = str(value)
+    # Truncate long values
+    if len(value_str) > 100:
+        return value_str[:50] + "..." + value_str[-20:]
+    # Mask potential wallet addresses (58 chars)
+    if len(value_str) == 58 and value_str.isalnum():
+        return f"{value_str[:8]}...{value_str[-6:]}"
+    return value_str
+
+
+@app.exception_handler(ConnectionError)
+async def connection_error_handler(request: Request, exc: ConnectionError) -> JSONResponse:
+    """Handle connection errors to external services."""
+    request_id = get_current_request_id() or getattr(request.state, "request_id", None)
+
+    logger.error(
+        f"Connection error [request_id={request_id}]: {exc}",
+        extra={"request_id": request_id, "error_type": "ConnectionError"}
+    )
+
+    return _build_error_response(
+        status_code=503,
+        error_code="SERVICE_UNAVAILABLE",
+        message="Unable to connect to external service",
+        request_id=request_id,
+        details={"error_type": "connection_error"}
+    )
+
+
+@app.exception_handler(TimeoutError)
+async def timeout_error_handler(request: Request, exc: TimeoutError) -> JSONResponse:
+    """Handle timeout errors."""
+    request_id = get_current_request_id() or getattr(request.state, "request_id", None)
+
+    logger.error(
+        f"Timeout error [request_id={request_id}]: {exc}",
+        extra={"request_id": request_id, "error_type": "TimeoutError"}
+    )
+
+    return _build_error_response(
+        status_code=504,
+        error_code="GATEWAY_TIMEOUT",
+        message="Request timed out",
+        request_id=request_id,
+        details={"error_type": "timeout"}
     )
 
 
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    """Handle unexpected exceptions with a generic error response."""
+    """Handle unexpected exceptions with a generic error response.
+
+    SECURITY: Never expose stack traces or internal error details in production.
+    All details are logged server-side but not returned to the client.
+    """
     request_id = get_current_request_id() or getattr(request.state, "request_id", None)
-    # Log the error for debugging (do not expose stack trace in response)
-    print(f"Unhandled exception [request_id={request_id}]: {type(exc).__name__}: {exc}")
-    return JSONResponse(
+
+    # Log the full error with traceback for debugging
+    logger.exception(
+        f"Unhandled exception [request_id={request_id}]: {type(exc).__name__}: {exc}",
+        extra={"request_id": request_id, "error_type": type(exc).__name__}
+    )
+
+    # Return generic error to client (no internal details)
+    return _build_error_response(
         status_code=500,
-        content={
-            "success": False,
-            "error": {
-                "code": "INTERNAL_ERROR",
-                "message": "An unexpected error occurred",
-                "details": None,
-                "request_id": request_id
-            }
-        }
+        error_code="INTERNAL_ERROR",
+        message="An unexpected error occurred",
+        request_id=request_id,
+        details=None
     )
 
 

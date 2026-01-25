@@ -25,8 +25,15 @@ Architecture Notes:
     - Uses pricing.py for multi-source price fetching (Vestige primary, CoinGecko fallback)
     - Uses lp_parser.py to decompose LP tokens into underlying assets
     - Caches last analysis results for sovereignty calculation and JSON export
+
+Error Handling:
+    - External API failures (Algorand node, price feeds) are handled gracefully
+    - Fallback prices are used when price APIs fail
+    - Partial analysis is returned when some assets fail to fetch
+    - All errors are logged with context for debugging
 """
 
+import logging
 import requests
 import json
 from datetime import datetime
@@ -37,6 +44,9 @@ from .classifier import AssetClassifier
 from .pricing import get_algo_price, get_asset_price
 from .lp_parser import LPParser
 from .secrets import get_algorand_node_config
+
+# Configure module logger
+logger = logging.getLogger("core.analyzer")
 
 if TYPE_CHECKING:
     from .alerts import AlertEngine, Alert
@@ -113,25 +123,61 @@ class AlgorandSovereigntyAnalyzer:
         self.last_participation_info: Dict[str, Any] = {}
 
     def get_account_assets(self, address: str) -> Optional[Dict[str, Any]]:
-        """Get all assets for an Algorand address"""
+        """Get all assets for an Algorand address.
+
+        Args:
+            address: 58-character Algorand wallet address
+
+        Returns:
+            Account data dict from Algorand node, or None on failure
+
+        Raises:
+            requests.exceptions.Timeout: If request times out (propagated)
+            requests.exceptions.ConnectionError: If connection fails (propagated)
+        """
         url = f"{self.algod_address}/v2/accounts/{address}"
         try:
-            response = requests.get(url, headers=self.headers, timeout=10)
+            response = requests.get(url, headers=self.headers, timeout=15)
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.Timeout as e:
+            logger.error(f"Algorand API timeout for address {address[:8]}...: {e}")
+            raise  # Let caller handle timeout explicitly
+        except requests.exceptions.ConnectionError as e:
+            logger.error(f"Algorand API connection error: {e}")
+            raise  # Let caller handle connection error explicitly
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                logger.warning(f"Wallet not found: {address[:8]}...")
+                return None
+            logger.error(f"Algorand API HTTP error for {address[:8]}...: {e}")
+            return None
         except requests.exceptions.RequestException as e:
-            print(f"❌ Error fetching account data: {e}")
+            logger.error(f"Algorand API request error for {address[:8]}...: {e}")
             return None
     
     def get_asset_details(self, asset_id: int) -> Optional[Dict[str, Any]]:
-        """Get details for a specific ASA"""
+        """Get details for a specific ASA.
+
+        Args:
+            asset_id: Algorand Standard Asset ID
+
+        Returns:
+            Asset details dict, or None on failure
+
+        Note:
+            Failures are logged but don't raise - analysis continues with available data
+        """
         url = f"{self.algod_address}/v2/assets/{asset_id}"
         try:
             response = requests.get(url, headers=self.headers, timeout=10)
             response.raise_for_status()
             return response.json()
-        except requests.exceptions.RequestException:
-            # Silently fail for asset detail fetching
+        except requests.exceptions.Timeout:
+            logger.debug(f"Timeout fetching asset {asset_id} details - skipping")
+            return None
+        except requests.exceptions.RequestException as e:
+            logger.debug(f"Failed to fetch asset {asset_id} details: {e}")
             return None
 
     def _is_dust_or_nft(self, amount: float, usd_value: float, price: Optional[float], name: str) -> bool:
@@ -189,11 +235,21 @@ class AlgorandSovereigntyAnalyzer:
             - Exports results to JSON file: sovereignty_analysis_{address[:8]}.json
             - Prints analysis progress and results to console
         """
+        logger.info(f"Starting wallet analysis for {address[:8]}...{address[-6:]}")
         print(f"\n🔍 Analyzing wallet: {address[:8]}...{address[-6:]}\n")
-        
+
         # Get account data
-        account_data = self.get_account_assets(address)
+        try:
+            account_data = self.get_account_assets(address)
+        except requests.exceptions.Timeout:
+            logger.error(f"Wallet analysis timed out for {address[:8]}...")
+            raise
+        except requests.exceptions.ConnectionError:
+            logger.error(f"Connection failed during wallet analysis for {address[:8]}...")
+            raise
+
         if not account_data:
+            logger.warning(f"No account data found for {address[:8]}...")
             return None
         
         # Initialize categories (4 categories now)
@@ -311,6 +367,7 @@ class AlgorandSovereigntyAnalyzer:
 
             processed += 1
         
+        logger.info(f"Processed {processed} assets for {address[:8]}...")
         print(f"✅ Processed {processed} assets with non-zero balances\n")
         
         # Sort shitcoins by USD value (highest to lowest)
