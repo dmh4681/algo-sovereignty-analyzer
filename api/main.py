@@ -1,3 +1,72 @@
+"""
+Algorand Sovereignty Analyzer - FastAPI Application
+====================================================
+
+This module initializes and configures the FastAPI application for the
+Algorand Sovereignty Analyzer API.
+
+Application Structure:
+    - Main app initialization with OpenAPI documentation
+    - CORS middleware for cross-origin requests
+    - Security headers middleware (X-Content-Type-Options, etc.)
+    - Rate limiting middleware (30/min for /analyze, 100/min for others)
+    - Request logging middleware with correlation IDs
+    - Global exception handlers for consistent error responses
+
+Startup Tasks:
+    - Environment variable validation
+    - Secret configuration logging (masked values)
+    - Optional database reseeding (RESEED_MINERS, RESEED_SILVER)
+
+Available Routes (all prefixed with /api/v1):
+    - /analyze: Wallet sovereignty analysis
+    - /agent/advice: AI coaching via Claude
+    - /classifications: Asset classification lookup
+    - /history: Historical sovereignty snapshots
+    - /network: Algorand network statistics
+    - /arbitrage: Meld gold/silver premium analysis
+    - /news: Market news aggregation
+    - /alerts: Sovereignty alert system
+
+Documentation Endpoints:
+    - /docs: Swagger UI interactive documentation
+    - /redoc: ReDoc alternative documentation
+    - /openapi.json: OpenAPI 3.0 specification
+
+Health Endpoints:
+    - /health: Basic health check (returns 200 if running)
+    - /health/config: Environment configuration status (no secrets exposed)
+
+Environment Variables:
+    See docs/SETUP-GUIDE.md for complete configuration reference.
+
+    Required:
+        ANTHROPIC_API_KEY: For AI coaching feature
+
+    Optional:
+        ALGORAND_NODE_URL: Custom Algorand node (default: AlgoNode)
+        CORS_ORIGINS: Allowed origins (default: *)
+        RESEED_MINERS: Reseed gold miner DB on startup
+        RESEED_SILVER: Reseed silver miner DB on startup
+
+Usage:
+    # Development
+    uvicorn api.main:app --reload --port 8000
+
+    # Production
+    uvicorn api.main:app --host 0.0.0.0 --port $PORT
+
+    # Docker
+    docker-compose up --build
+
+See Also:
+    - api/routes.py: API endpoint definitions
+    - api/schemas.py: Request/response Pydantic models
+    - api/errors.py: Custom exception classes
+    - api/middleware.py: Logging middleware
+    - api/security.py: Rate limiting and security headers
+"""
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
@@ -8,11 +77,19 @@ import os
 import logging
 from pathlib import Path
 
-# Load environment variables explicitly from root directory
+# =============================================================================
+# Environment Configuration
+# =============================================================================
+# Load environment variables from .env file in project root
 # SECURITY: .env file should never be committed to version control
+# The .gitignore should already exclude it
+
 env_path = Path(__file__).parent.parent / '.env'
 load_dotenv(dotenv_path=env_path, override=True)
 
+# =============================================================================
+# Module Imports (after env vars loaded)
+# =============================================================================
 from .routes import router
 from .news.routes import router as news_router
 from .services.infra_routes import router as infra_router
@@ -34,8 +111,99 @@ logger = logging.getLogger("api.exceptions")
 
 app = FastAPI(
     title="Algorand Sovereignty Analyzer API",
-    description="API for analyzing Algorand wallet sovereignty",
-    version="1.0.0"
+    description="""
+## Overview
+
+The Algorand Sovereignty Analyzer API provides tools for analyzing Algorand wallet
+holdings through a **hard money maximalist** lens.
+
+## Core Concepts
+
+### Sovereignty Ratio
+```
+Sovereignty Ratio = Total Portfolio USD / Annual Fixed Expenses
+```
+
+This ratio represents how many years of essential expenses can be covered by
+your portfolio, providing a measure of true financial freedom.
+
+### Asset Categories
+
+| Category | Examples | Philosophy |
+|----------|----------|------------|
+| **hard_money** | BTC, Gold, Silver | Generational wealth preservation |
+| **algo** | ALGO, xALGO, fALGO | Platform native, staking rewards |
+| **dollars** | USDC, USDT, DAI | Fiat proxy, short-term liquidity |
+| **shitcoin** | Everything else | Speculative, high risk |
+
+### Sovereignty Status Levels
+
+| Status | Ratio | Meaning |
+|--------|-------|---------|
+| Generationally Sovereign | >= 20 | Multi-generational wealth |
+| Antifragile | >= 6 | Benefits from volatility |
+| Robust | >= 3 | Can weather major storms |
+| Fragile | >= 1 | Building foundation |
+| Vulnerable | < 1 | Immediate action needed |
+
+## Features
+
+- **Wallet Analysis**: Classify and value all assets in any Algorand wallet
+- **LP Decomposition**: Automatically break down LP tokens into underlying assets
+- **AI Coaching**: Personalized advice from Claude AI
+- **Historical Tracking**: Track sovereignty progress over time
+- **Network Stats**: Algorand decentralization metrics
+- **Arbitrage Analysis**: Meld gold/silver premium comparisons
+
+## Rate Limits
+
+| Endpoint | Limit |
+|----------|-------|
+| `/analyze` | 30/minute |
+| `/agent/advice` | 10/minute |
+| All others | 100/minute |
+
+## Authentication
+
+Currently open (no authentication required). For production deployments,
+consider adding API key authentication via the `X-API-Key` header.
+    """,
+    version="1.0.0",
+    contact={
+        "name": "Sovereign Path LLC",
+        "url": "https://algosovereignty.com",
+        "email": "dylan@sovereignpath.com"
+    },
+    license_info={
+        "name": "Proprietary",
+        "url": "https://algosovereignty.com/terms"
+    },
+    openapi_tags=[
+        {
+            "name": "Wallet Analysis",
+            "description": "Analyze Algorand wallets for sovereignty metrics"
+        },
+        {
+            "name": "AI Coaching",
+            "description": "Get personalized advice from Claude AI"
+        },
+        {
+            "name": "Classification",
+            "description": "Asset classification and corrections"
+        },
+        {
+            "name": "History",
+            "description": "Historical sovereignty tracking"
+        },
+        {
+            "name": "Network",
+            "description": "Algorand network statistics"
+        },
+        {
+            "name": "Health",
+            "description": "API health and status endpoints"
+        }
+    ]
 )
 
 
@@ -348,17 +516,54 @@ async def root():
 # Health & Status Endpoints
 # -----------------------------------------------------------------------------
 
-@app.get("/health")
+@app.get(
+    "/health",
+    summary="Health check",
+    description="Basic health check endpoint for load balancers and monitoring.",
+    response_description="Health status",
+    tags=["Health"]
+)
 async def health_check():
     """
     Basic health check endpoint.
 
-    Returns 200 if the API is running.
+    Returns 200 OK if the API is running. Used by load balancers, Kubernetes
+    probes, and monitoring systems to verify the service is up.
+
+    Returns:
+        Dict with status and service name
+
+    Example Response:
+        {"status": "healthy", "service": "algorand-sovereignty-analyzer"}
     """
     return {"status": "healthy", "service": "algorand-sovereignty-analyzer"}
 
 
-@app.get("/health/config")
+@app.get(
+    "/health/config",
+    summary="Configuration status",
+    description="""
+Report environment configuration status for operational monitoring.
+
+**SECURITY**: This endpoint reports which secrets are configured (is_set: true/false)
+but **NEVER** exposes actual secret values. Safe for monitoring dashboards.
+
+## Response Fields
+
+For each registered environment variable:
+- `configured`: Whether the variable has a non-empty value
+- `using_default`: Whether falling back to default value
+- `required`: Whether required for core functionality
+- `description`: What the variable is used for
+
+## Warnings
+
+The response includes a `warnings` array for important missing configurations
+that may degrade functionality (e.g., missing ANTHROPIC_API_KEY disables AI coaching).
+    """,
+    response_description="Configuration status report",
+    tags=["Health"]
+)
 async def config_status():
     """
     Report environment configuration status for operational monitoring.

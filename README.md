@@ -145,33 +145,129 @@ Visit http://localhost:3000
 
 ### Environment Variables
 
-Create a `.env` file in the project root:
+Create a `.env` file in the project root by copying the example:
 
 ```bash
-# ===================
-# AI Coaching (Required for /agent/advice)
-# ===================
-ANTHROPIC_API_KEY=sk-ant-api03-...
+cp .env.example .env
+```
 
-# ===================
-# Optional: Local Node
-# ===================
+**SECURITY WARNING:** Never commit `.env` to version control. It should be in `.gitignore`.
+
+#### Required Variables
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `ANTHROPIC_API_KEY` | API key for Claude AI coaching | `sk-ant-api03-...` |
+
+#### Algorand Node Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ALGORAND_NODE_URL` | `https://mainnet-api.algonode.cloud` | Algorand node API endpoint |
+| `ALGORAND_NODE_TOKEN` | (empty) | Auth token for private nodes |
+
+**Public API (default):** No configuration needed. Uses AlgoNode free tier.
+
+**Local Node (faster):** If running your own Algorand node:
+```bash
 ALGORAND_NODE_URL=http://127.0.0.1:8080
-ALGORAND_NODE_TOKEN=your-token
+ALGORAND_NODE_TOKEN=your-node-api-token
+```
 
-# ===================
-# Optional: API Security
-# ===================
-API_KEY=your-secure-api-key
-CORS_ORIGINS=http://localhost:3000,https://algosovereignty.com
+**AlgoExplorer Alternative:**
+```bash
+ALGORAND_NODE_URL=https://node.algoexplorerapi.io
+```
+
+#### Security & CORS
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CORS_ORIGINS` | `*` | Comma-separated allowed origins |
+| `API_KEY` | (none) | Optional API key for protected endpoints |
+
+**Development:**
+```bash
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+```
+
+**Production:**
+```bash
+CORS_ORIGINS=https://algosovereignty.com,https://www.algosovereignty.com
+```
+
+#### Database Reseeding
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RESEED_MINERS` | `false` | Reseed gold miner metrics on startup |
+| `RESEED_SILVER` | `false` | Reseed silver miner metrics on startup |
+
+Set to `true` to refresh market data databases on API restart.
+
+#### Complete `.env` Example
+
+```bash
+# =============================================================================
+# Algorand Sovereignty Analyzer - Environment Configuration
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# AI Coaching (Required for /agent/advice endpoint)
+# Get your key at: https://console.anthropic.com/
+# -----------------------------------------------------------------------------
+ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
+
+# -----------------------------------------------------------------------------
+# Algorand Node Configuration
+# Default: Uses AlgoNode public API (no configuration needed)
+# For faster analysis, use a local node or paid API
+# -----------------------------------------------------------------------------
+# ALGORAND_NODE_URL=http://127.0.0.1:8080
+# ALGORAND_NODE_TOKEN=your-local-node-token
+
+# -----------------------------------------------------------------------------
+# CORS Configuration
+# Comma-separated list of allowed origins for browser requests
+# Use * for development, specific origins for production
+# -----------------------------------------------------------------------------
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
+
+# -----------------------------------------------------------------------------
+# Optional: API Key Protection
+# If set, protected endpoints require X-API-Key header
+# -----------------------------------------------------------------------------
+# API_KEY=your-secure-api-key-here
+
+# -----------------------------------------------------------------------------
+# Database Reseeding (set to true to refresh on startup)
+# -----------------------------------------------------------------------------
+# RESEED_MINERS=false
+# RESEED_SILVER=false
+
+# -----------------------------------------------------------------------------
+# Logging
+# -----------------------------------------------------------------------------
+# LOG_LEVEL=INFO
 ```
 
 ### Frontend Environment
 
-Create `web/.env.local`:
+Create `web/.env.local` for the Next.js frontend:
 
 ```bash
+# API endpoint (backend URL)
 NEXT_PUBLIC_API_URL=http://localhost:8000
+
+# WalletConnect Project ID (for wallet connections)
+# Get one at: https://cloud.walletconnect.com/
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your-project-id
+```
+
+**Production frontend:**
+```bash
+NEXT_PUBLIC_API_URL=https://api.algosovereignty.com
+NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your-production-project-id
 ```
 
 ---
@@ -397,36 +493,200 @@ docker-compose up --build
 
 ### Common Issues
 
-**"Anthropic API error"**
+#### "Anthropic API error"
+
+**Symptoms:**
+- AI coaching returns error or empty response
+- 401 Unauthorized or 403 Forbidden responses
+
+**Solutions:**
 ```bash
-# Ensure API key is set
+# 1. Check if API key is set
 echo $ANTHROPIC_API_KEY
+# Should show: sk-ant-api03-...
 
-# Check key is valid and has credits
+# 2. Verify key in .env file
+cat .env | grep ANTHROPIC
+
+# 3. Test API key directly
+curl https://api.anthropic.com/v1/messages \
+  -H "x-api-key: $ANTHROPIC_API_KEY" \
+  -H "anthropic-version: 2023-06-01" \
+  -H "content-type: application/json" \
+  -d '{"model":"claude-3-haiku-20240307","max_tokens":10,"messages":[{"role":"user","content":"Hi"}]}'
+
+# 4. Check for API credits at console.anthropic.com
 ```
 
-**"Asset price not found"**
-- Vestige may not have pricing for obscure ASAs
-- Fallback prices used for major assets (BTC, ALGO, USDC)
+#### "Asset price not found"
 
-**"CORS error in browser"**
+**Symptoms:**
+- Assets showing $0.00 value
+- Warning messages about missing prices
+
+**Causes & Solutions:**
+- **Obscure ASA**: Vestige may not track this asset. Check if listed on any DEX.
+- **New token**: Allow 24-48 hours for price feeds to populate.
+- **Delisted token**: No longer traded, price feed removed.
+- **Fallback used**: Major assets (BTC, ALGO, USDC) use hardcoded fallback prices if APIs fail.
+
+```python
+# Check if asset is priced on Vestige
+# Visit: https://vestige.fi/asset/{ASSET_ID}
+
+# Or use API directly:
+curl "https://free-api.vestige.fi/asset/{ASSET_ID}/price"
+```
+
+#### "CORS error in browser"
+
+**Symptoms:**
+- Browser console shows: "Access-Control-Allow-Origin" error
+- API calls work from Postman but fail from frontend
+
+**Solutions:**
 ```bash
-# Check CORS_ORIGINS in .env
-CORS_ORIGINS=http://localhost:3000
+# 1. Check CORS_ORIGINS in .env
+CORS_ORIGINS=http://localhost:3000,http://localhost:5173
 
-# Restart backend
+# 2. For development, allow all origins (NOT for production!)
+CORS_ORIGINS=*
+
+# 3. Restart backend after .env changes
 uvicorn api.main:app --reload
+
+# 4. Clear browser cache (Ctrl+Shift+Delete)
 ```
 
-**"Wallet connection fails"**
-- Install wallet extension (Pera, Defly)
-- Check WalletConnect project ID if using WalletConnect
+#### "Wallet connection fails"
+
+**Symptoms:**
+- Pera/Defly wallet popup doesn't appear
+- Connection timeout errors
+- "No wallet found" message
+
+**Solutions:**
+
+1. **Install wallet extension:**
+   - [Pera Wallet](https://perawallet.app/) (mobile + extension)
+   - [Defly Wallet](https://defly.app/) (mobile + extension)
+
+2. **Check browser compatibility:**
+   - Chrome, Firefox, Brave, Edge supported
+   - Safari may have issues with extensions
+
+3. **WalletConnect issues:**
+   ```bash
+   # Ensure WalletConnect project ID is set (web/.env.local)
+   NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your_project_id
+   ```
+
+4. **Network mismatch:**
+   - Ensure wallet is on Algorand Mainnet, not Testnet
+
+#### "Algorand API timeout"
+
+**Symptoms:**
+- Analysis hangs or returns timeout error
+- 504 Gateway Timeout responses
+
+**Solutions:**
+```bash
+# 1. Switch to public AlgoNode (default, most reliable)
+# In .env, either remove or set:
+ALGORAND_NODE_URL=https://mainnet-api.algonode.cloud
+
+# 2. If using local node, verify it's running
+curl http://127.0.0.1:8080/health
+
+# 3. Check network connectivity
+ping mainnet-api.algonode.cloud
+
+# 4. Large wallets (>500 assets) may need longer timeout
+# The default is 15 seconds per API call
+```
+
+#### "LP token not decomposed"
+
+**Symptoms:**
+- LP tokens showing in "shitcoin" category
+- No breakdown of underlying assets
+
+**Causes & Solutions:**
+
+1. **Unsupported DEX:** Only Tinyman and Pact are fully supported
+2. **Name parsing failed:** LP token naming doesn't match expected patterns
+3. **Missing Tinyman SDK:** Install with `pip install tinyman-py-sdk`
+
+```bash
+# Verify Tinyman SDK is installed
+pip show tinyman-py-sdk
+
+# If missing:
+pip install tinyman-py-sdk
+```
+
+**Supported LP patterns:**
+- Tinyman v1: `TM1POOL`, name like "TM1POOL ALGO-USDC"
+- Tinyman v2: `TMPOOL2`, name like "TinymanPool2.0 ALGO-USDC"
+- Pact: `PLP`, `PACT LP`
+
+#### "Rate limit exceeded"
+
+**Symptoms:**
+- 429 Too Many Requests response
+- "Rate limit exceeded" error message
+
+**Solutions:**
+
+| Endpoint | Limit | Cooldown |
+|----------|-------|----------|
+| `/analyze` | 30/min | Wait 60 seconds |
+| `/agent/advice` | 10/min | Wait 60 seconds |
+| All others | 100/min | Wait 60 seconds |
+
+```bash
+# The response includes Retry-After header
+# Wait the specified number of seconds before retrying
+```
 
 ### Performance Tips
 
-1. **Use local node** for faster analysis (if running a node)
-2. **API caching**: Results cached 15 minutes per address
-3. **LP parsing**: Additional Tinyman SDK calls when LP tokens detected
+1. **Use local Algorand node** for faster analysis:
+   ```bash
+   # If running a node, set in .env:
+   ALGORAND_NODE_URL=http://127.0.0.1:8080
+   ALGORAND_NODE_TOKEN=your-token-here
+   ```
+
+2. **API caching**: Results cached 15 minutes per address. Subsequent requests are instant.
+
+3. **Progressive loading**: For large wallets, use:
+   - `GET /analyze/quick/{address}` for fast initial render
+   - `GET /assets/{address}/{category}` to load details progressively
+
+4. **LP parsing overhead**: Tinyman SDK calls add ~2-3 seconds per LP token. Large LP portfolios will be slower.
+
+5. **Batch analysis**: Analyze multiple wallets in parallel (up to rate limit).
+
+### Debug Mode
+
+Enable verbose logging for troubleshooting:
+
+```bash
+# Set log level to DEBUG
+export LOG_LEVEL=DEBUG
+
+# Run with reload for development
+uvicorn api.main:app --reload --log-level debug
+```
+
+### Getting Help
+
+- **Documentation**: `docs/` directory contains detailed guides
+- **API Reference**: http://localhost:8000/docs (Swagger UI)
+- **Website**: [algosovereignty.com](https://algosovereignty.com)
+- **Email**: dylan@sovereignpath.com
 
 ---
 

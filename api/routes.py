@@ -1,3 +1,72 @@
+"""
+Algorand Sovereignty Analyzer - API Routes
+==========================================
+
+This module defines all REST API endpoints for the Algorand Sovereignty Analyzer.
+The API provides functionality for:
+
+1. **Wallet Analysis** - Analyze Algorand wallets for sovereignty metrics
+2. **Asset Classification** - Query and manage asset categorizations
+3. **Historical Tracking** - Save and retrieve sovereignty snapshots over time
+4. **Network Statistics** - Algorand network participation and decentralization data
+5. **Arbitrage Analysis** - Meld gold/silver/bitcoin premium comparisons
+6. **AI Coaching** - Personalized financial advice via Claude AI
+
+Authentication:
+    Currently the API is open (no authentication required).
+    For production, add API key authentication via the X-API-Key header.
+
+Rate Limiting:
+    - /analyze: 30 requests/minute per IP
+    - /agent/advice: 10 requests/minute per IP
+    - All others: 100 requests/minute per IP
+
+Caching:
+    - Wallet analysis: 15 minutes per address
+    - Price data: 5 minutes
+    - Network stats: 1 minute
+
+OpenAPI/Swagger Documentation:
+    - Swagger UI: http://localhost:8000/docs
+    - ReDoc: http://localhost:8000/redoc
+    - OpenAPI JSON: http://localhost:8000/openapi.json
+
+Example Usage:
+    ```python
+    import requests
+
+    # Analyze a wallet
+    response = requests.post(
+        "http://localhost:8000/api/v1/analyze",
+        json={
+            "address": "AAAA...YOUR_ADDRESS...",
+            "monthly_fixed_expenses": 4000
+        }
+    )
+    result = response.json()
+    print(f"Sovereignty Ratio: {result['sovereignty_data']['sovereignty_ratio']}")
+    ```
+
+Error Handling:
+    All endpoints return standardized error responses:
+    ```json
+    {
+        "success": false,
+        "error": {
+            "code": "ERROR_CODE",
+            "message": "Human-readable error message",
+            "details": {"field": "value"},
+            "request_id": "uuid-for-tracking"
+        }
+    }
+    ```
+
+See Also:
+    - api/schemas.py: Pydantic request/response models
+    - api/errors.py: Custom exception classes
+    - docs/API-REFERENCE.md: Full API documentation
+"""
+
 import re
 import logging
 import requests
@@ -98,10 +167,105 @@ def get_network_stats_client() -> AlgorandNetworkStats:
         _network_stats = AlgorandNetworkStats()
     return _network_stats
 
-@router.post("/agent/advice")
+@router.post(
+    "/agent/advice",
+    summary="Get AI sovereignty coaching",
+    description="""
+Get personalized financial sovereignty advice from Claude AI based on your wallet analysis.
+
+## AI Coaching Philosophy
+
+The Sovereignty Coach is a hard money maximalist AI that provides advice through the lens of:
+- **Sound Money Principles**: Bitcoin, Gold, and Silver as true stores of value
+- **Financial Independence**: Building runway measured in years, not months
+- **Risk Management**: Reducing exposure to fiat and speculative assets
+- **Long-term Thinking**: Generational wealth preservation
+
+## Request Requirements
+
+- Requires `ANTHROPIC_API_KEY` environment variable to be set
+- Timeout: 60 seconds (AI responses can be lengthy)
+- Rate limit: 10 requests per minute per IP
+
+## Response Format
+
+The advice is returned as Markdown-formatted text that can be rendered directly
+in the frontend. It typically includes:
+
+1. **Assessment**: Current sovereignty status analysis
+2. **Priorities**: Top 3 recommended actions
+3. **Specific Steps**: Actionable guidance based on holdings
+4. **Timeline**: Projected path to next sovereignty level
+
+## Example Advice Topics
+
+- Increasing hard money allocation
+- Reducing stablecoin exposure
+- Participation in Algorand consensus
+- LP position optimization
+- Dollar-cost averaging strategies
+    """,
+    response_description="AI-generated sovereignty coaching advice in Markdown format",
+    responses={
+        200: {
+            "description": "Successful advice generation",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "advice": "## Sovereignty Assessment\\n\\nYour current ratio of 0.4 places you in the **Vulnerable** category...\\n\\n### Priority Actions\\n\\n1. **Increase Hard Money Holdings**..."
+                    }
+                }
+            }
+        },
+        503: {
+            "description": "AI service unavailable",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "error": {
+                            "code": "AI_SERVICE_UNAVAILABLE",
+                            "message": "AI coaching service unavailable",
+                            "details": {"service": "anthropic"}
+                        }
+                    }
+                }
+            }
+        },
+        504: {
+            "description": "AI request timed out",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "error": {
+                            "code": "AI_TIMEOUT",
+                            "message": "AI coaching request timed out"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    tags=["AI Coaching"]
+)
 async def get_agent_advice(request: AdviceRequest):
     """
     Get personalized financial sovereignty advice from the AI agent.
+
+    Uses Claude AI to analyze the wallet data and provide hard money maximalist
+    coaching advice tailored to the user's current situation.
+
+    Args:
+        request: AdviceRequest containing wallet analysis data
+
+    Returns:
+        Dict with 'advice' key containing Markdown-formatted coaching text
+
+    Raises:
+        TimeoutException: If AI request takes longer than 60 seconds
+        ServiceUnavailableException: If Anthropic API is unreachable
+        ExternalApiException: If AI processing fails for other reasons
     """
     try:
         coach = SovereigntyCoach()
@@ -145,10 +309,173 @@ def cache_analysis(address: str, result: dict):
     """Store analysis result in cache"""
     _wallet_cache[address] = (result, datetime.now())
 
-@router.post("/analyze", response_model=AnalysisResponse)
-async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(False)):
+@router.post(
+    "/analyze",
+    response_model=AnalysisResponse,
+    summary="Analyze wallet sovereignty",
+    description="""
+Analyze an Algorand wallet's holdings and calculate sovereignty metrics based on
+hard money maximalist principles.
+
+## Sovereignty Score Calculation
+
+The sovereignty ratio measures financial independence:
+
+```
+Sovereignty Ratio = Total Portfolio USD / Annual Fixed Expenses
+```
+
+This ratio represents how many years of essential expenses can be covered by
+the portfolio, providing a measure of true financial freedom.
+
+## Asset Classification
+
+Assets are automatically classified into four categories:
+
+| Category | Assets | Impact |
+|----------|--------|--------|
+| **hard_money** | BTC (goBTC, WBTC), Gold (XAUT, GOLD$), Silver (SILVER$) | Generational wealth |
+| **algo** | ALGO, xALGO, fALGO, gALGO, mALGO | Platform native |
+| **dollars** | USDC, USDT, DAI, fUSDC, fUSDT | Fiat proxy |
+| **shitcoin** | Everything else (LP tokens*, NFTs, etc.) | Speculative |
+
+*LP tokens are automatically decomposed into underlying assets.
+
+## Sovereignty Status Levels
+
+| Status | Ratio | Meaning |
+|--------|-------|---------|
+| Generationally Sovereign | >= 20 | Multi-generational wealth |
+| Antifragile | >= 6 | Benefits from volatility |
+| Robust | >= 3 | Can weather major storms |
+| Fragile | >= 1 | Building foundation |
+| Vulnerable | < 1 | Immediate action needed |
+
+## LP Token Handling
+
+Liquidity Provider tokens from Tinyman and Pact are automatically decomposed:
+
+```
+TMPOOL-ALGO-goBTC (100 tokens)
+    -> ALGO: 5000 -> "algo" category
+    -> goBTC: 0.0125 -> "hard_money" category
+```
+
+## Caching
+
+Results are cached for 15 minutes per address. Use `use_local_node=true`
+to bypass cache for development/testing.
+    """,
+    response_description="Complete wallet analysis with sovereignty metrics",
+    responses={
+        200: {
+            "description": "Successful analysis",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+                        "is_participating": True,
+                        "hard_money_algo": 0.0,
+                        "categories": {
+                            "hard_money": [
+                                {"name": "goBTC", "ticker": "goBTC", "amount": 0.015, "usd_value": 1500.0}
+                            ],
+                            "algo": [
+                                {"name": "Algorand (PARTICIPATING)", "ticker": "ALGO", "amount": 50000, "usd_value": 12500.0}
+                            ],
+                            "dollars": [
+                                {"name": "USD Coin", "ticker": "USDC", "amount": 5000, "usd_value": 5000.0}
+                            ],
+                            "shitcoin": []
+                        },
+                        "sovereignty_data": {
+                            "monthly_fixed_expenses": 4000.0,
+                            "annual_fixed_expenses": 48000.0,
+                            "algo_price": 0.25,
+                            "portfolio_usd": 19000.0,
+                            "sovereignty_ratio": 0.40,
+                            "sovereignty_status": "Vulnerable",
+                            "years_of_runway": 0.4
+                        },
+                        "participation_info": {
+                            "staked_amount": 50000,
+                            "is_incentive_eligible": True,
+                            "estimated_apy": 4.5
+                        }
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid request - address format validation failed",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "error": {
+                            "code": "INVALID_ADDRESS_FORMAT",
+                            "message": "Invalid Algorand wallet address format",
+                            "details": {
+                                "field": "address",
+                                "expected": "58 character base32 string (A-Z, 2-7)"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        404: {
+            "description": "Wallet not found or contains no assets",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "error": {
+                            "code": "WALLET_NOT_FOUND",
+                            "message": "Wallet not found or contains no assets",
+                            "details": {"address": "AAAA..."}
+                        }
+                    }
+                }
+            }
+        },
+        504: {
+            "description": "Request timed out",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "error": {
+                            "code": "ALGORAND_API_TIMEOUT",
+                            "message": "Algorand API request timed out. Please try again."
+                        }
+                    }
+                }
+            }
+        }
+    },
+    tags=["Wallet Analysis"]
+)
+async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(False, description="Use local Algorand node instead of AlgoNode public API")):
     """
     Analyze an Algorand wallet for sovereignty metrics.
+
+    This endpoint fetches all assets from the Algorand blockchain, classifies them
+    according to hard money maximalist principles, decomposes LP tokens, and
+    calculates sovereignty metrics if monthly expenses are provided.
+
+    Args:
+        request: AnalyzeRequest containing address and optional monthly_fixed_expenses
+        use_local_node: If True, uses configured local node; if False, uses AlgoNode public API
+
+    Returns:
+        AnalysisResponse with categorized assets and sovereignty calculations
+
+    Raises:
+        ValidationException: If address format is invalid
+        NotFoundException: If wallet doesn't exist or has no assets
+        AlgorandApiException: If Algorand API communication fails
+        TimeoutException: If request times out (15 second limit)
     """
     # Validate address format
     validate_algorand_address(request.address)
@@ -277,10 +604,70 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
             address=request.address
         )
 
-@router.get("/classifications")
+@router.get(
+    "/classifications",
+    summary="Get asset classifications",
+    description="""
+Retrieve all manual asset classification overrides from the CSV database.
+
+## Classification Hierarchy
+
+The system uses a three-tier classification hierarchy:
+
+1. **CSV Manual Overrides** (highest priority) - `data/asset_classification.csv`
+2. **User-Submitted Corrections** (medium priority) - `data/user_corrections.json`
+3. **Auto-Classification Regex** (lowest priority) - `core/classifier.py`
+
+## Response Format
+
+Returns a dictionary keyed by ASA ID with classification details:
+
+```json
+{
+    "793124631": {
+        "name": "goBTC",
+        "ticker": "goBTC",
+        "category": "hard_money"
+    },
+    "31566704": {
+        "name": "USD Coin",
+        "ticker": "USDC",
+        "category": "dollars"
+    }
+}
+```
+
+## Categories
+
+- `hard_money`: Bitcoin, Gold, Silver (wealth preservation)
+- `algo`: ALGO and liquid staking derivatives
+- `dollars`: Stablecoins and fiat proxies
+- `shitcoin`: Everything else
+    """,
+    response_description="Dictionary of asset ID to classification mapping",
+    responses={
+        200: {
+            "description": "Classification lookup successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "793124631": {"name": "goBTC", "ticker": "goBTC", "category": "hard_money"},
+                        "31566704": {"name": "USD Coin", "ticker": "USDC", "category": "dollars"},
+                        "1241944285": {"name": "Meld Gold", "ticker": "GOLD$", "category": "hard_money"}
+                    }
+                }
+            }
+        }
+    },
+    tags=["Classification"]
+)
 async def get_classifications() -> Dict[str, Dict[str, str]]:
     """
-    Get manual asset classifications.
+    Get manual asset classifications from the CSV override file.
+
+    Returns:
+        Dictionary mapping ASA ID strings to classification objects containing
+        name, ticker, and category fields.
     """
     analyzer = AlgorandSovereigntyAnalyzer(use_local_node=False)
     return analyzer.classifier.classifications
@@ -310,18 +697,98 @@ def cache_for_pagination(address: str, result: dict):
     _pagination_cache[address] = (result, datetime.now())
 
 
-@router.get("/assets/{address}/{category}")
+@router.get(
+    "/assets/{address}/{category}",
+    summary="Get paginated assets by category",
+    description="""
+Retrieve a paginated list of assets for a specific category from a wallet.
+
+## Use Case
+
+This endpoint is designed for **lazy loading** large asset lists in the UI.
+Instead of loading all assets at once (which can be slow for wallets with
+hundreds of shitcoins), you can:
+
+1. First call `/analyze` or `/analyze/quick/{address}` for summary data
+2. Then load each category's assets page-by-page as the user scrolls
+
+## Pagination
+
+- Pages are 1-indexed (first page = 1)
+- Default page size is 20, max is 100
+- Response includes `has_more` flag to indicate if more pages exist
+
+## Caching
+
+Uses the same 15-minute cache as `/analyze`. If the wallet hasn't been
+analyzed recently, this endpoint will trigger a fresh analysis.
+    """,
+    response_description="Paginated list of assets with category totals",
+    responses={
+        200: {
+            "description": "Assets retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "address": "I26BHULCO...",
+                        "category": "shitcoin",
+                        "page": {
+                            "items": [
+                                {"name": "Akita Inu", "ticker": "AKITA", "amount": 1000000, "usd_value": 50.0},
+                                {"name": "Chips", "ticker": "CHIPS", "amount": 500000, "usd_value": 25.0}
+                            ],
+                            "total": 150,
+                            "page": 1,
+                            "page_size": 20,
+                            "has_more": True
+                        },
+                        "category_total_usd": 1250.50
+                    }
+                }
+            }
+        },
+        400: {
+            "description": "Invalid category specified",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": False,
+                        "error": {
+                            "code": "INVALID_CATEGORY",
+                            "message": "Invalid category. Must be one of: hard_money, algo, dollars, shitcoin",
+                            "details": {"category": "invalid", "valid_categories": ["hard_money", "algo", "dollars", "shitcoin"]}
+                        }
+                    }
+                }
+            }
+        }
+    },
+    tags=["Wallet Analysis"]
+)
 async def get_paginated_assets(
-    address: str = Path(..., description="Algorand wallet address"),
-    category: str = Path(..., description="Asset category (hard_money, algo, dollars, shitcoin)"),
-    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
-    page_size: int = Query(20, ge=1, le=100, description="Items per page")
+    address: str = Path(..., description="58-character Algorand wallet address"),
+    category: str = Path(..., description="Asset category: hard_money, algo, dollars, or shitcoin"),
+    page: int = Query(1, ge=1, description="Page number (1-indexed, default: 1)"),
+    page_size: int = Query(20, ge=1, le=100, description="Items per page (1-100, default: 20)")
 ):
     """
     Get paginated assets for a specific category.
 
-    This endpoint is designed for lazy loading large asset lists.
-    The wallet must have been analyzed first (via /analyze endpoint).
+    This endpoint supports lazy loading of large asset lists. Useful for wallets
+    with many shitcoins or LP positions.
+
+    Args:
+        address: Algorand wallet address (58 characters)
+        category: One of hard_money, algo, dollars, shitcoin
+        page: Page number starting from 1
+        page_size: Number of items per page (max 100)
+
+    Returns:
+        PaginatedAssetsResponse with items, pagination metadata, and category totals
+
+    Raises:
+        ValidationException: If address or category is invalid
+        NotFoundException: If wallet not found
     """
     from .schemas import PaginatedAssetsResponse, AssetPageResponse
 
@@ -389,17 +856,101 @@ async def get_paginated_assets(
     )
 
 
-@router.get("/analyze/quick/{address}")
+@router.get(
+    "/analyze/quick/{address}",
+    summary="Quick sovereignty summary",
+    description="""
+Get a lightweight sovereignty summary without full asset details.
+
+## Progressive Loading Pattern
+
+This endpoint is designed for **fast initial page render**:
+
+```
+1. GET /analyze/quick/{address}     <- Fast! Returns totals + sovereignty
+2. Render sovereignty score UI
+3. GET /assets/{address}/hard_money <- Load detailed lists
+4. GET /assets/{address}/algo       <- As user scrolls/expands
+5. GET /assets/{address}/dollars
+6. GET /assets/{address}/shitcoin
+```
+
+## Response Contents
+
+- **Sovereignty metrics**: ratio, status, years of runway
+- **Category totals**: USD value per category
+- **Asset counts**: Number of assets per category
+- **Pagination hints**: Which categories need pagination (>50 assets)
+- **Participation info**: Consensus participation details
+
+## Performance
+
+This endpoint performs the same full wallet analysis as `/analyze` but returns
+a lighter response. The analysis is cached, so subsequent `/assets/` calls
+use the same data.
+    """,
+    response_description="Quick sovereignty summary with category totals",
+    responses={
+        200: {
+            "description": "Quick analysis successful",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "address": "I26BHULCO...",
+                        "is_participating": True,
+                        "sovereignty_ratio": 3.25,
+                        "sovereignty_status": "Robust",
+                        "portfolio_usd": 156000.0,
+                        "algo_price": 0.25,
+                        "years_of_runway": 3.3,
+                        "category_totals": {
+                            "hard_money": 50000.0,
+                            "algo": 75000.0,
+                            "dollars": 25000.0,
+                            "shitcoin": 6000.0
+                        },
+                        "asset_counts": {
+                            "hard_money": 3,
+                            "algo": 5,
+                            "dollars": 2,
+                            "shitcoin": 87
+                        },
+                        "needs_pagination": {
+                            "hard_money": False,
+                            "algo": False,
+                            "dollars": False,
+                            "shitcoin": True
+                        },
+                        "participation_info": {
+                            "staked_amount": 50000,
+                            "is_incentive_eligible": True
+                        }
+                    }
+                }
+            }
+        }
+    },
+    tags=["Wallet Analysis"]
+)
 async def get_quick_sovereignty(
-    address: str = Path(..., description="Algorand wallet address"),
-    monthly_fixed_expenses: Optional[float] = Query(None, description="Monthly fixed expenses"),
-    use_local_node: bool = Query(False)
+    address: str = Path(..., description="58-character Algorand wallet address"),
+    monthly_fixed_expenses: Optional[float] = Query(None, description="Monthly fixed expenses in USD for ratio calculation"),
+    use_local_node: bool = Query(False, description="Use local Algorand node instead of public API")
 ):
     """
     Get quick sovereignty metrics without full asset details.
 
-    Returns sovereignty score and category totals immediately for fast initial render.
-    Use /assets/{address}/{category} to load detailed asset lists progressively.
+    Optimized for fast initial page render. Returns sovereignty score and
+    category totals immediately. Use /assets/{address}/{category} to load
+    detailed asset lists progressively.
+
+    Args:
+        address: Algorand wallet address
+        monthly_fixed_expenses: Optional monthly expenses for ratio calculation
+        use_local_node: Whether to use local node (bypasses cache)
+
+    Returns:
+        QuickSovereigntyResponse with totals, counts, and pagination hints
     """
     from .schemas import QuickSovereigntyResponse
 
@@ -651,12 +1202,84 @@ def _create_and_save_snapshot(
         return None
 
 
-@router.post("/history/save", response_model=HistorySaveResponse)
+@router.post(
+    "/history/save",
+    response_model=HistorySaveResponse,
+    summary="Save sovereignty snapshot",
+    description="""
+Save a point-in-time sovereignty snapshot for historical tracking.
+
+## Automatic vs Manual Saves
+
+- **Automatic**: Snapshots are saved automatically on every `/analyze` call
+  that includes `monthly_fixed_expenses`
+- **Manual**: Use this endpoint to explicitly save a snapshot at a specific
+  moment (e.g., after a major allocation change)
+
+## Snapshot Data
+
+Each snapshot captures:
+- Timestamp (UTC ISO format)
+- Sovereignty ratio at that moment
+- Hard money USD value
+- Total portfolio USD value
+- ALGO price at snapshot time
+- Participation status (online/offline)
+
+## Storage
+
+Snapshots are stored in `data/history/{address}.json` as JSON arrays.
+Retention policy: 365 days maximum per address.
+
+## Use Case: Progress Tracking
+
+Track your journey to sovereignty over time:
+1. Save snapshots regularly (daily/weekly)
+2. Use GET /history/{address} to view trends
+3. HistoryChart component visualizes progress
+    """,
+    response_description="Save confirmation with optional snapshot data",
+    responses={
+        200: {
+            "description": "Snapshot saved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "success": True,
+                        "message": "Snapshot saved successfully",
+                        "snapshot": {
+                            "address": "I26BHULCO...",
+                            "timestamp": "2026-01-25T12:00:00Z",
+                            "sovereignty_ratio": 3.25,
+                            "hard_money_usd": 50000.0,
+                            "total_portfolio_usd": 156000.0,
+                            "algo_price": 0.25,
+                            "participation_status": True
+                        }
+                    }
+                }
+            }
+        }
+    },
+    tags=["History"]
+)
 async def save_history_snapshot(request: HistorySaveRequest):
     """
     Save a sovereignty snapshot for historical tracking.
 
-    Calculates current sovereignty metrics and saves a snapshot to history.
+    Performs fresh wallet analysis, calculates sovereignty metrics,
+    and persists a snapshot to the history database.
+
+    Args:
+        request: HistorySaveRequest with address and monthly_fixed_expenses
+
+    Returns:
+        HistorySaveResponse with success status and saved snapshot
+
+    Raises:
+        ValidationException: If address format is invalid
+        NotFoundException: If wallet not found
+        AlgorandApiException: If network request fails
     """
     # Validate address format
     validate_algorand_address(request.address)
@@ -744,16 +1367,112 @@ async def save_history_snapshot(request: HistorySaveRequest):
         )
 
 
-@router.get("/history/{address}")
+@router.get(
+    "/history/{address}",
+    summary="Get sovereignty history",
+    description="""
+Retrieve historical sovereignty snapshots for an address with progress metrics.
+
+## Time Periods
+
+- `days=30`: Last month of snapshots
+- `days=90`: Last quarter (default)
+- `days=365`: Full year of history
+
+## Response Structure
+
+The response includes three main sections:
+
+### 1. Snapshots Array
+Raw snapshot data sorted oldest-first (for charting):
+```json
+{
+  "snapshots": [
+    {"timestamp": "2025-01-01T...", "sovereignty_ratio": 2.5, ...},
+    {"timestamp": "2025-01-15T...", "sovereignty_ratio": 2.8, ...},
+    {"timestamp": "2025-01-25T...", "sovereignty_ratio": 3.1, ...}
+  ]
+}
+```
+
+### 2. Progress Metrics
+Calculated trend analysis:
+- `current_ratio`: Most recent ratio
+- `previous_ratio`: Ratio from ~30 days ago (for comparison)
+- `change_absolute`: Ratio change (current - previous)
+- `change_pct`: Percentage change
+- `trend`: "improving", "declining", "stable", or "new"
+- `projected_next_status`: When you'll reach next level (if improving)
+
+### 3. All-Time Stats
+Historical high/low/average for context:
+- `high`: Best sovereignty ratio achieved
+- `low`: Lowest ratio recorded
+- `average`: Mean ratio over tracking period
+- `first_tracked`: When tracking began
+    """,
+    response_description="Historical snapshots with progress metrics",
+    responses={
+        200: {
+            "description": "History retrieved successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "address": "I26BHULCO...",
+                        "snapshots": [
+                            {
+                                "timestamp": "2025-11-01T12:00:00Z",
+                                "sovereignty_ratio": 2.5,
+                                "hard_money_usd": 40000.0,
+                                "total_portfolio_usd": 120000.0,
+                                "algo_price": 0.22,
+                                "participation_status": True
+                            }
+                        ],
+                        "count": 45,
+                        "progress": {
+                            "current_ratio": 3.25,
+                            "previous_ratio": 2.5,
+                            "change_absolute": 0.75,
+                            "change_pct": 30.0,
+                            "trend": "improving",
+                            "days_tracked": 90,
+                            "snapshots_count": 45,
+                            "projected_next_status": {
+                                "status": "Antifragile",
+                                "ratio_needed": 6.0,
+                                "projected_date": "2026-05-15"
+                            }
+                        },
+                        "all_time": {
+                            "high": 3.25,
+                            "low": 1.8,
+                            "average": 2.65,
+                            "first_tracked": "2025-10-01T12:00:00Z"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    tags=["History"]
+)
 async def get_history(
-    address: str = Path(..., description="Wallet address"),
-    days: int = Query(90, description="Number of days (30, 90, or 365)")
+    address: str = Path(..., description="58-character Algorand wallet address"),
+    days: int = Query(90, description="Time period: 30, 90, or 365 days")
 ):
     """
     Get historical sovereignty snapshots for an address with progress metrics.
 
-    Returns snapshots within the specified time period along with progress
-    tracking data for the HistoryChart component.
+    Returns snapshots within the specified time period along with calculated
+    progress tracking data for the HistoryChart component.
+
+    Args:
+        address: Algorand wallet address
+        days: Number of days of history (30, 90, or 365)
+
+    Returns:
+        Dict with snapshots array, count, progress metrics, and all-time stats
     """
     # Validate days parameter
     if days not in (30, 90, 365):
@@ -967,18 +1686,63 @@ async def get_gold_silver_ratio():
 # Network Stats Endpoints
 # -----------------------------------------------------------------------------
 
-@router.get("/network/stats", response_model=NetworkStatsResponse)
+@router.get(
+    "/network/stats",
+    response_model=NetworkStatsResponse,
+    summary="Get network statistics",
+    description="""
+Get current Algorand network participation and decentralization statistics.
+
+## Decentralization Score
+
+A 0-100 score measuring Algorand's decentralization, calculated from:
+
+### Positive Factors
+- **Community Online Stake** (max 30 points): % of online stake from non-Foundation addresses
+- **Participation Rate** (max 10 points): % of total supply participating in consensus
+
+### Risk Penalties
+- **Foundation Supply** (max -25 points): Foundation's % of total supply
+- **Potential Control** (max -20 points): If Foundation went fully online, their potential stake %
+- **Relay Centralization** (-15 points): Foundation-operated relay node infrastructure
+- **Governance Influence** (-10 points): Foundation's influence over protocol changes
+
+## Network Info
+
+- `total_supply_algo`: Total ALGO in circulation
+- `online_stake_algo`: ALGO currently participating in consensus
+- `participation_rate`: % of supply that is online
+- `current_round`: Latest blockchain round number
+
+## Foundation Info
+
+Known Foundation addresses are tracked separately:
+- `total_balance_algo`: Total Foundation holdings
+- `online_balance_algo`: Foundation stake that is online
+- `pct_of_total_supply`: Foundation % of total supply
+- `pct_of_online_stake`: Foundation % of online stake
+
+## Caching
+
+Data is cached for 5 minutes to reduce API load.
+    """,
+    response_description="Complete network statistics with decentralization scoring",
+    tags=["Network"]
+)
 async def get_network_statistics():
     """
     Get current Algorand network participation and decentralization statistics.
 
-    Returns network-wide metrics including:
-    - Total supply and online stake
-    - Foundation stake breakdown
-    - Community stake percentage
-    - Decentralization score (0-100)
+    Fetches real-time data from the Algorand network and calculates a
+    comprehensive decentralization score based on multiple factors.
 
-    Data is cached for 5 minutes.
+    Returns:
+        NetworkStatsResponse with network, foundation, community info and score
+
+    Raises:
+        ServiceUnavailableException: If Algorand network unreachable
+        TimeoutException: If request times out
+        AlgorandApiException: If API communication fails
     """
     client = get_network_stats_client()
 

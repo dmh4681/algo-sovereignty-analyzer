@@ -185,29 +185,171 @@ class AlertSummary(BaseModel):
 
 
 class AnalysisResponse(BaseModel):
-    address: str
-    is_participating: bool
-    hard_money_algo: float
-    categories: Dict[str, List[Dict[str, Any]]]
-    sovereignty_data: Optional[SovereigntyData] = None
-    participation_info: Optional[Dict[str, Any]] = None
-    alerts: Optional[List[AlertSummary]] = None
-    has_critical_alerts: Optional[bool] = None
+    """
+    Complete wallet analysis response with categorized assets and sovereignty metrics.
+
+    This is the primary response model for the POST /analyze endpoint. It contains:
+    - Categorized holdings (hard_money, algo, dollars, shitcoin)
+    - Sovereignty metrics (if monthly_fixed_expenses was provided)
+    - Participation status and key details
+    - Any generated alerts
+
+    The categories dict contains arrays of asset objects, each with:
+    - name: Human-readable asset name
+    - ticker: Asset ticker/unit-name
+    - amount: Quantity held
+    - usd_value: Current USD value
+    - from_lp: (optional) LP token this came from if decomposed
+    """
+    address: str = Field(..., description="The analyzed wallet address")
+    is_participating: bool = Field(..., description="Whether wallet participates in Algorand consensus")
+    hard_money_algo: float = Field(..., description="Legacy field - ALGO in hard money (usually 0)")
+    categories: Dict[str, List[Dict[str, Any]]] = Field(
+        ...,
+        description="Categorized assets: hard_money, algo, dollars, shitcoin"
+    )
+    sovereignty_data: Optional[SovereigntyData] = Field(
+        None,
+        description="Sovereignty metrics (only if monthly_fixed_expenses provided)"
+    )
+    participation_info: Optional[Dict[str, Any]] = Field(
+        None,
+        description="Participation key details if wallet is online"
+    )
+    alerts: Optional[List[AlertSummary]] = Field(
+        None,
+        description="Generated sovereignty alerts"
+    )
+    has_critical_alerts: Optional[bool] = Field(
+        None,
+        description="True if any critical alerts were generated"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+                "is_participating": True,
+                "hard_money_algo": 0.0,
+                "categories": {
+                    "hard_money": [
+                        {"name": "goBTC", "ticker": "goBTC", "amount": 0.015, "usd_value": 1500.0}
+                    ],
+                    "algo": [
+                        {"name": "Algorand (PARTICIPATING)", "ticker": "ALGO", "amount": 50000, "usd_value": 12500.0}
+                    ],
+                    "dollars": [
+                        {"name": "USD Coin", "ticker": "USDC", "amount": 5000, "usd_value": 5000.0}
+                    ],
+                    "shitcoin": []
+                },
+                "sovereignty_data": {
+                    "monthly_fixed_expenses": 4000.0,
+                    "annual_fixed_expenses": 48000.0,
+                    "algo_price": 0.25,
+                    "portfolio_usd": 19000.0,
+                    "sovereignty_ratio": 0.4,
+                    "sovereignty_status": "Vulnerable",
+                    "years_of_runway": 0.4
+                }
+            }
+        }
+
 
 class AnalyzeRequest(BaseModel):
-    address: str
-    monthly_fixed_expenses: Optional[float] = None
+    """
+    Request body for wallet sovereignty analysis.
+
+    The address is required. If monthly_fixed_expenses is provided, sovereignty
+    ratio and status will be calculated. Without expenses, only asset
+    categorization is performed.
+
+    Example:
+        POST /api/v1/analyze
+        {
+            "address": "YOUR_58_CHAR_ALGORAND_ADDRESS",
+            "monthly_fixed_expenses": 4000
+        }
+    """
+    address: str = Field(
+        ...,
+        description="58-character Algorand wallet address",
+        min_length=58,
+        max_length=58
+    )
+    monthly_fixed_expenses: Optional[float] = Field(
+        None,
+        description="Monthly fixed expenses in USD for sovereignty ratio calculation",
+        ge=0
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+                "monthly_fixed_expenses": 4000.0
+            }
+        }
 
 
 class HistorySaveRequest(BaseModel):
-    address: str
-    monthly_fixed_expenses: float
+    """
+    Request body for saving a sovereignty snapshot to history.
+
+    Both address and monthly_fixed_expenses are required because the
+    sovereignty ratio cannot be calculated without knowing expenses.
+    """
+    address: str = Field(
+        ...,
+        description="58-character Algorand wallet address",
+        min_length=58,
+        max_length=58
+    )
+    monthly_fixed_expenses: float = Field(
+        ...,
+        description="Monthly fixed expenses in USD (required for ratio calculation)",
+        gt=0
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+                "monthly_fixed_expenses": 4000.0
+            }
+        }
 
 
 class HistorySaveResponse(BaseModel):
-    success: bool
-    message: str
-    snapshot: Optional[SovereigntySnapshot] = None
+    """
+    Response after saving a sovereignty snapshot.
+
+    On success, includes the saved snapshot data. On failure, success=False
+    with an error message.
+    """
+    success: bool = Field(..., description="Whether the save operation succeeded")
+    message: str = Field(..., description="Status message (success or error details)")
+    snapshot: Optional[SovereigntySnapshot] = Field(
+        None,
+        description="The saved snapshot data (null on failure)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "success": True,
+                "message": "Snapshot saved successfully",
+                "snapshot": {
+                    "address": "I26BHULCO...",
+                    "timestamp": "2026-01-25T12:00:00Z",
+                    "sovereignty_ratio": 3.25,
+                    "hard_money_usd": 50000.0,
+                    "total_portfolio_usd": 156000.0,
+                    "algo_price": 0.25,
+                    "participation_status": True
+                }
+            }
+        }
 
 
 class ProgressData(BaseModel):
