@@ -302,6 +302,136 @@ export default function PhilosophyPage() {
                 </div>
             </section>
 
+            {/* Hard Money Philosophy */}
+            <section className="space-y-12">
+                <div className="text-center max-w-3xl mx-auto">
+                    <h2 className="text-3xl font-bold text-white mb-4">Why Only Bitcoin, Gold, and Silver?</h2>
+                    <p className="text-slate-400 text-lg">
+                        Throughout human history, only three asset classes have consistently preserved purchasing power across centuries, empires, and monetary regimes.
+                    </p>
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-6">
+                    <HardMoneyCard
+                        metal="Bitcoin"
+                        years="15+"
+                        mechanism="Cryptographic"
+                        keyProperty="Mathematically enforced 21M cap. Cannot be inflated."
+                        color="orange"
+                    />
+                    <HardMoneyCard
+                        metal="Gold"
+                        years="5,000+"
+                        mechanism="Geological"
+                        keyProperty="Cannot be printed. ~2% annual supply growth from mining."
+                        color="yellow"
+                    />
+                    <HardMoneyCard
+                        metal="Silver"
+                        years="4,000+"
+                        mechanism="Geological + Industrial"
+                        keyProperty="Monetary metal with industrial consumption reducing supply."
+                        color="slate"
+                    />
+                </div>
+
+                <div className="bg-gradient-to-br from-orange-950/30 to-slate-950 border border-orange-500/30 rounded-2xl p-8">
+                    <h3 className="text-2xl font-bold text-orange-400 mb-4">What Disqualifies Other Assets?</h3>
+                    <div className="grid md:grid-cols-2 gap-4 text-slate-300">
+                        <div className="space-y-2">
+                            <p><span className="text-red-400 font-bold">Fiat Currency:</span> Unlimited supply = guaranteed debasement. USD lost 96% of value since 1913.</p>
+                            <p><span className="text-red-400 font-bold">Stablecoins:</span> Pegged to fiat, inheriting its inflation problem.</p>
+                        </div>
+                        <div className="space-y-2">
+                            <p><span className="text-red-400 font-bold">Altcoins:</span> Variable supply, governance risk. Monetary policy can change.</p>
+                            <p><span className="text-red-400 font-bold">Real Estate:</span> Property taxes mean you never truly own it. Try not paying.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            {/* Sovereignty Scoring Methodology */}
+            <section className="space-y-12">
+                <div className="text-center max-w-3xl mx-auto">
+                    <h2 className="text-3xl font-bold text-white mb-4">The Sovereignty Score Formula</h2>
+                    <p className="text-slate-400 text-lg">
+                        Your sovereignty score measures one thing: how many years you could maintain your lifestyle using only your assets, with zero income.
+                    </p>
+                </div>
+
+                <div className="bg-slate-900/50 border border-slate-700 rounded-2xl p-8 space-y-6">
+                    <div className="text-center">
+                        <div className="inline-block bg-slate-950 px-8 py-4 rounded-xl border border-slate-700">
+                            <p className="text-slate-400 text-sm mb-2">THE FORMULA</p>
+                            <p className="text-3xl font-mono text-white">
+                                <span className="text-green-400">Sovereignty Ratio</span> = <span className="text-blue-400">Portfolio Value</span> / <span className="text-orange-400">Annual Expenses</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8 pt-4">
+                        <div>
+                            <h4 className="text-blue-400 font-bold mb-3">Portfolio Value (Numerator)</h4>
+                            <p className="text-slate-400 mb-3">Sum of all your assets in USD:</p>
+                            <ul className="space-y-2 text-slate-300 text-sm">
+                                <li className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-orange-500 rounded-full" />
+                                    <span><strong>Hard Money</strong> - Bitcoin, Gold, Silver (highest sovereignty)</span>
+                                </li>
+                                <li className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-blue-500 rounded-full" />
+                                    <span><strong>Algorand</strong> - ALGO and liquid staking derivatives</span>
+                                </li>
+                                <li className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-green-500 rounded-full" />
+                                    <span><strong>Dollars</strong> - Stablecoins (USDC, USDT)</span>
+                                </li>
+                                <li className="flex items-center gap-2">
+                                    <div className="w-3 h-3 bg-slate-500 rounded-full" />
+                                    <span><strong>Other</strong> - Everything else</span>
+                                </li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h4 className="text-orange-400 font-bold mb-3">Annual Fixed Expenses (Denominator)</h4>
+                            <p className="text-slate-400 mb-3">Costs you cannot easily reduce:</p>
+                            <ul className="space-y-1 text-slate-300 text-sm">
+                                <li>Rent or mortgage payments</li>
+                                <li>Utilities (electric, water, gas, internet)</li>
+                                <li>Insurance (health, auto, home)</li>
+                                <li>Minimum debt payments</li>
+                                <li>Property taxes</li>
+                                <li>Basic food and transportation</li>
+                            </ul>
+                            <p className="text-slate-500 text-xs mt-3 italic">
+                                Excludes: entertainment, dining out, subscriptions, travel
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-slate-950 border border-slate-800 rounded-2xl p-8">
+                    <h3 className="text-xl font-bold text-white mb-6 text-center">Example Calculation</h3>
+                    <div className="grid md:grid-cols-3 gap-6 items-center">
+                        <div className="text-center">
+                            <p className="text-slate-500 text-sm mb-1">Portfolio Value</p>
+                            <p className="text-3xl font-mono text-blue-400">$120,000</p>
+                            <p className="text-slate-600 text-xs mt-1">goBTC + GOLD$ + ALGO + USDC</p>
+                        </div>
+                        <div className="text-center">
+                            <p className="text-slate-500 text-sm mb-1">Annual Expenses</p>
+                            <p className="text-3xl font-mono text-orange-400">$48,000</p>
+                            <p className="text-slate-600 text-xs mt-1">$4,000/month x 12</p>
+                        </div>
+                        <div className="text-center bg-slate-900 p-4 rounded-xl border border-green-500/30">
+                            <p className="text-slate-500 text-sm mb-1">Sovereignty Ratio</p>
+                            <p className="text-4xl font-mono text-green-400 font-bold">2.5</p>
+                            <p className="text-green-300 text-sm mt-1">2.5 years of freedom</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
             {/* Data as Foundation */}
             <section className="bg-slate-900/30 border border-slate-800 rounded-3xl p-8 md:p-12 text-center space-y-8">
                 <div className="inline-flex items-center justify-center p-4 bg-slate-800 rounded-full mb-4">
@@ -428,5 +558,42 @@ function CheckItem({ text }: { text: string }) {
             <Shield className="w-4 h-4 text-green-500 flex-shrink-0" />
             <span>{text}</span>
         </li>
+    )
+}
+
+function HardMoneyCard({ metal, years, mechanism, keyProperty, color }: {
+    metal: string,
+    years: string,
+    mechanism: string,
+    keyProperty: string,
+    color: 'orange' | 'yellow' | 'slate'
+}) {
+    const colorClasses = {
+        orange: 'bg-orange-950/30 border-orange-500/30 text-orange-400',
+        yellow: 'bg-yellow-950/30 border-yellow-500/30 text-yellow-400',
+        slate: 'bg-slate-800/50 border-slate-600/30 text-slate-300'
+    }
+
+    return (
+        <Card className={`${colorClasses[color].split(' ').slice(0, 2).join(' ')} border`}>
+            <CardHeader>
+                <CardTitle className={`text-2xl ${colorClasses[color].split(' ').slice(2).join(' ')}`}>
+                    {metal}
+                </CardTitle>
+                <CardDescription className="text-slate-400">
+                    {years} years of monetary history
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Scarcity Mechanism</p>
+                    <p className="text-slate-300">{mechanism}</p>
+                </div>
+                <div>
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Key Property</p>
+                    <p className="text-slate-400 text-sm">{keyProperty}</p>
+                </div>
+            </CardContent>
+        </Card>
     )
 }

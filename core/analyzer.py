@@ -113,7 +113,33 @@ class AlgorandSovereigntyAnalyzer:
         self.last_participation_info: Dict[str, Any] = {}
 
     def get_account_assets(self, address: str) -> Optional[Dict[str, Any]]:
-        """Get all assets for an Algorand address"""
+        """
+        Fetch all assets and account state for an Algorand address.
+
+        Queries the Algorand node API to retrieve complete account information
+        including native ALGO balance, opted-in ASAs, and participation status.
+
+        Args:
+            address: A 58-character Algorand wallet address (base32 encoded).
+
+        Returns:
+            Dict containing account data with keys:
+                - 'amount': ALGO balance in microALGO (divide by 1_000_000)
+                - 'assets': List of opted-in ASAs with 'asset-id' and 'amount'
+                - 'status': 'Online' if participating in consensus, else 'Offline'
+                - 'participation': Dict with vote key details (if participating)
+            Returns None if the request fails or address is invalid.
+
+        Raises:
+            Does not raise exceptions; returns None on any error.
+
+        Example:
+            >>> analyzer = AlgorandSovereigntyAnalyzer()
+            >>> data = analyzer.get_account_assets("ABC123...")
+            >>> if data:
+            ...     algo_balance = data['amount'] / 1_000_000
+            ...     print(f"Balance: {algo_balance} ALGO")
+        """
         url = f"{self.algod_address}/v2/accounts/{address}"
         try:
             response = requests.get(url, headers=self.headers, timeout=10)
@@ -124,7 +150,32 @@ class AlgorandSovereigntyAnalyzer:
             return None
     
     def get_asset_details(self, asset_id: int) -> Optional[Dict[str, Any]]:
-        """Get details for a specific ASA"""
+        """
+        Fetch metadata for a specific Algorand Standard Asset (ASA).
+
+        Retrieves asset parameters including name, ticker (unit-name), decimals,
+        total supply, and creator address. This information is needed to properly
+        display and calculate asset amounts.
+
+        Args:
+            asset_id: The unique ASA identifier (positive integer).
+
+        Returns:
+            Dict containing asset data with 'params' key holding:
+                - 'name': Full asset name (e.g., "Wrapped Bitcoin")
+                - 'unit-name': Ticker symbol (e.g., "goBTC")
+                - 'decimals': Decimal places for display (usually 6 or 8)
+                - 'total': Total supply in base units
+                - 'creator': Address that created the asset
+            Returns None if asset not found or request fails.
+
+        Example:
+            >>> details = analyzer.get_asset_details(386192725)  # goBTC
+            >>> if details:
+            ...     params = details['params']
+            ...     print(f"{params['unit-name']}: {params['name']}")
+            goBTC: goAlgo BTC
+        """
         url = f"{self.algod_address}/v2/assets/{asset_id}"
         try:
             response = requests.get(url, headers=self.headers, timeout=10)
@@ -380,7 +431,40 @@ class AlgorandSovereigntyAnalyzer:
         return categories
     
     def print_results(self, categories: Dict[str, List[Dict[str, Any]]], is_participating: bool):
-        """Print sovereignty analysis results (hard money maximalist philosophy)"""
+        """
+        Print formatted sovereignty analysis results to console.
+
+        Outputs a detailed breakdown of wallet holdings organized by category
+        (Hard Money, Algorand, Dollars, Shitcoins) with USD values and totals.
+        Uses a hard money maximalist philosophy where Bitcoin, Gold, and Silver
+        are highlighted as the primary sovereignty assets.
+
+        Args:
+            categories: Dict with keys 'hard_money', 'algo', 'dollars', 'shitcoin',
+                each containing a list of asset dicts with 'name', 'ticker',
+                'amount', and 'usd_value' keys.
+            is_participating: True if wallet is online for consensus participation.
+
+        Output Format:
+            ============================================================
+            ALGORAND SOVEREIGNTY ANALYSIS
+            ============================================================
+
+            HARD MONEY (Bitcoin, Gold, Silver)
+            ------------------------------------------------------------
+              goBTC        0.015 ($1,500.00)  goAlgo BTC
+              GOLD$       10.00 ($20,000.00)  Meld Gold
+              TOTAL USD $21,500.00
+
+            ... (similar for other categories)
+
+            ============================================================
+            SOVEREIGNTY SUMMARY
+            ============================================================
+            Participation Status: ONLINE/OFFLINE
+            Hard Money Assets: X (BTC, Gold, Silver)
+            ...
+        """
         print("\n" + "="*60)
         print("ALGORAND SOVEREIGNTY ANALYSIS")
         print("="*60 + "\n")
@@ -494,36 +578,72 @@ class AlgorandSovereigntyAnalyzer:
             ≥3  → "Robust 🟡"
             ≥1  → "Fragile 🔴"
             <1  → "Vulnerable ⚫"
+
+        Hard Money Philosophy Note:
+            While hard money (BTC, Gold, Silver) is considered the foundation of true
+            sovereignty, this calculator uses TOTAL portfolio value. The rationale:
+
+            1. Practical conversion: Other assets can be converted to hard money
+            2. Liquidity: Stablecoins provide immediate spending power in emergencies
+            3. Optionality: Even "shitcoins" may have short-term utility
+
+            The recommendation is always to increase hard money allocation over time,
+            but the sovereignty ratio shows CURRENT runway regardless of asset mix.
         """
         if monthly_fixed_expenses <= 0:
             return None
-            
-        # Calculate annual fixed expenses
+
+        # =========================================================================
+        # STEP 1: Calculate Annual Fixed Expenses
+        # =========================================================================
+        # Fixed expenses = costs you cannot easily reduce (rent, utilities, insurance,
+        # minimum debt payments). This is the denominator of our sovereignty ratio.
         annual_fixed = monthly_fixed_expenses * 12
-        
-        # Calculate total portfolio value in USD (Hard Money + Algo + Dollars + Shitcoins)
+
+        # =========================================================================
+        # STEP 2: Sum Total Portfolio Value
+        # =========================================================================
+        # We include ALL categories because any asset can theoretically be liquidated
+        # to cover expenses. However, the hard money philosophy encourages users to
+        # maximize their hard_money allocation for long-term preservation.
         portfolio_usd = 0.0
         for category in ['hard_money', 'algo', 'dollars', 'shitcoin']:
             for asset in categories.get(category, []):
                 portfolio_usd += asset.get('usd_value', 0.0)
-            
-        # Get ALGO price for reference
+
+        # Get ALGO price for reference (used in "needs X more ALGO" calculations)
         algo_price = get_algo_price() or 0.174
-        
-        # Calculate Sovereignty Ratio
+
+        # =========================================================================
+        # STEP 3: Calculate Sovereignty Ratio
+        # =========================================================================
+        # The core formula: how many YEARS can your portfolio cover your fixed expenses?
+        #
+        #   Sovereignty Ratio = Portfolio Value / Annual Expenses
+        #
+        # Example: $120,000 portfolio / $48,000 annual expenses = 2.5 years
         sovereignty_ratio = portfolio_usd / annual_fixed
-        
-        # Determine sovereignty status
+
+        # =========================================================================
+        # STEP 4: Determine Status Level
+        # =========================================================================
+        # Status thresholds are based on:
+        #   - 1 year: Minimum viable runway (can survive job loss)
+        #   - 3 years: Average recession length with buffer
+        #   - 6 years: Longest post-war recession + safety margin (Antifragile concept)
+        #   - 20 years: Generational wealth threshold (working lifetime / career span)
+        #
+        # These thresholds encourage progress while acknowledging different life stages.
         if sovereignty_ratio >= 20:
-            status = "Generationally Sovereign 🟩"
+            status = "Generationally Sovereign 🟩"  # Multigenerational wealth
         elif sovereignty_ratio >= 6:
-            status = "Antifragile 🟢"
+            status = "Antifragile 🟢"  # Benefits from volatility (Taleb concept)
         elif sovereignty_ratio >= 3:
-            status = "Robust 🟡"
+            status = "Robust 🟡"  # Can weather major economic storms
         elif sovereignty_ratio >= 1:
-            status = "Fragile 🔴"
+            status = "Fragile 🔴"  # Building foundation, still vulnerable
         else:
-            status = "Vulnerable ⚫"
+            status = "Vulnerable ⚫"  # Less than 1 year coverage
             
         return SovereigntyData(
             monthly_fixed_expenses=monthly_fixed_expenses,
@@ -536,7 +656,40 @@ class AlgorandSovereigntyAnalyzer:
         )
 
     def calculate_sovereignty_ratio(self, hard_money_algo: float):
-        """Calculate and display sovereignty ratio based on manual expense input"""
+        """
+        Interactive CLI method to calculate and display sovereignty ratio.
+
+        Prompts the user for their monthly fixed expenses, then calculates
+        the sovereignty ratio using the cached analysis results from the
+        most recent analyze_wallet() call.
+
+        The Sovereignty Ratio Formula:
+            ratio = total_portfolio_usd / (monthly_expenses * 12)
+
+        This ratio represents "years of financial freedom" - how long the
+        user could maintain their essential expenses using only their
+        portfolio, without any additional income.
+
+        Args:
+            hard_money_algo: Legacy parameter for ALGO amount in hard money.
+                (Currently unused as the method uses self.last_categories)
+
+        Side Effects:
+            - Prompts for user input via input()
+            - Prints detailed results to console
+            - Re-exports JSON with sovereignty data included
+
+        Interactive Flow:
+            1. Prompts for monthly fixed expenses (USD)
+            2. Calculates sovereignty metrics
+            3. Displays ratio and status level
+            4. Shows requirements to reach next status level
+            5. Exports updated JSON file
+
+        Note:
+            This method is designed for CLI usage. For API/programmatic
+            access, use calculate_sovereignty_metrics() directly.
+        """
         print("\n" + "="*60)
         print("SOVEREIGNTY RATIO CALCULATOR")
         print("="*60 + "\n")
@@ -610,10 +763,56 @@ class AlgorandSovereigntyAnalyzer:
         except KeyboardInterrupt:
             print("\n\n⚠️  Calculation cancelled.\n")
 
-    def export_to_json(self, categories: Dict[str, List[Dict[str, Any]]], address: str, 
-                       is_participating: bool, hard_money_algo: float, 
+    def export_to_json(self, categories: Dict[str, List[Dict[str, Any]]], address: str,
+                       is_participating: bool, hard_money_algo: float,
                        sovereignty_data: Optional[SovereigntyData] = None):
-        """Export analysis results to JSON file"""
+        """
+        Export analysis results to a JSON file for persistence or API response.
+
+        Creates a structured JSON file containing wallet metadata, categorized
+        assets, summary statistics, and optional sovereignty metrics. The file
+        is saved in the current working directory.
+
+        Args:
+            categories: Dict with asset categories from analyze_wallet().
+            address: The 58-character Algorand wallet address.
+            is_participating: True if wallet participates in consensus.
+            hard_money_algo: Amount of ALGO in hard money category (legacy).
+            sovereignty_data: Optional SovereigntyData with calculated metrics.
+
+        Returns:
+            str: Filename of the exported JSON file.
+
+        Output File Format:
+            sovereignty_analysis_{address[:8]}.json
+
+        JSON Structure:
+            {
+                "metadata": {
+                    "analyzed_at": "2026-01-25T12:00:00",
+                    "address": "ABC123...",
+                    "address_short": "ABC123...XYZ789",
+                    "participation_status": "online|offline"
+                },
+                "assets": {
+                    "hard_money": [...],
+                    "algo": [...],
+                    "dollars": [...],
+                    "shitcoin": [...]
+                },
+                "summary": {
+                    "hard_money_count": 3,
+                    "dollars_count": 2,
+                    "shitcoin_count": 15,
+                    "total_algo": 50000.0
+                },
+                "sovereignty": { ... }  // if sovereignty_data provided
+            }
+
+        Example:
+            >>> analyzer.export_to_json(categories, address, True, 0, metrics)
+            'sovereignty_analysis_ABC123.json'
+        """
         
         # Build the export data (3 categories: hard money maximalist philosophy)
         export_data = {

@@ -185,8 +185,32 @@ class LPParser:
 
     def get_pool_info(self, asset_id: int) -> Optional[Dict[str, Any]]:
         """
-        Get pool information for an LP token.
-        Returns pool reserves and total LP supply.
+        Retrieve pool metadata for an LP token by its asset ID.
+
+        Fetches the LP token's on-chain metadata and parses it to extract
+        pool information including the underlying asset pair. Results are
+        cached in self._pool_cache for subsequent lookups.
+
+        Args:
+            asset_id: The ASA ID of the LP token (e.g., Tinyman pool token).
+
+        Returns:
+            Dict containing pool information:
+                - 'asset1_ticker': Ticker of first underlying asset
+                - 'asset2_ticker': Ticker of second underlying asset
+                - 'lp_asset_id': The LP token's asset ID
+                - 'creator': Pool creator/application address
+                - 'estimated': True if info was parsed from metadata
+            Returns None if pool info cannot be determined.
+
+        Caching:
+            Results are cached in self._pool_cache by asset_id to avoid
+            repeated blockchain queries for the same LP token.
+
+        Example:
+            >>> pool_info = parser.get_pool_info(123456789)
+            >>> if pool_info:
+            ...     print(f"Pool: {pool_info['asset1_ticker']}-{pool_info['asset2_ticker']}")
         """
         if asset_id in self._pool_cache:
             return self._pool_cache[asset_id]
@@ -270,8 +294,39 @@ class LPParser:
     
     def get_pool_state(self, pool_address: str, lp_asset_id: int, asset1_id: int, asset2_id: int) -> Optional[dict]:
         """
-        Query pool using Tinyman SDK to get exact reserves and total supply.
-        Returns dict with: total_supply, reserve1, reserve2
+        Query on-chain pool state using the Tinyman SDK for exact reserves.
+
+        This method provides the most accurate LP token valuation by fetching
+        the actual pool reserves and total LP supply directly from the
+        Tinyman V2 smart contract state.
+
+        The calculation for user's share:
+            user_share_pct = user_lp_tokens / total_lp_supply
+            user_asset1 = user_share_pct * pool_reserve1
+            user_asset2 = user_share_pct * pool_reserve2
+
+        Args:
+            pool_address: The Algorand address of the pool (pool creator).
+            lp_asset_id: The ASA ID of the LP token.
+            asset1_id: ASA ID of first underlying asset (0 for ALGO).
+            asset2_id: ASA ID of second underlying asset (0 for ALGO).
+
+        Returns:
+            Dict with pool state data:
+                - 'total_supply': Total LP tokens issued (human-readable)
+                - 'reserve1': Pool reserves of asset 1 (human-readable)
+                - 'reserve2': Pool reserves of asset 2 (human-readable)
+            Returns None if Tinyman SDK is unavailable or pool not found.
+
+        Dependencies:
+            Requires tinyman-py-sdk and algosdk packages.
+
+        Example:
+            >>> state = parser.get_pool_state(
+            ...     "POOL_ADDRESS", 123456, 0, 31566704  # ALGO-USDC pool
+            ... )
+            >>> if state:
+            ...     print(f"Reserves: {state['reserve1']} ALGO, {state['reserve2']} USDC")
         """
         try:
             print(f"🔍 Using Tinyman SDK for LP {lp_asset_id}")
@@ -511,8 +566,38 @@ class LPParser:
 
     def classify_lp_components(self, breakdown: LPBreakdown, classify_fn) -> List[Tuple[str, Dict[str, Any]]]:
         """
-        Classify the components of an LP token breakdown.
-        Returns a list of (category, asset_dict) tuples.
+        Classify LP token components into sovereignty categories.
+
+        Takes a decomposed LP token and routes each underlying asset to its
+        appropriate category (hard_money, algo, dollars, shitcoin) using the
+        provided classification function.
+
+        This enables proper sovereignty scoring where LP tokens are not
+        treated as a single "shitcoin" but are broken down and their
+        hard money components (like goBTC or GOLD$) are properly counted.
+
+        Args:
+            breakdown: LPBreakdown dataclass with decomposed asset amounts.
+            classify_fn: Classification function with signature:
+                classify_fn(asset_id: int, name: str, ticker: str) -> str
+                Should return one of: 'hard_money', 'algo', 'dollars', 'shitcoin'
+
+        Returns:
+            List of tuples: [(category, asset_dict), ...]
+            Each asset_dict contains:
+                - 'name': "{ticker} (from {lp_ticker})"
+                - 'ticker': Original asset ticker
+                - 'amount': User's share of this asset
+                - 'usd_value': USD value of user's share
+                - 'from_lp': Original LP token ticker for tracking
+
+        Example:
+            >>> breakdown = parser.estimate_lp_value("TMPOOL2", "ALGO-goBTC", 100, id, get_price)
+            >>> components = parser.classify_lp_components(breakdown, classifier.auto_classify_asset)
+            >>> for category, asset in components:
+            ...     print(f"{category}: {asset['ticker']} = ${asset['usd_value']:.2f}")
+            algo: ALGO = $500.00
+            hard_money: goBTC = $500.00
         """
         components = []
 
