@@ -1,4 +1,26 @@
-"""Request/Response logging middleware for the Algorand Sovereignty Analyzer API."""
+"""Request/Response logging middleware for the Algorand Sovereignty Analyzer API.
+
+This module provides structured JSON logging for all API requests including:
+- Unique request IDs (UUID4) for correlation
+- Request timing (duration in milliseconds)
+- Anonymized wallet addresses for privacy
+- Error tracking with exception types
+
+Log Format:
+    All logs are output as JSON objects with the following fields:
+    - timestamp: ISO 8601 UTC timestamp
+    - request_id: Unique identifier for request correlation
+    - event: 'request', 'response', or 'error'
+    - method: HTTP method (GET, POST, etc.)
+    - path: Request path (with anonymized addresses)
+    - status: HTTP status code (response/error only)
+    - duration_ms: Request duration in milliseconds
+    - error_type: Exception class name (error only)
+
+Privacy:
+    Wallet addresses in paths and query params are automatically hashed
+    using SHA256, with only the first 8 characters of the hash logged.
+"""
 
 import hashlib
 import json
@@ -8,7 +30,7 @@ import time
 import uuid
 from contextvars import ContextVar
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -126,11 +148,36 @@ class LoggingMiddleware(BaseHTTPMiddleware):
     - Request timing (duration_ms)
     - Anonymized wallet addresses (first 8 chars of SHA256)
     - Structured JSON output to stdout
+    - Error context preservation for debugging
+    - Response status categorization (2xx, 4xx, 5xx)
     """
+
+    # Endpoints that should not log request bodies (sensitive data)
+    SENSITIVE_ENDPOINTS = {"/api/v1/agent/advice"}
+
+    # Maximum body size to log (prevent memory issues)
+    MAX_BODY_LOG_SIZE = 1000
 
     def __init__(self, app):
         super().__init__(app)
         self.logger = configure_logger()
+
+    def _get_client_ip(self, request: Request) -> str:
+        """Extract client IP, considering proxy headers."""
+        # Check for forwarded headers (reverse proxy)
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            return forwarded.split(",")[0].strip()
+        return request.client.host if request.client else "unknown"
+
+    def _categorize_status(self, status_code: int) -> str:
+        """Categorize HTTP status code for logging."""
+        if status_code < 400:
+            return "success"
+        elif status_code < 500:
+            return "client_error"
+        else:
+            return "server_error"
 
     async def dispatch(self, request: Request, call_next) -> Response:
         """Process the request and log structured information."""
@@ -148,17 +195,24 @@ class LoggingMiddleware(BaseHTTPMiddleware):
         method = request.method
         path = anonymize_path(request.url.path)
         query_params = anonymize_query_params(request.url.query)
+        client_ip = self._get_client_ip(request)
 
-        # Log request
-        request_log = {
+        # Build request log
+        request_log: Dict[str, Any] = {
             "timestamp": timestamp,
             "request_id": request_id,
             "event": "request",
             "method": method,
             "path": path,
+            "client_ip": client_ip,
         }
         if query_params:
             request_log["query_params"] = query_params
+
+        # Add content type for POST/PUT requests
+        if method in ("POST", "PUT", "PATCH"):
+            content_type = request.headers.get("content-type", "")
+            request_log["content_type"] = content_type.split(";")[0] if content_type else None
 
         self.logger.info(json.dumps(request_log))
 
@@ -172,17 +226,28 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # Calculate duration
             duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
+            # Determine log level based on status code
+            status_category = self._categorize_status(response.status_code)
+
             # Log response
-            response_log = {
+            response_log: Dict[str, Any] = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "request_id": request_id,
                 "event": "response",
                 "method": method,
                 "path": path,
                 "status": response.status_code,
+                "status_category": status_category,
                 "duration_ms": duration_ms,
             }
-            self.logger.info(json.dumps(response_log))
+
+            # Log 4xx/5xx responses as warnings/errors
+            if response.status_code >= 500:
+                self.logger.error(json.dumps(response_log))
+            elif response.status_code >= 400:
+                self.logger.warning(json.dumps(response_log))
+            else:
+                self.logger.info(json.dumps(response_log))
 
             # Add request_id to response headers for debugging
             response.headers["X-Request-ID"] = request_id
@@ -193,16 +258,24 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             # Calculate duration even on error
             duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
 
-            # Log error
-            error_log = {
+            # Build detailed error log
+            error_log: Dict[str, Any] = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "request_id": request_id,
                 "event": "error",
                 "method": method,
                 "path": path,
                 "error_type": type(exc).__name__,
+                "error_message": str(exc)[:200],  # Truncate long messages
                 "duration_ms": duration_ms,
             }
+
+            # Add specific error context based on exception type
+            if hasattr(exc, "status_code"):
+                error_log["status_code"] = exc.status_code
+            if hasattr(exc, "error_code"):
+                error_log["error_code"] = exc.error_code
+
             self.logger.error(json.dumps(error_log))
 
             # Re-raise to let exception handlers deal with it

@@ -1,10 +1,23 @@
 import re
+import logging
 import requests
 import traceback
 from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
-from .errors import ValidationException, NotFoundException, ExternalApiException
+from .errors import (
+    ValidationException,
+    NotFoundException,
+    ExternalApiException,
+    AlgorandApiException,
+    PriceApiException,
+    TimeoutException,
+    ServiceUnavailableException,
+    AnalysisException,
+)
 from core.history import SovereigntySnapshot, get_history_manager
+
+# Configure module logger
+logger = logging.getLogger("api.routes")
 from core.btc_history import get_btc_history_manager, save_current_prices
 from core.miner_metrics import get_miner_metrics_db, MinerMetric
 from core.silver_metrics import get_silver_metrics_db, SilverMinerMetric
@@ -94,10 +107,27 @@ async def get_agent_advice(request: AdviceRequest):
         coach = SovereigntyCoach()
         advice = coach.generate_advice(request.analysis)
         return {"advice": advice}
+    except requests.exceptions.Timeout:
+        logger.error("AI agent request timed out")
+        raise TimeoutException(
+            detail="AI coaching request timed out",
+            error_code="AI_TIMEOUT",
+            service="anthropic"
+        )
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"AI agent connection error: {e}")
+        raise ServiceUnavailableException(
+            detail="AI coaching service unavailable",
+            error_code="AI_SERVICE_UNAVAILABLE",
+            details={"service": "anthropic"}
+        )
     except Exception as e:
-        print(f"ERROR in /agent/advice: {e}")
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error in /agent/advice: {e}")
+        raise ExternalApiException(
+            detail="AI coaching failed",
+            error_code="AI_ERROR",
+            details={"error_type": type(e).__name__}
+        )
 
 # Simple cache: {address: (analysis_result, timestamp)}
 _wallet_cache: Dict[str, Tuple[dict, datetime]] = {}
@@ -213,24 +243,38 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
     except (ValidationException, NotFoundException):
         raise
     except requests.exceptions.Timeout:
-        raise ExternalApiException(
-            detail="Algorand API request timed out",
-            error_code="ALGORAND_API_TIMEOUT",
-            details={"address": request.address}
+        logger.warning(f"Algorand API timeout for address {request.address[:8]}...")
+        raise AlgorandApiException(
+            detail="Algorand API request timed out. Please try again.",
+            is_timeout=True,
+            details={"address": f"{request.address[:8]}...{request.address[-6:]}"}
+        )
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Algorand API connection error: {e}")
+        raise AlgorandApiException(
+            detail="Unable to connect to Algorand network",
+            error_code="ALGORAND_CONNECTION_ERROR",
+            details={
+                "address": f"{request.address[:8]}...{request.address[-6:]}",
+                "suggestion": "The Algorand node may be temporarily unavailable. Please try again."
+            }
         )
     except requests.exceptions.RequestException as e:
-        raise ExternalApiException(
+        logger.error(f"Algorand API request error: {type(e).__name__}: {e}")
+        raise AlgorandApiException(
             detail="Failed to communicate with Algorand API",
             error_code="ALGORAND_API_ERROR",
-            details={"address": request.address, "error_type": type(e).__name__}
+            details={
+                "address": f"{request.address[:8]}...{request.address[-6:]}",
+                "error_type": type(e).__name__
+            }
         )
     except Exception as e:
-        print(f"Error in analyze_wallet endpoint: {e}")
-        traceback.print_exc()
-        raise ExternalApiException(
-            detail="Analysis failed due to an external service error",
+        logger.exception(f"Unexpected error in analyze_wallet: {e}")
+        raise AnalysisException(
+            detail="Wallet analysis failed unexpectedly",
             error_code="ANALYSIS_FAILED",
-            details={"address": request.address}
+            address=request.address
         )
 
 @router.get("/classifications")
@@ -614,6 +658,9 @@ async def save_history_snapshot(request: HistorySaveRequest):
 
     Calculates current sovereignty metrics and saves a snapshot to history.
     """
+    # Validate address format
+    validate_algorand_address(request.address)
+
     analyzer = AlgorandSovereigntyAnalyzer(use_local_node=False)
 
     try:
@@ -627,9 +674,10 @@ async def save_history_snapshot(request: HistorySaveRequest):
             # Perform fresh analysis
             categories = analyzer.analyze_wallet(request.address)
             if not categories:
-                raise HTTPException(
-                    status_code=404,
-                    detail="Wallet not found or empty"
+                raise NotFoundException(
+                    detail="Wallet not found or contains no assets",
+                    error_code="WALLET_NOT_FOUND",
+                    details={"address": f"{request.address[:8]}...{request.address[-6:]}"}
                 )
             is_participating = analyzer.last_is_participating
 
@@ -667,16 +715,33 @@ async def save_history_snapshot(request: HistorySaveRequest):
                 snapshot=snapshot
             )
         else:
+            logger.warning(f"Failed to save snapshot for {request.address[:8]}...")
             return HistorySaveResponse(
                 success=False,
                 message="Failed to save snapshot",
                 snapshot=None
             )
 
-    except HTTPException:
+    except (ValidationException, NotFoundException):
         raise
+    except requests.exceptions.Timeout:
+        raise AlgorandApiException(
+            detail="Request timed out while fetching wallet data",
+            is_timeout=True
+        )
+    except requests.exceptions.RequestException as e:
+        logger.error(f"Network error in history save: {e}")
+        raise AlgorandApiException(
+            detail="Failed to fetch wallet data from Algorand network",
+            error_code="ALGORAND_API_ERROR"
+        )
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error saving history snapshot: {e}")
+        raise AnalysisException(
+            detail="Failed to save history snapshot",
+            error_code="HISTORY_SAVE_FAILED",
+            address=request.address
+        )
 
 
 @router.get("/history/{address}")
@@ -973,16 +1038,24 @@ async def get_network_statistics():
         )
 
     except ConnectionError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Unable to connect to Algorand network: {str(e)}"
+        logger.error(f"Network stats connection error: {e}")
+        raise ServiceUnavailableException(
+            detail="Unable to connect to Algorand network",
+            error_code="ALGORAND_CONNECTION_ERROR",
+            details={"suggestion": "Please try again in a few moments"}
+        )
+    except requests.exceptions.Timeout:
+        logger.warning("Network stats request timed out")
+        raise TimeoutException(
+            detail="Request timed out while fetching network statistics",
+            error_code="NETWORK_STATS_TIMEOUT",
+            service="algorand"
         )
     except Exception as e:
-        print(f"Error fetching network stats: {e}")
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch network statistics: {str(e)}"
+        logger.exception(f"Error fetching network stats: {e}")
+        raise AlgorandApiException(
+            detail="Failed to fetch network statistics",
+            error_code="NETWORK_STATS_ERROR"
         )
 
 
@@ -1059,16 +1132,23 @@ async def get_wallet_participation(
         )
 
     except ConnectionError as e:
-        raise HTTPException(
-            status_code=503,
-            detail=f"Unable to connect to Algorand network: {str(e)}"
+        logger.error(f"Wallet participation connection error: {e}")
+        raise ServiceUnavailableException(
+            detail="Unable to connect to Algorand network",
+            error_code="ALGORAND_CONNECTION_ERROR"
+        )
+    except requests.exceptions.Timeout:
+        logger.warning(f"Wallet participation request timed out for {address[:8]}...")
+        raise TimeoutException(
+            detail="Request timed out while fetching wallet participation",
+            service="algorand"
         )
     except Exception as e:
-        print(f"Error fetching wallet participation: {e}")
-        traceback.print_exc()
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to fetch wallet participation: {str(e)}"
+        logger.exception(f"Error fetching wallet participation: {e}")
+        raise AlgorandApiException(
+            detail="Failed to fetch wallet participation data",
+            error_code="WALLET_PARTICIPATION_ERROR",
+            details={"address": f"{address[:8]}...{address[-6:]}"}
         )
 
 
@@ -1529,8 +1609,12 @@ async def get_btc_arbitrage_history(
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error fetching BTC history: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching BTC history: {e}")
+        raise PriceApiException(
+            detail="Failed to fetch Bitcoin price history",
+            error_code="BTC_HISTORY_ERROR",
+            asset="BTC"
+        )
 
 
 # -----------------------------------------------------------------------------
@@ -1557,8 +1641,11 @@ async def get_miner_metrics(
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error fetching miner metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching miner metrics: {e}")
+        raise ExternalApiException(
+            detail="Failed to fetch gold miner metrics",
+            error_code="MINER_METRICS_ERROR"
+        )
 
 
 @router.get("/gold/miners/latest")
@@ -1579,8 +1666,11 @@ async def get_latest_miner_metrics():
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error fetching latest miner metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching latest miner metrics: {e}")
+        raise ExternalApiException(
+            detail="Failed to fetch latest miner metrics",
+            error_code="MINER_METRICS_ERROR"
+        )
 
 
 @router.get("/gold/miners/stats")
@@ -1603,8 +1693,11 @@ async def get_sector_stats():
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error fetching sector stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching sector stats: {e}")
+        raise ExternalApiException(
+            detail="Failed to fetch gold sector statistics",
+            error_code="SECTOR_STATS_ERROR"
+        )
 
 
 @router.get("/gold/miners/{ticker}")
@@ -1621,7 +1714,11 @@ async def get_miner_by_ticker(
         metrics = db.get_metrics_by_ticker(ticker.upper())
 
         if not metrics:
-            raise HTTPException(status_code=404, detail=f"No data found for ticker: {ticker}")
+            raise NotFoundException(
+                detail=f"No data found for gold miner ticker: {ticker}",
+                error_code="MINER_NOT_FOUND",
+                details={"ticker": ticker.upper()}
+            )
 
         return {
             'ticker': ticker.upper(),
@@ -1630,11 +1727,15 @@ async def get_miner_by_ticker(
             'count': len(metrics),
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
-    except HTTPException:
+    except NotFoundException:
         raise
     except Exception as e:
-        print(f"Error fetching metrics for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching metrics for {ticker}: {e}")
+        raise ExternalApiException(
+            detail="Failed to fetch miner metrics",
+            error_code="MINER_METRICS_ERROR",
+            details={"ticker": ticker.upper()}
+        )
 
 
 @router.post("/gold/miners")
@@ -1662,9 +1763,10 @@ async def create_miner_metric(data: Dict[str, Any]):
                     'revenue', 'fcf', 'dividend_yield', 'market_cap']
         missing = [f for f in required if f not in data or data[f] is None]
         if missing:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Missing required fields: {', '.join(missing)}"
+            raise ValidationException(
+                detail=f"Missing required fields: {', '.join(missing)}",
+                error_code="MISSING_FIELDS",
+                details={"missing_fields": missing}
             )
 
         # Create metric object
@@ -1688,9 +1790,10 @@ async def create_miner_metric(data: Dict[str, Any]):
         new_id = db.create_metric(metric)
 
         if new_id is None:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Duplicate entry: {metric.ticker} for {metric.period} already exists"
+            raise ValidationException(
+                detail=f"Duplicate entry: {metric.ticker} for {metric.period} already exists",
+                error_code="DUPLICATE_ENTRY",
+                details={"ticker": metric.ticker, "period": metric.period}
             )
 
         return {
@@ -1699,11 +1802,14 @@ async def create_miner_metric(data: Dict[str, Any]):
             'message': f"Created metric for {metric.ticker} ({metric.period})",
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
-    except HTTPException:
+    except ValidationException:
         raise
     except Exception as e:
-        print(f"Error creating miner metric: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error creating miner metric: {e}")
+        raise ExternalApiException(
+            detail="Failed to create miner metric",
+            error_code="MINER_CREATE_ERROR"
+        )
 
 
 @router.post("/gold/miners/reseed")
@@ -1724,8 +1830,11 @@ async def reseed_miner_metrics():
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error reseeding miner metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error reseeding miner metrics: {e}")
+        raise ExternalApiException(
+            detail="Failed to reseed gold miner metrics",
+            error_code="RESEED_ERROR"
+        )
 
 
 # -----------------------------------------------------------------------------
@@ -1752,8 +1861,11 @@ async def get_silver_miner_metrics(
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error fetching silver miner metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching silver miner metrics: {e}")
+        raise ExternalApiException(
+            detail="Failed to fetch silver miner metrics",
+            error_code="SILVER_MINER_METRICS_ERROR"
+        )
 
 
 @router.get("/silver/miners/latest")
@@ -1774,8 +1886,11 @@ async def get_latest_silver_miner_metrics():
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error fetching latest silver miner metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching latest silver miner metrics: {e}")
+        raise ExternalApiException(
+            detail="Failed to fetch latest silver miner metrics",
+            error_code="SILVER_MINER_METRICS_ERROR"
+        )
 
 
 @router.get("/silver/miners/stats")
@@ -1798,8 +1913,11 @@ async def get_silver_sector_stats():
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error fetching silver sector stats: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching silver sector stats: {e}")
+        raise ExternalApiException(
+            detail="Failed to fetch silver sector statistics",
+            error_code="SECTOR_STATS_ERROR"
+        )
 
 
 @router.get("/silver/miners/{ticker}")
@@ -1816,7 +1934,11 @@ async def get_silver_miner_by_ticker(
         metrics = db.get_metrics_by_ticker(ticker.upper())
 
         if not metrics:
-            raise HTTPException(status_code=404, detail=f"No data found for ticker: {ticker}")
+            raise NotFoundException(
+                detail=f"No data found for silver miner ticker: {ticker}",
+                error_code="MINER_NOT_FOUND",
+                details={"ticker": ticker.upper()}
+            )
 
         return {
             'ticker': ticker.upper(),
@@ -1825,11 +1947,15 @@ async def get_silver_miner_by_ticker(
             'count': len(metrics),
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
-    except HTTPException:
+    except NotFoundException:
         raise
     except Exception as e:
-        print(f"Error fetching silver metrics for {ticker}: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching silver metrics for {ticker}: {e}")
+        raise ExternalApiException(
+            detail="Failed to fetch silver miner metrics",
+            error_code="SILVER_MINER_METRICS_ERROR",
+            details={"ticker": ticker.upper()}
+        )
 
 
 @router.post("/silver/miners")
@@ -1857,9 +1983,10 @@ async def create_silver_miner_metric(data: Dict[str, Any]):
                     'revenue', 'fcf', 'dividend_yield', 'market_cap']
         missing = [f for f in required if f not in data or data[f] is None]
         if missing:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Missing required fields: {', '.join(missing)}"
+            raise ValidationException(
+                detail=f"Missing required fields: {', '.join(missing)}",
+                error_code="MISSING_FIELDS",
+                details={"missing_fields": missing}
             )
 
         # Create metric object
@@ -1883,9 +2010,10 @@ async def create_silver_miner_metric(data: Dict[str, Any]):
         new_id = db.create_metric(metric)
 
         if new_id is None:
-            raise HTTPException(
-                status_code=409,
-                detail=f"Duplicate entry: {metric.ticker} for {metric.period} already exists"
+            raise ValidationException(
+                detail=f"Duplicate entry: {metric.ticker} for {metric.period} already exists",
+                error_code="DUPLICATE_ENTRY",
+                details={"ticker": metric.ticker, "period": metric.period}
             )
 
         return {
@@ -1894,11 +2022,14 @@ async def create_silver_miner_metric(data: Dict[str, Any]):
             'message': f"Created metric for {metric.ticker} ({metric.period})",
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
-    except HTTPException:
+    except ValidationException:
         raise
     except Exception as e:
-        print(f"Error creating silver miner metric: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error creating silver miner metric: {e}")
+        raise ExternalApiException(
+            detail="Failed to create silver miner metric",
+            error_code="MINER_CREATE_ERROR"
+        )
 
 
 @router.post("/silver/miners/reseed")
@@ -1919,8 +2050,11 @@ async def reseed_silver_miner_metrics():
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error reseeding silver miner metrics: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error reseeding silver miner metrics: {e}")
+        raise ExternalApiException(
+            detail="Failed to reseed silver miner metrics",
+            error_code="RESEED_ERROR"
+        )
 
 
 # -----------------------------------------------------------------------------
@@ -1945,8 +2079,11 @@ async def get_inflation_summary():
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error fetching inflation summary: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching inflation summary: {e}")
+        raise ExternalApiException(
+            detail="Failed to fetch inflation summary",
+            error_code="INFLATION_DATA_ERROR"
+        )
 
 
 @router.get("/inflation/data")
@@ -1969,8 +2106,11 @@ async def get_inflation_data(
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:
-        print(f"Error fetching inflation data: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error fetching inflation data: {e}")
+        raise ExternalApiException(
+            detail="Failed to fetch inflation data",
+            error_code="INFLATION_DATA_ERROR"
+        )
 
 
 @router.get("/inflation/adjusted/{metal}")
@@ -1987,7 +2127,11 @@ async def get_inflation_adjusted_prices(
     Example: Gold at $675 in Jan 1980 equals ~$2,800 in 2024 dollars.
     """
     if metal not in ('gold', 'silver'):
-        raise HTTPException(status_code=400, detail="metal must be 'gold' or 'silver'")
+        raise ValidationException(
+            detail="metal must be 'gold' or 'silver'",
+            error_code="INVALID_METAL",
+            details={"provided": metal, "valid_options": ["gold", "silver"]}
+        )
 
     try:
         db = get_inflation_db()
@@ -2001,10 +2145,16 @@ async def get_inflation_adjusted_prices(
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+        raise ValidationException(
+            detail=str(e),
+            error_code="INVALID_PARAMETER"
+        )
     except Exception as e:
-        print(f"Error calculating adjusted prices: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Error calculating adjusted prices: {e}")
+        raise ExternalApiException(
+            detail="Failed to calculate inflation-adjusted prices",
+            error_code="INFLATION_CALCULATION_ERROR"
+        )
 
 
 @router.get("/inflation/m2-comparison")
@@ -3031,7 +3181,11 @@ async def add_monitored_wallet(request: Dict[str, Any]):
 
     address = request.get('address')
     if not address:
-        raise HTTPException(status_code=400, detail="Address is required")
+        raise ValidationException(
+            detail="Address is required",
+            error_code="MISSING_ADDRESS",
+            details={"field": "address"}
+        )
 
     validate_algorand_address(address)
 
