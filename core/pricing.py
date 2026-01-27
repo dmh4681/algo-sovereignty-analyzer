@@ -14,14 +14,27 @@ Security Note:
     to retrieve credentials securely.
 
 Caching:
-    Prices are cached for 5 minutes (MELD_CACHE_TTL_SECONDS) to reduce API calls
-    and improve performance. Hardcoded fallback prices are used when APIs fail.
+    All prices are cached using the centralized cache module (core/cache.py).
+    Default TTLs:
+    - Live prices: 60 seconds (configurable via CACHE_PRICE_TTL)
+    - Reduces external API calls and improves response times
+    - Hardcoded fallback prices are used when APIs fail
+
+Cache Invalidation:
+    Call invalidate_all_prices() to clear all cached prices manually.
+    The cache will automatically expire based on TTL.
 """
 
+import logging
 import requests
 import time
 from typing import Optional
 from datetime import datetime, timedelta
+
+from .cache import get_cache, CacheCategory, CacheConfig
+
+# Configure module logger
+logger = logging.getLogger("core.pricing")
 
 # Meld ASA IDs
 MELD_GOLD_ASA = 246516580
@@ -35,15 +48,10 @@ WBTC_ASA = 1058926737  # WBTC - Wormhole-bridged wrapped Bitcoin
 # Coinbase API for BTC spot price (free, no auth needed)
 COINBASE_BTC_URL = "https://api.coinbase.com/v2/prices/BTC-USD/spot"
 
-# Simple cache for prices (5-minute TTL)
-_meld_price_cache: dict = {
-    'gold': {'price': None, 'expires': None},
-    'silver': {'price': None, 'expires': None},
-    'btc_spot': {'price': None, 'expires': None},
-    'gobtc': {'price': None, 'expires': None},
-    'wbtc': {'price': None, 'expires': None},
-}
-MELD_CACHE_TTL_SECONDS = 300  # 5 minutes
+# Cache TTL constants (in seconds)
+PRICE_CACHE_TTL = CacheConfig.PRICE_LIVE_TTL  # Default: 60 seconds
+MELD_CACHE_TTL_SECONDS = 300  # 5 minutes for Meld prices (less volatile)
+
 
 def get_hardcoded_price(ticker: str) -> Optional[float]:
     """
@@ -51,23 +59,23 @@ def get_hardcoded_price(ticker: str) -> Optional[float]:
     to ensure the app remains functional during API outages.
     """
     t = ticker.upper()
-    
+
     # Stablecoins
     if t in ['USDC', 'USDT', 'DAI', 'STBL', 'FUSDC', 'FUSDT', 'FUSD']:
         return 1.0
-        
+
     # ALGO & Derivatives
     if t in ['ALGO', 'FALGO', 'XALGO']:
         return 0.35  # Conservative fallback (Dec 2024/Jan 2025)
-        
+
     # Bitcoin
     if t in ['BTC', 'WBTC', 'GOBTC', 'FGOBTC']:
         return 90000.0 # Approximate
-        
+
     # Ethereum
     if t in ['ETH', 'WETH', 'GOETH', 'FGOETH']:
         return 3000.0 # Approximate
-        
+
     # Meld Silver (1g) - Fallback, live price from Yahoo Finance is preferred
     if t == 'SILVER$':
         return 2.25  # ~$70/oz (Dec 2024)
@@ -75,14 +83,47 @@ def get_hardcoded_price(ticker: str) -> Optional[float]:
     # Meld Gold (1g) - Fallback, live price from Yahoo Finance is preferred
     if t == 'GOLD$':
         return 144.75  # ~$4500/oz (Dec 2024)
-        
+
     return None
+
+
+def _fetch_price_with_cache(
+    ticker: str,
+    fetch_func,
+    ttl: int = PRICE_CACHE_TTL
+) -> Optional[float]:
+    """
+    Generic cached price fetching wrapper.
+
+    Args:
+        ticker: The ticker symbol for cache key
+        fetch_func: Function to call if cache miss (no args)
+        ttl: Cache TTL in seconds
+
+    Returns:
+        Cached or freshly fetched price
+    """
+    cache = get_cache()
+
+    # Check cache first
+    cached_price = cache.get_price(ticker)
+    if cached_price is not None:
+        return cached_price
+
+    # Cache miss - fetch fresh price
+    price = fetch_func()
+
+    if price is not None:
+        cache.set_price(ticker, price, ttl=ttl)
+
+    return price
+
 
 def _fetch_price(coin_id: str) -> Optional[float]:
     """Helper to fetch price from CoinGecko with retry logic"""
     max_retries = 3
     base_delay = 1
-    
+
     for attempt in range(max_retries):
         try:
             url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd"
@@ -92,68 +133,97 @@ def _fetch_price(coin_id: str) -> Optional[float]:
             return data[coin_id]['usd']
         except Exception as e:
             if attempt == max_retries - 1:
-                print(f"⚠️  Failed to fetch {coin_id} price after {max_retries} attempts: {e}")
+                logger.warning(f"Failed to fetch {coin_id} price after {max_retries} attempts: {e}")
                 return None
-            
+
             # Exponential backoff: 1s, 2s, 4s
             delay = base_delay * (2 ** attempt)
             time.sleep(delay)
     return None
 
+
+def _fetch_coingecko_price_cached(coin_id: str, ticker: str) -> Optional[float]:
+    """Fetch CoinGecko price with caching."""
+    return _fetch_price_with_cache(
+        ticker=ticker,
+        fetch_func=lambda: _fetch_price(coin_id),
+        ttl=PRICE_CACHE_TTL
+    )
+
+
 def get_algo_price() -> Optional[float]:
-    """Fetch live ALGO price from CoinGecko API with hardcoded fallback"""
-    price = _fetch_price('algorand')
+    """
+    Fetch live ALGO price from CoinGecko API with caching and hardcoded fallback.
+
+    Returns:
+        ALGO price in USD, or hardcoded fallback if API fails
+    """
+    price = _fetch_coingecko_price_cached('algorand', 'ALGO')
     if price is None:
-        # Use hardcoded fallback if API fails
-        print("⚠️  CoinGecko ALGO price failed, using hardcoded fallback")
+        logger.warning("CoinGecko ALGO price failed, using hardcoded fallback")
         return get_hardcoded_price('ALGO')
     return price
 
+
 def get_bitcoin_price() -> Optional[float]:
-    """Fetch BTC price from CoinGecko (for goBTC valuation)"""
-    return _fetch_price('bitcoin')
-
-def get_ethereum_price() -> Optional[float]:
-    """Fetch ETH price from CoinGecko (for goETH valuation)"""
-    return _fetch_price('ethereum')
-
-
-def get_bitcoin_spot_price() -> Optional[float]:
     """
-    Fetch current Bitcoin spot price from Coinbase.
-
-    Uses Coinbase's free public API which requires no authentication.
-    Prices are cached for 5 minutes to avoid rate limiting.
+    Fetch BTC price from CoinGecko with caching (for goBTC valuation).
 
     Returns:
-        USD price per BTC, or None if unavailable
+        BTC price in USD, or None if unavailable
     """
-    global _meld_price_cache
+    return _fetch_coingecko_price_cached('bitcoin', 'BTC')
 
-    # Check cache
-    cache_entry = _meld_price_cache['btc_spot']
-    if cache_entry['price'] is not None and cache_entry['expires'] is not None:
-        if datetime.now() < cache_entry['expires']:
-            return cache_entry['price']
 
+def get_ethereum_price() -> Optional[float]:
+    """
+    Fetch ETH price from CoinGecko with caching (for goETH valuation).
+
+    Returns:
+        ETH price in USD, or None if unavailable
+    """
+    return _fetch_coingecko_price_cached('ethereum', 'ETH')
+
+
+def _fetch_coinbase_btc_price() -> Optional[float]:
+    """Fetch BTC price from Coinbase API (internal, no caching)."""
     try:
         response = requests.get(COINBASE_BTC_URL, timeout=10)
         response.raise_for_status()
         data = response.json()
-        price = float(data['data']['amount'])
-
-        # Update cache
-        _meld_price_cache['btc_spot'] = {
-            'price': price,
-            'expires': datetime.now() + timedelta(seconds=MELD_CACHE_TTL_SECONDS)
-        }
-        return price
+        return float(data['data']['amount'])
     except requests.exceptions.Timeout:
-        print("⚠️  Timeout fetching Bitcoin price from Coinbase")
+        logger.warning("Timeout fetching Bitcoin price from Coinbase")
     except requests.exceptions.RequestException as e:
-        print(f"⚠️  Network error fetching Bitcoin price from Coinbase: {e}")
+        logger.warning(f"Network error fetching Bitcoin price from Coinbase: {e}")
     except Exception as e:
-        print(f"⚠️  Error fetching Bitcoin price from Coinbase: {e}")
+        logger.warning(f"Error fetching Bitcoin price from Coinbase: {e}")
+    return None
+
+
+def get_bitcoin_spot_price() -> Optional[float]:
+    """
+    Fetch current Bitcoin spot price from Coinbase with caching.
+
+    Uses Coinbase's free public API which requires no authentication.
+    Falls back to CoinGecko, then hardcoded price.
+
+    Returns:
+        USD price per BTC, or fallback price if unavailable
+    """
+    cache = get_cache()
+
+    # Check cache first
+    cached_price = cache.get_price('BTC_SPOT')
+    if cached_price is not None:
+        return cached_price
+
+    # Try Coinbase
+    price = _fetch_coinbase_btc_price()
+
+    if price is not None:
+        cache.set_price('BTC_SPOT', price, ttl=PRICE_CACHE_TTL)
+        return price
 
     # Fallback to CoinGecko
     cg_price = get_bitcoin_price()
@@ -164,39 +234,81 @@ def get_bitcoin_spot_price() -> Optional[float]:
     return get_hardcoded_price('BTC')
 
 
+def _fetch_vestige_price_raw(asset_id: int) -> Optional[float]:
+    """Fetch price from Vestige API (internal, no caching)."""
+    try:
+        url = f"https://api.vestigelabs.org/assets/price?asset_ids={asset_id}&denominating_asset_id=31566704"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        if data and len(data) > 0:
+            price = data[0].get('price')
+            if price is not None and price > 0:
+                return price
+    except requests.exceptions.Timeout:
+        logger.warning(f"Timeout fetching Vestige price for asset {asset_id}")
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Network error fetching Vestige price for asset {asset_id}: {e}")
+    except Exception as e:
+        logger.warning(f"Unexpected error fetching Vestige price for asset {asset_id}: {e}")
+    return None
+
+
+def fetch_vestige_price(asset_id: int) -> Optional[float]:
+    """
+    Fetch price from Vestige API with caching, denominated in USDC.
+
+    Args:
+        asset_id: The Algorand ASA ID
+
+    Returns:
+        Price in USD, or None if unavailable
+    """
+    cache = get_cache()
+    cache_key = f"vestige_{asset_id}"
+
+    # Check cache
+    cached_price = cache.get_price(cache_key)
+    if cached_price is not None:
+        return cached_price
+
+    # Fetch fresh
+    price = _fetch_vestige_price_raw(asset_id)
+
+    if price is not None:
+        cache.set_price(cache_key, price, ttl=PRICE_CACHE_TTL)
+
+    return price
+
+
 def get_gobtc_price() -> Optional[float]:
     """
-    Fetch current goBTC price from Vestige API.
+    Fetch current goBTC price from Vestige API with caching.
 
     goBTC (ASA 386192725) is wrapped Bitcoin on Algorand, maintaining
     a 1:1 peg with BTC. This fetches the on-chain trading price.
 
     Returns:
-        USD price per goBTC token, or None if unavailable
+        USD price per goBTC token, or fallback price if unavailable
     """
-    global _meld_price_cache
+    cache = get_cache()
 
-    # Check cache
-    cache_entry = _meld_price_cache['gobtc']
-    if cache_entry['price'] is not None and cache_entry['expires'] is not None:
-        if datetime.now() < cache_entry['expires']:
-            return cache_entry['price']
+    # Check cache first
+    cached_price = cache.get_price('GOBTC')
+    if cached_price is not None:
+        return cached_price
 
     # Fetch from Vestige
-    price = fetch_vestige_price(GOBTC_ASA)
+    price = _fetch_vestige_price_raw(GOBTC_ASA)
 
     if price is not None and price > 0:
-        # Update cache
-        _meld_price_cache['gobtc'] = {
-            'price': price,
-            'expires': datetime.now() + timedelta(seconds=MELD_CACHE_TTL_SECONDS)
-        }
+        cache.set_price('GOBTC', price, ttl=MELD_CACHE_TTL_SECONDS)
         return price
 
     # Fallback to BTC spot price (goBTC should track 1:1)
     spot_price = get_bitcoin_spot_price()
     if spot_price:
-        print(f"[WARN] Using BTC spot price for goBTC: ${spot_price:,.2f} (Vestige fallback)")
+        logger.info(f"Using BTC spot price for goBTC: ${spot_price:,.2f} (Vestige fallback)")
         return spot_price
 
     # Last resort: hardcoded fallback
@@ -205,7 +317,7 @@ def get_gobtc_price() -> Optional[float]:
 
 def get_wbtc_price() -> Optional[float]:
     """
-    Fetch current WBTC (Wormhole-bridged) price from Vestige API.
+    Fetch current WBTC (Wormhole-bridged) price from Vestige API with caching.
 
     WBTC (ASA 1058926737) is wrapped Bitcoin bridged to Algorand via Wormhole,
     maintaining a 1:1 peg with BTC. This fetches the on-chain trading price.
@@ -213,31 +325,26 @@ def get_wbtc_price() -> Optional[float]:
     Note: WBTC has lower liquidity than goBTC (~$139K TVL vs larger goBTC pools).
 
     Returns:
-        USD price per WBTC token, or None if unavailable
+        USD price per WBTC token, or fallback price if unavailable
     """
-    global _meld_price_cache
+    cache = get_cache()
 
-    # Check cache
-    cache_entry = _meld_price_cache['wbtc']
-    if cache_entry['price'] is not None and cache_entry['expires'] is not None:
-        if datetime.now() < cache_entry['expires']:
-            return cache_entry['price']
+    # Check cache first
+    cached_price = cache.get_price('WBTC')
+    if cached_price is not None:
+        return cached_price
 
     # Fetch from Vestige
-    price = fetch_vestige_price(WBTC_ASA)
+    price = _fetch_vestige_price_raw(WBTC_ASA)
 
     if price is not None and price > 0:
-        # Update cache
-        _meld_price_cache['wbtc'] = {
-            'price': price,
-            'expires': datetime.now() + timedelta(seconds=MELD_CACHE_TTL_SECONDS)
-        }
+        cache.set_price('WBTC', price, ttl=MELD_CACHE_TTL_SECONDS)
         return price
 
     # Fallback to BTC spot price (WBTC should track 1:1)
     spot_price = get_bitcoin_spot_price()
     if spot_price:
-        print(f"[WARN] Using BTC spot price for WBTC: ${spot_price:,.2f} (Vestige fallback)")
+        logger.info(f"Using BTC spot price for WBTC: ${spot_price:,.2f} (Vestige fallback)")
         return spot_price
 
     # Last resort: hardcoded fallback
@@ -277,7 +384,7 @@ def _fetch_yahoo_finance_price(symbol: str) -> Optional[float]:
             return None
         except Exception as e:
             if attempt == max_retries - 1:
-                print(f"⚠️  Failed to fetch {symbol} price after {max_retries} attempts: {e}")
+                logger.warning(f"Failed to fetch {symbol} price after {max_retries} attempts: {e}")
                 return None
 
             # Exponential backoff: 1s, 2s, 4s
@@ -286,42 +393,56 @@ def _fetch_yahoo_finance_price(symbol: str) -> Optional[float]:
     return None
 
 
+def _fetch_yahoo_price_cached(symbol: str, ticker: str) -> Optional[float]:
+    """Fetch Yahoo Finance price with caching."""
+    return _fetch_price_with_cache(
+        ticker=ticker,
+        fetch_func=lambda: _fetch_yahoo_finance_price(symbol),
+        ttl=PRICE_CACHE_TTL
+    )
+
+
 def get_gold_price_per_oz() -> Optional[float]:
     """
-    Fetch real-time Gold spot price (per troy oz) from Yahoo Finance.
+    Fetch real-time Gold spot price (per troy oz) from Yahoo Finance with caching.
     Uses COMEX Gold Futures (GC=F) as the price source.
 
     Returns:
-        Gold price per troy ounce in USD, or None on failure
+        Gold price per troy ounce in USD, or fallback on failure
     """
-    price = _fetch_yahoo_finance_price('GC=F')
+    price = _fetch_yahoo_price_cached('GC=F', 'GOLD_OZ')
     if price:
         return price
 
     # Fallback to hardcoded price if API fails
-    print("⚠️  Yahoo Finance gold price failed, using hardcoded fallback")
+    logger.warning("Yahoo Finance gold price failed, using hardcoded fallback")
     return 4500.0  # Conservative fallback
 
 
 def get_silver_price_per_oz() -> Optional[float]:
     """
-    Fetch real-time Silver spot price (per troy oz) from Yahoo Finance.
+    Fetch real-time Silver spot price (per troy oz) from Yahoo Finance with caching.
     Uses COMEX Silver Futures (SI=F) as the price source.
 
     Returns:
-        Silver price per troy ounce in USD, or None on failure
+        Silver price per troy ounce in USD, or fallback on failure
     """
-    price = _fetch_yahoo_finance_price('SI=F')
+    price = _fetch_yahoo_price_cached('SI=F', 'SILVER_OZ')
     if price:
         return price
 
     # Fallback to hardcoded price if API fails
-    print("⚠️  Yahoo Finance silver price failed, using hardcoded fallback")
+    logger.warning("Yahoo Finance silver price failed, using hardcoded fallback")
     return 70.0  # Conservative fallback
 
 
 def get_gold_price() -> Optional[float]:
-    """Fetch Gold price (per gram) from Yahoo Finance"""
+    """
+    Fetch Gold price (per gram) from Yahoo Finance with caching.
+
+    Returns:
+        Gold price per gram in USD, or None on failure
+    """
     oz_price = get_gold_price_per_oz()
     if oz_price:
         return oz_price / 31.1035  # Convert oz to gram
@@ -329,30 +450,15 @@ def get_gold_price() -> Optional[float]:
 
 
 def get_silver_price() -> Optional[float]:
-    """Fetch Silver price (per gram) from Yahoo Finance"""
+    """
+    Fetch Silver price (per gram) from Yahoo Finance with caching.
+
+    Returns:
+        Silver price per gram in USD, or None on failure
+    """
     oz_price = get_silver_price_per_oz()
     if oz_price:
         return oz_price / 31.1035  # Convert oz to gram
-    return None
-
-def fetch_vestige_price(asset_id: int) -> Optional[float]:
-    """Fetch price from Vestige API denominated in USDC"""
-    try:
-        # Vestige API endpoint for asset price denominated in USDC (31566704)
-        url = f"https://api.vestigelabs.org/assets/price?asset_ids={asset_id}&denominating_asset_id=31566704"
-        response = requests.get(url, timeout=5)
-        response.raise_for_status()
-        data = response.json()
-        if data and len(data) > 0:
-            price = data[0].get('price')
-            if price is not None and price > 0:
-                return price
-    except requests.exceptions.Timeout:
-        print(f"⚠️  Timeout fetching Vestige price for asset {asset_id}")
-    except requests.exceptions.RequestException as e:
-        print(f"⚠️  Network error fetching Vestige price for asset {asset_id}: {e}")
-    except Exception as e:
-        print(f"⚠️  Unexpected error fetching Vestige price for asset {asset_id}: {e}")
     return None
 
 
@@ -369,8 +475,8 @@ def _fetch_meld_price_from_vestige(asset_id: int) -> Optional[float]:
     Returns:
         Price in USD per token (per gram for Meld), or None on error
     """
-    # Try the main Vestige API first (same as fetch_vestige_price)
-    price = fetch_vestige_price(asset_id)
+    # Try the main Vestige API first
+    price = _fetch_vestige_price_raw(asset_id)
     if price is not None and price > 0:
         return price
 
@@ -397,45 +503,43 @@ def _fetch_meld_price_from_vestige(asset_id: int) -> Optional[float]:
         return price_in_algo * algo_price
 
     except requests.exceptions.Timeout:
-        print(f"[WARN] Timeout fetching Meld price from Vestige for ASA {asset_id}")
+        logger.warning(f"Timeout fetching Meld price from Vestige for ASA {asset_id}")
     except requests.exceptions.RequestException as e:
-        print(f"[WARN] Network error fetching Meld price from Vestige: {e}")
+        logger.warning(f"Network error fetching Meld price from Vestige: {e}")
     except Exception as e:
-        print(f"[WARN] Error fetching Meld price from Vestige: {e}")
+        logger.warning(f"Error fetching Meld price from Vestige: {e}")
     return None
 
 
 def get_meld_gold_price() -> Optional[float]:
     """
-    Fetch Meld GOLD$ price from Vestige API.
+    Fetch Meld GOLD$ price from Vestige API with caching.
 
-    Returns USD per gram. Uses 5-minute cache to avoid hammering the API.
+    Returns USD per gram. Uses centralized cache with configurable TTL.
     Falls back to implied spot price on error.
+
+    Returns:
+        Gold price per gram in USD
     """
-    global _meld_price_cache
+    cache = get_cache()
 
     # Check cache
-    cache_entry = _meld_price_cache['gold']
-    if cache_entry['price'] is not None and cache_entry['expires'] is not None:
-        if datetime.now() < cache_entry['expires']:
-            return cache_entry['price']
+    cached_price = cache.get_price('MELD_GOLD')
+    if cached_price is not None:
+        return cached_price
 
     # Fetch fresh price
     price = _fetch_meld_price_from_vestige(MELD_GOLD_ASA)
 
     if price is not None and price > 0:
-        # Update cache
-        _meld_price_cache['gold'] = {
-            'price': price,
-            'expires': datetime.now() + timedelta(seconds=MELD_CACHE_TTL_SECONDS)
-        }
+        cache.set_price('MELD_GOLD', price, ttl=MELD_CACHE_TTL_SECONDS)
         return price
 
     # Fallback: use implied price from spot
     spot_oz = get_gold_price_per_oz()
     if spot_oz:
         implied = spot_oz / GRAMS_PER_TROY_OZ
-        print(f"[WARN] Using implied gold price: ${implied:.4f}/g (spot fallback)")
+        logger.info(f"Using implied gold price: ${implied:.4f}/g (spot fallback)")
         return implied
 
     # Last resort: hardcoded fallback
@@ -444,44 +548,50 @@ def get_meld_gold_price() -> Optional[float]:
 
 def get_meld_silver_price() -> Optional[float]:
     """
-    Fetch Meld SILVER$ price from Vestige API.
+    Fetch Meld SILVER$ price from Vestige API with caching.
 
-    Returns USD per gram. Uses 5-minute cache to avoid hammering the API.
+    Returns USD per gram. Uses centralized cache with configurable TTL.
     Falls back to implied spot price on error.
+
+    Returns:
+        Silver price per gram in USD
     """
-    global _meld_price_cache
+    cache = get_cache()
 
     # Check cache
-    cache_entry = _meld_price_cache['silver']
-    if cache_entry['price'] is not None and cache_entry['expires'] is not None:
-        if datetime.now() < cache_entry['expires']:
-            return cache_entry['price']
+    cached_price = cache.get_price('MELD_SILVER')
+    if cached_price is not None:
+        return cached_price
 
     # Fetch fresh price
     price = _fetch_meld_price_from_vestige(MELD_SILVER_ASA)
 
     if price is not None and price > 0:
-        # Update cache
-        _meld_price_cache['silver'] = {
-            'price': price,
-            'expires': datetime.now() + timedelta(seconds=MELD_CACHE_TTL_SECONDS)
-        }
+        cache.set_price('MELD_SILVER', price, ttl=MELD_CACHE_TTL_SECONDS)
         return price
 
     # Fallback: use implied price from spot
     spot_oz = get_silver_price_per_oz()
     if spot_oz:
         implied = spot_oz / GRAMS_PER_TROY_OZ
-        print(f"[WARN] Using implied silver price: ${implied:.4f}/g (spot fallback)")
+        logger.info(f"Using implied silver price: ${implied:.4f}/g (spot fallback)")
         return implied
 
     # Last resort: hardcoded fallback
     return get_hardcoded_price('SILVER$')
 
+
 def get_asset_price(ticker: str, asset_id: Optional[int] = None) -> Optional[float]:
     """
-    Router function that returns price for any ticker.
+    Router function that returns price for any ticker with caching.
     Prioritizes Vestige API if asset_id is provided.
+
+    Args:
+        ticker: Asset ticker symbol
+        asset_id: Optional Algorand ASA ID for Vestige lookup
+
+    Returns:
+        Price in USD, or hardcoded fallback if unavailable
     """
     ticker_upper = ticker.upper()
 
@@ -496,9 +606,8 @@ def get_asset_price(ticker: str, asset_id: Optional[int] = None) -> Optional[flo
             return price
 
     # Fallback to CoinGecko/Proxies for legacy or missing ID support
-    
+
     # ALGO (including Folks Finance wrapped versions)
-    # Note: We keep FALGO/XALGO here as fallback if asset_id resolution fails
     if ticker_upper in ['ALGO', 'FALGO', 'XALGO']:
         return get_algo_price()
 
@@ -520,8 +629,41 @@ def get_asset_price(ticker: str, asset_id: Optional[int] = None) -> Optional[flo
 
     # ALPHA (Alpha Coin)
     if ticker_upper == 'ALPHA':
-        return _fetch_price('alpha-finance')
+        return _fetch_coingecko_price_cached('alpha-finance', 'ALPHA')
 
     # LAST RESORT: Hardcoded prices to prevent "Shitcoin" classification on network failure
     return get_hardcoded_price(ticker)
 
+
+# =============================================================================
+# Cache Management Functions
+# =============================================================================
+
+def invalidate_all_prices() -> int:
+    """
+    Invalidate all cached prices.
+
+    Returns:
+        Number of cache entries invalidated
+    """
+    cache = get_cache()
+    return cache.invalidate_prices()
+
+
+def get_price_cache_stats() -> dict:
+    """
+    Get statistics about the price cache.
+
+    Returns:
+        Dictionary with cache statistics
+    """
+    cache = get_cache()
+    stats = cache.get_stats()
+
+    # Filter to just price-related stats
+    return {
+        "overall": stats.get("overall", {}),
+        "price_live": stats.get("by_category", {}).get("price_live", {}),
+        "size": stats.get("size", 0),
+        "utilization": stats.get("utilization", 0)
+    }

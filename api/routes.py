@@ -84,6 +84,7 @@ from .errors import (
     AnalysisException,
 )
 from core.history import SovereigntySnapshot, get_history_manager
+from core.cache import get_cache, CacheCategory
 
 # Configure module logger
 logger = logging.getLogger("api.routes")
@@ -293,21 +294,41 @@ async def get_agent_advice(request: AdviceRequest):
             details={"error_type": type(e).__name__}
         )
 
-# Simple cache: {address: (analysis_result, timestamp)}
-_wallet_cache: Dict[str, Tuple[dict, datetime]] = {}
+# =============================================================================
+# Wallet Analysis Cache (uses centralized cache from core/cache.py)
+# =============================================================================
+
+# Legacy constant for backwards compatibility
 CACHE_TTL_MINUTES = 15
 
+
 def get_cached_analysis(address: str) -> Optional[dict]:
-    """Return cached analysis if exists and not expired"""
-    if address in _wallet_cache:
-        result, timestamp = _wallet_cache[address]
-        if datetime.now() - timestamp < timedelta(minutes=CACHE_TTL_MINUTES):
-            return result
-    return None
+    """
+    Return cached analysis if exists and not expired.
+
+    Uses the centralized cache system (core/cache.py) for consistent
+    TTL management and statistics tracking.
+
+    Args:
+        address: Algorand wallet address
+
+    Returns:
+        Cached analysis result or None if not found/expired
+    """
+    cache = get_cache()
+    return cache.get_analysis(address)
+
 
 def cache_analysis(address: str, result: dict):
-    """Store analysis result in cache"""
-    _wallet_cache[address] = (result, datetime.now())
+    """
+    Store analysis result in the centralized cache.
+
+    Args:
+        address: Algorand wallet address
+        result: Analysis result dictionary to cache
+    """
+    cache = get_cache()
+    cache.set_analysis(address, result)
 
 @router.post(
     "/analyze",
@@ -677,24 +698,38 @@ async def get_classifications() -> Dict[str, Dict[str, str]]:
 # Pagination Endpoints for Large Wallets
 # -----------------------------------------------------------------------------
 
-# Cache for storing full analysis results keyed by address for pagination
-_pagination_cache: Dict[str, Tuple[dict, datetime]] = {}
+# Legacy constant for backwards compatibility
 PAGINATION_CACHE_TTL_MINUTES = 15
 
 
 def get_pagination_cached_analysis(address: str) -> Optional[dict]:
-    """Get cached analysis for pagination requests."""
-    if address in _pagination_cache:
-        result, timestamp = _pagination_cache[address]
-        if datetime.now() - timestamp < timedelta(minutes=PAGINATION_CACHE_TTL_MINUTES):
-            return result
-    # Fall back to main cache
+    """
+    Get cached analysis for pagination requests.
+
+    Uses the same centralized cache as regular analysis.
+
+    Args:
+        address: Algorand wallet address
+
+    Returns:
+        Cached analysis result or None if not found/expired
+    """
+    # Uses the same cache as regular analysis
     return get_cached_analysis(address)
 
 
 def cache_for_pagination(address: str, result: dict):
-    """Store analysis result in pagination cache."""
-    _pagination_cache[address] = (result, datetime.now())
+    """
+    Store analysis result in cache for pagination.
+
+    Uses the same centralized cache as regular analysis.
+
+    Args:
+        address: Algorand wallet address
+        result: Analysis result dictionary to cache
+    """
+    # Uses the same cache as regular analysis
+    cache_analysis(address, result)
 
 
 @router.get(
@@ -4065,3 +4100,290 @@ async def get_monitoring_summary():
 
     monitor = get_wallet_monitor()
     return monitor.get_monitoring_summary()
+
+
+# -----------------------------------------------------------------------------
+# Cache & Rate Limit Management Endpoints
+# -----------------------------------------------------------------------------
+
+@router.get(
+    "/admin/cache/stats",
+    summary="Get cache statistics",
+    description="""
+Get comprehensive statistics about the caching system.
+
+## Response Fields
+
+### Overall Statistics
+- `hits`: Total cache hits
+- `misses`: Total cache misses
+- `sets`: Total cache set operations
+- `evictions`: Entries removed due to size limits
+- `expirations`: Entries removed due to TTL expiry
+- `invalidations`: Entries manually invalidated
+- `hit_rate`: Hit rate as decimal (0-1)
+
+### By Category
+Statistics broken down by cache category:
+- `price_live`: Live price data (60s TTL)
+- `price_hist`: Historical prices (1h TTL)
+- `analysis`: Wallet analysis results (15min TTL)
+- `network`: Network statistics (60s TTL)
+- `classification`: Asset classifications (1h TTL)
+- `arbitrage`: Premium/arbitrage data (2min TTL)
+
+### Utilization
+- `size`: Current number of cached entries
+- `max_size`: Maximum cache capacity
+- `utilization`: Current usage as percentage
+
+## Use Cases
+
+- Monitor cache efficiency
+- Identify if cache size needs adjustment
+- Debug cache-related issues
+- Performance tuning
+    """,
+    response_description="Cache statistics with hit rates and category breakdowns",
+    tags=["Admin"]
+)
+async def get_cache_stats():
+    """
+    Get comprehensive statistics about the caching system.
+
+    Returns hit/miss rates, eviction counts, and per-category breakdowns.
+    Useful for monitoring cache efficiency and tuning configuration.
+    """
+    cache = get_cache()
+    stats = cache.get_stats()
+
+    return {
+        "cache_stats": stats,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+
+
+@router.get(
+    "/admin/rate-limit/stats",
+    summary="Get rate limiting statistics",
+    description="""
+Get statistics about the rate limiting system.
+
+## Response Fields
+
+### Overall Statistics
+- `total_requests`: Total requests processed
+- `allowed_requests`: Requests that passed rate limiting
+- `blocked_requests`: Requests blocked by rate limits
+- `blocked_by_ip`: Blocks due to per-IP limits
+- `blocked_by_wallet`: Blocks due to per-wallet limits
+- `blocked_by_burst`: Blocks due to burst limits
+- `block_rate`: Percentage of blocked requests
+
+### By Tier
+Statistics for each rate limit tier:
+- `analyze`: Wallet analysis endpoints (30/min)
+- `ai_advice`: AI coaching endpoints (10/min)
+- `history`: Historical data endpoints (60/min)
+- `network`: Network stats endpoints (60/min)
+- `default`: All other endpoints (100/min)
+
+### Active Tracking
+- `active_clients`: Number of IPs being tracked
+- `tracked_wallets`: Number of wallets being tracked
+
+## Use Cases
+
+- Monitor for abuse patterns
+- Identify if rate limits need adjustment
+- Debug rate limiting issues
+- Security monitoring
+    """,
+    response_description="Rate limiting statistics with tier breakdowns",
+    tags=["Admin"]
+)
+async def get_rate_limit_stats():
+    """
+    Get statistics about the rate limiting system.
+
+    Returns request counts, block rates, and per-tier breakdowns.
+    Useful for monitoring abuse patterns and tuning rate limits.
+    """
+    from .security import get_rate_limiter
+
+    limiter = get_rate_limiter()
+    stats = limiter.get_stats()
+
+    return {
+        "rate_limit_stats": stats,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+
+
+@router.post(
+    "/admin/cache/invalidate",
+    summary="Invalidate cache entries",
+    description="""
+Manually invalidate cache entries for cache management.
+
+## Invalidation Modes
+
+### By Address
+Invalidate analysis cache for a specific wallet:
+```json
+{"address": "ABC...XYZ"}
+```
+
+### By Category
+Invalidate all entries in a category:
+```json
+{"category": "price_live"}
+```
+
+Valid categories: `price_live`, `price_hist`, `analysis`, `network`, `classification`, `arbitrage`, `general`
+
+### All Analyses
+Clear all wallet analysis caches:
+```json
+{"all_analyses": true}
+```
+
+### All Prices
+Clear all price caches:
+```json
+{"all_prices": true}
+```
+
+### Clear All
+Clear the entire cache (use with caution):
+```json
+{"clear_all": true}
+```
+
+## Use Cases
+
+- Force refresh after data updates
+- Clear stale data during maintenance
+- Debug cache issues
+- Post-deployment cache clearing
+    """,
+    response_description="Number of cache entries invalidated",
+    tags=["Admin"]
+)
+async def invalidate_cache(request: Dict[str, Any]):
+    """
+    Manually invalidate cache entries.
+
+    Supports invalidation by address, category, or clearing all entries.
+    Returns the number of entries invalidated.
+    """
+    cache = get_cache()
+    invalidated = 0
+
+    if request.get("address"):
+        # Invalidate specific wallet analysis
+        address = request["address"]
+        if cache.invalidate_analysis(address):
+            invalidated = 1
+
+    elif request.get("category"):
+        # Invalidate by category
+        category_name = request["category"]
+        try:
+            category = CacheCategory(category_name)
+            invalidated = cache._backend.invalidate_category(category)
+        except ValueError:
+            raise ValidationException(
+                detail=f"Invalid cache category: {category_name}",
+                error_code="INVALID_CATEGORY",
+                details={
+                    "provided": category_name,
+                    "valid_categories": [c.value for c in CacheCategory]
+                }
+            )
+
+    elif request.get("all_analyses"):
+        # Invalidate all wallet analyses
+        invalidated = cache.invalidate_all_analyses()
+
+    elif request.get("all_prices"):
+        # Invalidate all price cache
+        invalidated = cache.invalidate_prices()
+
+    elif request.get("clear_all"):
+        # Clear entire cache
+        invalidated = cache.clear_all()
+
+    else:
+        raise ValidationException(
+            detail="No invalidation target specified",
+            error_code="MISSING_TARGET",
+            details={
+                "valid_options": [
+                    "address",
+                    "category",
+                    "all_analyses",
+                    "all_prices",
+                    "clear_all"
+                ]
+            }
+        )
+
+    return {
+        "success": True,
+        "invalidated_count": invalidated,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
+
+
+@router.get(
+    "/admin/cache/entry/{key}",
+    summary="Get cache entry details",
+    description="""
+Get detailed information about a specific cache entry (for debugging).
+
+Returns:
+- Key and category
+- Creation and expiration timestamps
+- Remaining TTL
+- Hit count
+- Whether entry is expired
+    """,
+    response_description="Cache entry details or null if not found",
+    tags=["Admin"]
+)
+async def get_cache_entry(
+    key: str,
+    category: str = Query("general", description="Cache category")
+):
+    """
+    Get detailed information about a specific cache entry.
+
+    Useful for debugging cache behavior and TTL issues.
+    """
+    cache = get_cache()
+
+    try:
+        cat = CacheCategory(category)
+    except ValueError:
+        raise ValidationException(
+            detail=f"Invalid cache category: {category}",
+            error_code="INVALID_CATEGORY",
+            details={"valid_categories": [c.value for c in CacheCategory]}
+        )
+
+    entry_info = cache._backend.get_entry_info(key, cat)
+
+    if entry_info is None:
+        return {
+            "found": False,
+            "key": key,
+            "category": category,
+            "timestamp": datetime.utcnow().isoformat() + "Z"
+        }
+
+    return {
+        "found": True,
+        "entry": entry_info,
+        "timestamp": datetime.utcnow().isoformat() + "Z"
+    }
