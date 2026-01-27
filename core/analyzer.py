@@ -39,7 +39,7 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any, TYPE_CHECKING, Tuple
 
-from .models import AssetCategory, SovereigntyData, PaginatedAssets, AssetPage
+from .models import AssetCategory, SovereigntyData, PaginatedAssets, AssetPage, get_sovereignty_status
 from .classifier import AssetClassifier
 from .pricing import get_algo_price, get_asset_price
 from .lp_parser import LPParser
@@ -569,19 +569,10 @@ class AlgorandSovereigntyAnalyzer:
         
         # Calculate Sovereignty Ratio
         sovereignty_ratio = portfolio_usd / annual_fixed
-        
-        # Determine sovereignty status
-        if sovereignty_ratio >= 20:
-            status = "Generationally Sovereign 🟩"
-        elif sovereignty_ratio >= 6:
-            status = "Antifragile 🟢"
-        elif sovereignty_ratio >= 3:
-            status = "Robust 🟡"
-        elif sovereignty_ratio >= 1:
-            status = "Fragile 🔴"
-        else:
-            status = "Vulnerable ⚫"
-            
+
+        # Determine sovereignty status using centralized helper
+        status = get_sovereignty_status(sovereignty_ratio, include_emoji=True)
+
         return SovereigntyData(
             monthly_fixed_expenses=monthly_fixed_expenses,
             annual_fixed_expenses=annual_fixed,
@@ -876,17 +867,8 @@ class AlgorandSovereigntyAnalyzer:
             annual_fixed = monthly_fixed_expenses * 12
             sovereignty_ratio = portfolio_total / annual_fixed if annual_fixed > 0 else 0
 
-            # Determine status
-            if sovereignty_ratio >= 20:
-                status = "Generationally Sovereign"
-            elif sovereignty_ratio >= 6:
-                status = "Antifragile"
-            elif sovereignty_ratio >= 3:
-                status = "Robust"
-            elif sovereignty_ratio >= 1:
-                status = "Fragile"
-            else:
-                status = "Vulnerable"
+            # Determine status using centralized helper (no emoji for API responses)
+            status = get_sovereignty_status(sovereignty_ratio, include_emoji=False)
 
             result['sovereignty_ratio'] = round(sovereignty_ratio, 2)
             result['sovereignty_status'] = status

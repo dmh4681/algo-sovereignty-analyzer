@@ -8,6 +8,51 @@ class AssetCategory(str, Enum):
     DOLLARS = "dollars"
     SHITCOIN = "shitcoin"
 
+
+# Sovereignty status thresholds and labels
+SOVEREIGNTY_THRESHOLDS = [
+    (20, "Generationally Sovereign"),
+    (6, "Antifragile"),
+    (3, "Robust"),
+    (1, "Fragile"),
+]
+
+
+def get_sovereignty_status(ratio: float, include_emoji: bool = False) -> str:
+    """
+    Determine sovereignty status based on ratio.
+
+    Centralizes the sovereignty status calculation logic to avoid duplication.
+
+    Args:
+        ratio: The sovereignty ratio (portfolio_usd / annual_expenses)
+        include_emoji: If True, append status emoji to the string
+
+    Returns:
+        Status string like "Robust" or "Robust 🟡" if include_emoji=True
+
+    Status Levels:
+        >= 20: Generationally Sovereign (multi-generational wealth)
+        >= 6:  Antifragile (benefits from volatility)
+        >= 3:  Robust (can weather major storms)
+        >= 1:  Fragile (building foundation)
+        < 1:   Vulnerable (immediate action needed)
+    """
+    emojis = {
+        "Generationally Sovereign": "🟩",
+        "Antifragile": "🟢",
+        "Robust": "🟡",
+        "Fragile": "🔴",
+        "Vulnerable": "⚫",
+    }
+
+    for threshold, status in SOVEREIGNTY_THRESHOLDS:
+        if ratio >= threshold:
+            return f"{status} {emojis[status]}" if include_emoji else status
+
+    status = "Vulnerable"
+    return f"{status} {emojis[status]}" if include_emoji else status
+
 class Asset(BaseModel):
     ticker: str
     name: str

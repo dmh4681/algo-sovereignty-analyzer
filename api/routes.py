@@ -70,9 +70,9 @@ See Also:
 import re
 import logging
 import requests
-import traceback
 from fastapi import APIRouter, HTTPException, Query, Path
 from core.analyzer import AlgorandSovereigntyAnalyzer
+from core.models import get_sovereignty_status
 from .errors import (
     ValidationException,
     NotFoundException,
@@ -1024,16 +1024,8 @@ async def get_quick_sovereignty(
         annual_fixed = monthly_fixed_expenses * 12
         sovereignty_ratio = portfolio_total / annual_fixed if annual_fixed > 0 else 0
 
-        if sovereignty_ratio >= 20:
-            sovereignty_status = "Generationally Sovereign"
-        elif sovereignty_ratio >= 6:
-            sovereignty_status = "Antifragile"
-        elif sovereignty_ratio >= 3:
-            sovereignty_status = "Robust"
-        elif sovereignty_ratio >= 1:
-            sovereignty_status = "Fragile"
-        else:
-            sovereignty_status = "Vulnerable"
+        # Determine status using centralized helper (no emoji for API responses)
+        sovereignty_status = get_sovereignty_status(sovereignty_ratio, include_emoji=False)
 
         sovereignty_ratio = round(sovereignty_ratio, 2)
         years_of_runway = round(sovereignty_ratio, 1)
