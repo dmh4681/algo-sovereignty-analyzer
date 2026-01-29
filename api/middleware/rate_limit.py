@@ -33,6 +33,7 @@ EXCLUDED_PATHS = frozenset([
 EXPENSIVE_PREFIXES = (
     "/api/v1/analyze",
     "/api/v1/agent/advice",
+    "/api/v1/advisor",
     "/api/v1/defi/sovereignty-cost",
 )
 
