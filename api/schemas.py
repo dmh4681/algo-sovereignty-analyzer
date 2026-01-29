@@ -626,3 +626,27 @@ class PaginatedAnalyzeRequest(BaseModel):
     address: str = Field(..., description="Algorand wallet address")
     monthly_fixed_expenses: Optional[float] = Field(None, description="Monthly fixed expenses for ratio calculation")
     initial_page_size: int = Field(default=10, description="Initial number of assets per category")
+
+
+# -----------------------------------------------------------------------------
+# Advisor Schemas
+# -----------------------------------------------------------------------------
+
+class AdvisorRequest(BaseModel):
+    """Request for AI sovereignty advisor."""
+    address: str = Field(..., description="Algorand wallet address")
+    monthly_fixed_expenses: Optional[float] = Field(None, description="Monthly fixed expenses for ratio calculation")
+
+
+class AdvisorAdvice(BaseModel):
+    """Structured advice from the sovereignty advisor."""
+    overall_assessment: str = Field(..., description="2-3 sentence sovereignty assessment")
+    score_interpretation: str = Field(..., description="Interpretation of sovereignty ratio and status")
+    recommendations: List[str] = Field(..., description="Actionable recommendations (max 5)")
+    next_milestone: str = Field(..., description="Next sovereignty milestone to reach")
+
+
+class AdvisorResponse(BaseModel):
+    """Response combining analysis and advisor output."""
+    analysis: AnalysisResponse = Field(..., description="Wallet analysis results")
+    advice: AdvisorAdvice = Field(..., description="Structured sovereignty advice")

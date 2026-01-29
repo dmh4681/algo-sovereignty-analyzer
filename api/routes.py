@@ -122,7 +122,8 @@ from .schemas import (
     ScoreBreakdown,
     WalletParticipationResponse,
     ParticipationKeyInfo,
-    MeldArbitrageResponse
+    MeldArbitrageResponse,
+    AdvisorRequest,
 )
 from .agent import SovereigntyCoach, AdviceRequest
 from typing import Dict, Any, Tuple, Optional, List
@@ -4387,3 +4388,105 @@ async def get_cache_entry(
         "entry": entry_info,
         "timestamp": datetime.utcnow().isoformat() + "Z"
     }
+
+# -------------------------------------------------------------------------
+# AI Sovereignty Advisor
+# -------------------------------------------------------------------------
+
+@router.post("/advisor")
+async def get_advisor_analysis(request: AdvisorRequest):
+    """
+    Analyze a wallet and return structured sovereignty improvement advice.
+
+    Runs full wallet analysis then generates AI-powered recommendations.
+    """
+    from core.advisor import generate_sovereignty_advice
+
+    validate_algorand_address(request.address)
+
+    # Run analysis
+    try:
+        analyzer = AlgorandSovereigntyAnalyzer(use_local_node=False)
+        categories = analyzer.analyze_wallet(request.address)
+    except requests.exceptions.Timeout:
+        raise TimeoutException(
+            detail="Algorand API timed out during wallet analysis",
+            error_code="ALGORAND_TIMEOUT",
+            service="algorand"
+        )
+    except requests.exceptions.ConnectionError as e:
+        logger.error(f"Algorand API connection error: {e}")
+        raise AlgorandApiException(
+            detail="Cannot connect to Algorand network",
+            error_code="ALGORAND_CONNECTION_ERROR"
+        )
+
+    if categories is None:
+        raise NotFoundException(
+            detail="Wallet not found or has no assets",
+            error_code="WALLET_NOT_FOUND",
+            details={"address": request.address[:10] + "..."}
+        )
+
+    # Calculate sovereignty data if expenses provided
+    sovereignty_data = None
+    if request.monthly_fixed_expenses and request.monthly_fixed_expenses > 0:
+        sovereignty_data = analyzer.calculate_sovereignty_metrics(
+            categories, request.monthly_fixed_expenses
+        )
+
+    analysis_dict = {
+        "address": request.address,
+        "is_participating": analyzer.last_is_participating,
+        "hard_money_algo": analyzer.last_hard_money_algo,
+        "categories": categories,
+        "sovereignty_data": sovereignty_data.dict() if sovereignty_data else None,
+    }
+
+    # Generate advice
+    try:
+        advice = generate_sovereignty_advice(analysis_dict)
+    except ValueError as e:
+        logger.error(f"Advisor config error: {e}")
+        raise ServiceUnavailableException(
+            detail="AI advisor not configured",
+            error_code="ADVISOR_NOT_CONFIGURED",
+            details={"error": str(e)}
+        )
+    except Exception as e:
+        logger.exception(f"Advisor generation failed: {e}")
+        raise ExternalApiException(
+            detail="AI advisor failed to generate advice",
+            error_code="ADVISOR_ERROR",
+            details={"error_type": type(e).__name__}
+        )
+
+    return {
+        "analysis": {
+            "address": request.address,
+            "is_participating": analyzer.last_is_participating,
+            "hard_money_algo": analyzer.last_hard_money_algo,
+            "categories": categories,
+            "sovereignty_data": sovereignty_data,
+        },
+        "advice": advice,
+    }
+
+
+@router.get("/advisor/{wallet_address}")
+async def get_advisor_for_address(
+    wallet_address: str = Path(..., description="Algorand wallet address"),
+    monthly_fixed_expenses: Optional[float] = Query(None, description="Monthly fixed expenses"),
+):
+    """
+    Get sovereignty advice for a wallet address via GET.
+
+    Convenience endpoint that accepts address as a path parameter.
+    """
+    from .schemas import AdvisorRequest
+
+    request = AdvisorRequest(
+        address=wallet_address,
+        monthly_fixed_expenses=monthly_fixed_expenses,
+    )
+    return await get_advisor_analysis(request)
