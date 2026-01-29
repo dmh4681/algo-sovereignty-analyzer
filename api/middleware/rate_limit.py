@@ -6,8 +6,9 @@ EXPENSIVE tier: 10 requests/minute (wallet analysis, AI advice)
 """
 import time
 import hashlib
-from collections import defaultdict
-from typing import Dict, List, Tuple
+from collections import defaultdict, deque
+from threading import Lock
+from typing import Dict, Tuple
 
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -64,16 +65,29 @@ class SlidingWindowRateLimitMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app):
         super().__init__(app)
-        # client_id -> list of timestamps
-        self._standard_windows: Dict[str, List[float]] = defaultdict(list)
-        self._expensive_windows: Dict[str, List[float]] = defaultdict(list)
+        # client_id -> deque of timestamps
+        self._standard_windows: Dict[str, deque] = defaultdict(deque)
+        self._expensive_windows: Dict[str, deque] = defaultdict(deque)
+        self._lock = Lock()
+        self._request_counter = 0
 
-    def _prune_and_count(self, window: List[float], now: float) -> int:
+    def _prune_and_count(self, window: deque, now: float) -> int:
         """Remove expired timestamps and return current count."""
         cutoff = now - WINDOW_SECONDS
         while window and window[0] <= cutoff:
-            window.pop(0)
+            window.popleft()
         return len(window)
+
+    def _cleanup_stale(self, now: float) -> None:
+        """Remove IPs not seen in 10 minutes to prevent unbounded growth."""
+        stale_cutoff = now - 600  # 10 minutes
+        for windows in (self._standard_windows, self._expensive_windows):
+            stale_keys = [
+                k for k, v in windows.items()
+                if not v or v[-1] < stale_cutoff
+            ]
+            for k in stale_keys:
+                del windows[k]
 
     def _check(
         self, client_id: str, now: float, expensive: bool
@@ -83,22 +97,27 @@ class SlidingWindowRateLimitMiddleware(BaseHTTPMiddleware):
 
         Returns (allowed, remaining, retry_after_seconds).
         """
-        if expensive:
-            window = self._expensive_windows[client_id]
-            limit = EXPENSIVE_LIMIT
-        else:
-            window = self._standard_windows[client_id]
-            limit = STANDARD_LIMIT
+        with self._lock:
+            self._request_counter += 1
+            if self._request_counter % 100 == 0:
+                self._cleanup_stale(now)
 
-        count = self._prune_and_count(window, now)
+            if expensive:
+                window = self._expensive_windows[client_id]
+                limit = EXPENSIVE_LIMIT
+            else:
+                window = self._standard_windows[client_id]
+                limit = STANDARD_LIMIT
 
-        if count >= limit:
-            retry_after = int(window[0] + WINDOW_SECONDS - now) + 1
-            return False, 0, max(1, retry_after)
+            count = self._prune_and_count(window, now)
 
-        window.append(now)
-        remaining = limit - count - 1
-        return True, remaining, 0
+            if count >= limit:
+                retry_after = int(window[0] + WINDOW_SECONDS - now) + 1
+                return False, 0, max(1, retry_after)
+
+            window.append(now)
+            remaining = limit - count - 1
+            return True, remaining, 0
 
     async def dispatch(self, request: Request, call_next) -> Response:
         path = request.url.path
