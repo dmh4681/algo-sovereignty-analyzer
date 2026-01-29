@@ -100,8 +100,8 @@ from .errors import (
     ServiceUnavailableException,
     RateLimitException,
 )
-from .middleware import LoggingMiddleware, get_current_request_id
-from .security import RateLimitMiddleware, SecurityHeadersMiddleware
+from .middleware import LoggingMiddleware, get_current_request_id, SlidingWindowRateLimitMiddleware
+from .security import SecurityHeadersMiddleware
 from core.miner_metrics import get_miner_metrics_db
 from core.silver_metrics import get_silver_metrics_db
 from core.secrets import check_optional_secrets, get_secret, mask_secret
@@ -280,8 +280,8 @@ app.add_middleware(
 # Add security headers middleware (runs first on response)
 app.add_middleware(SecurityHeadersMiddleware)
 
-# Add rate limiting middleware
-app.add_middleware(RateLimitMiddleware)
+# Add sliding window rate limiting middleware (STANDARD: 60/min, EXPENSIVE: 10/min)
+app.add_middleware(SlidingWindowRateLimitMiddleware)
 
 # Add request logging middleware
 app.add_middleware(LoggingMiddleware)
