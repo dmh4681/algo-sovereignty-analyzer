@@ -39,7 +39,7 @@ import json
 from datetime import datetime
 from typing import Dict, List, Optional, Any, TYPE_CHECKING, Tuple
 
-from .models import AssetCategory, SovereigntyData, PaginatedAssets, AssetPage, get_sovereignty_status
+from .models import SovereigntyData, PaginatedAssets, AssetPage, get_sovereignty_status
 from .classifier import AssetClassifier
 from .pricing import get_algo_price, get_asset_price
 from .lp_parser import LPParser
