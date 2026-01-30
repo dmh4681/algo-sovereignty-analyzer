@@ -1,8 +1,32 @@
-from pydantic import BaseModel, Field
+import base64
+import hashlib
+
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 from core.models import AssetCategory, SovereigntyData, AssetPage, PaginatedAssets
 from core.history import SovereigntySnapshot
+
+
+VALID_CATEGORIES = {"hard_money", "algo", "dollars", "shitcoin"}
+
+
+def validate_algorand_address(address: str) -> str:
+    """Validate an Algorand address: 58 chars, base32, valid checksum."""
+    if len(address) != 58:
+        raise ValueError("Algorand address must be exactly 58 characters")
+    try:
+        decoded = base64.b32decode(address + "======")  # pad to multiple of 8
+    except Exception:
+        raise ValueError("Algorand address contains invalid base32 characters")
+    if len(decoded) != 36:
+        raise ValueError("Algorand address has invalid decoded length")
+    public_key = decoded[:32]
+    checksum = decoded[32:]
+    computed = hashlib.sha512_256(public_key).digest()[-4:]
+    if checksum != computed:
+        raise ValueError("Algorand address has invalid checksum")
+    return address
 
 
 # -----------------------------------------------------------------------------
@@ -280,8 +304,14 @@ class AnalyzeRequest(BaseModel):
     monthly_fixed_expenses: Optional[float] = Field(
         None,
         description="Monthly fixed expenses in USD for sovereignty ratio calculation",
-        ge=0
+        gt=0,
+        le=1_000_000
     )
+
+    @field_validator("address")
+    @classmethod
+    def check_algorand_address(cls, v: str) -> str:
+        return validate_algorand_address(v)
 
     class Config:
         json_schema_extra = {
@@ -308,8 +338,14 @@ class HistorySaveRequest(BaseModel):
     monthly_fixed_expenses: float = Field(
         ...,
         description="Monthly fixed expenses in USD (required for ratio calculation)",
-        gt=0
+        gt=0,
+        le=1_000_000
     )
+
+    @field_validator("address")
+    @classmethod
+    def check_algorand_address(cls, v: str) -> str:
+        return validate_algorand_address(v)
 
     class Config:
         json_schema_extra = {
@@ -460,13 +496,27 @@ class MeldArbitrageResponse(BaseModel):
 
 class CorrectionSubmitRequest(BaseModel):
     """Request to submit a classification correction."""
-    asset_id: str = Field(..., description="The ASA ID")
-    asset_name: str = Field(..., description="Human-readable asset name")
-    ticker: str = Field(..., description="Asset ticker symbol")
+    asset_id: str = Field(..., description="The ASA ID", max_length=20)
+    asset_name: str = Field(..., description="Human-readable asset name", max_length=100)
+    ticker: str = Field(..., description="Asset ticker symbol", max_length=20)
     original_category: str = Field(..., description="The auto-classified category")
     corrected_category: str = Field(..., description="Your suggested category (hard_money, algo, dollars, shitcoin)")
-    reason: Optional[str] = Field(None, description="Explanation for the correction")
-    submitted_by: Optional[str] = Field(None, description="Your wallet address (optional)")
+    reason: Optional[str] = Field(None, description="Explanation for the correction", max_length=500)
+    submitted_by: Optional[str] = Field(None, description="Your wallet address (optional)", max_length=58)
+
+    @field_validator("original_category", "corrected_category")
+    @classmethod
+    def check_category(cls, v: str) -> str:
+        if v not in VALID_CATEGORIES:
+            raise ValueError(f"Category must be one of: {', '.join(sorted(VALID_CATEGORIES))}")
+        return v
+
+    @field_validator("submitted_by")
+    @classmethod
+    def check_submitted_by(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            return validate_algorand_address(v)
+        return v
 
     class Config:
         json_schema_extra = {
@@ -566,11 +616,16 @@ class LPSovereigntyCostResponse(BaseModel):
 
 class DeFiSovereigntyCostRequest(BaseModel):
     """Request for DeFi sovereignty cost analysis."""
-    address: str = Field(..., description="Algorand wallet address")
+    address: str = Field(..., description="Algorand wallet address", min_length=58, max_length=58)
     apy_estimates: Optional[Dict[str, float]] = Field(
         None,
         description="Optional APY estimates by LP ticker (e.g., {'TMPOOL2-ALGO-USDC': 10.5})"
     )
+
+    @field_validator("address")
+    @classmethod
+    def check_algorand_address(cls, v: str) -> str:
+        return validate_algorand_address(v)
 
 
 class DeFiSovereigntyCostResponse(BaseModel):
@@ -623,9 +678,14 @@ class QuickSovereigntyResponse(BaseModel):
 
 class PaginatedAnalyzeRequest(BaseModel):
     """Request for paginated wallet analysis."""
-    address: str = Field(..., description="Algorand wallet address")
-    monthly_fixed_expenses: Optional[float] = Field(None, description="Monthly fixed expenses for ratio calculation")
-    initial_page_size: int = Field(default=10, description="Initial number of assets per category")
+    address: str = Field(..., description="Algorand wallet address", min_length=58, max_length=58)
+    monthly_fixed_expenses: Optional[float] = Field(None, description="Monthly fixed expenses for ratio calculation", gt=0, le=1_000_000)
+    initial_page_size: int = Field(default=10, description="Initial number of assets per category", ge=1, le=100)
+
+    @field_validator("address")
+    @classmethod
+    def check_algorand_address(cls, v: str) -> str:
+        return validate_algorand_address(v)
 
 
 # -----------------------------------------------------------------------------
@@ -634,8 +694,13 @@ class PaginatedAnalyzeRequest(BaseModel):
 
 class AdvisorRequest(BaseModel):
     """Request for AI sovereignty advisor."""
-    address: str = Field(..., description="Algorand wallet address")
-    monthly_fixed_expenses: Optional[float] = Field(None, description="Monthly fixed expenses for ratio calculation")
+    address: str = Field(..., description="Algorand wallet address", min_length=58, max_length=58)
+    monthly_fixed_expenses: Optional[float] = Field(None, description="Monthly fixed expenses for ratio calculation", gt=0, le=1_000_000)
+
+    @field_validator("address")
+    @classmethod
+    def check_algorand_address(cls, v: str) -> str:
+        return validate_algorand_address(v)
 
 
 class AdvisorAdvice(BaseModel):

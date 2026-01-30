@@ -3851,7 +3851,7 @@ async def get_correction_stats():
 
 
 @router.get("/corrections/{asset_id}")
-async def get_correction(asset_id: str = Path(..., description="The ASA ID")):
+async def get_correction(asset_id: str = Path(..., description="The ASA ID", max_length=20)):
     """
     Get the correction for a specific asset.
     """
@@ -3875,7 +3875,7 @@ async def get_correction(asset_id: str = Path(..., description="The ASA ID")):
 
 
 @router.delete("/corrections/{asset_id}")
-async def delete_correction(asset_id: str = Path(..., description="The ASA ID")):
+async def delete_correction(asset_id: str = Path(..., description="The ASA ID", max_length=20)):
     """
     Delete a correction.
     """
