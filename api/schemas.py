@@ -296,7 +296,7 @@ class AnalyzeRequest(BaseModel):
     monthly_fixed_expenses: Optional[float] = Field(
         None,
         description="Monthly fixed expenses in USD for sovereignty ratio calculation",
-        gt=0,
+        ge=0,
         le=1_000_000
     )
 
