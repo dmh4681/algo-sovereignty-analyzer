@@ -1,5 +1,4 @@
-import base64
-import hashlib
+import algosdk.encoding
 
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Any, Optional
@@ -16,16 +15,9 @@ def validate_algorand_address(address: str) -> str:
     if len(address) != 58:
         raise ValueError("Algorand address must be exactly 58 characters")
     try:
-        decoded = base64.b32decode(address + "======")  # pad to multiple of 8
+        algosdk.encoding.decode_address(address)
     except Exception:
-        raise ValueError("Algorand address contains invalid base32 characters")
-    if len(decoded) != 36:
-        raise ValueError("Algorand address has invalid decoded length")
-    public_key = decoded[:32]
-    checksum = decoded[32:]
-    computed = hashlib.sha512_256(public_key).digest()[-4:]
-    if checksum != computed:
-        raise ValueError("Algorand address has invalid checksum")
+        raise ValueError("Algorand address is invalid (bad base32 encoding or checksum)")
     return address
 
 
