@@ -555,22 +555,26 @@ class AlgorandSovereigntyAnalyzer:
         if monthly_fixed_expenses <= 0:
             return None
             
-        # Calculate annual fixed expenses
+        # Annual expenses = monthly × 12 (the denominator of the sovereignty ratio)
         annual_fixed = monthly_fixed_expenses * 12
-        
-        # Calculate total portfolio value in USD (Hard Money + Algo + Dollars + Shitcoins)
+
+        # Sum USD value across ALL four categories (hard_money + algo + dollars + shitcoin)
+        # to get the total portfolio value (the numerator of the sovereignty ratio)
         portfolio_usd = 0.0
         for category in ['hard_money', 'algo', 'dollars', 'shitcoin']:
             for asset in categories.get(category, []):
                 portfolio_usd += asset.get('usd_value', 0.0)
-            
+
         # Get ALGO price for reference
         algo_price = get_algo_price() or 0.174
-        
-        # Calculate Sovereignty Ratio
+
+        # Sovereignty Ratio = Total Portfolio USD / Annual Fixed Expenses
+        # This measures how many years of essential expenses the portfolio can cover.
+        # Tier boundaries: ≥20 Generationally Sovereign, ≥6 Antifragile,
+        #                   ≥3 Robust, ≥1 Fragile, <1 Vulnerable
         sovereignty_ratio = portfolio_usd / annual_fixed
 
-        # Determine sovereignty status using centralized helper
+        # Determine sovereignty status using centralized helper (see models.py)
         status = get_sovereignty_status(sovereignty_ratio, include_emoji=True)
 
         return SovereigntyData(
@@ -863,6 +867,9 @@ class AlgorandSovereigntyAnalyzer:
         }
 
         # Calculate sovereignty ratio if expenses provided
+        # Sovereignty Ratio = portfolio_total / (monthly_expenses × 12)
+        # Tier boundaries: ≥20 Generationally Sovereign, ≥6 Antifragile,
+        #                   ≥3 Robust, ≥1 Fragile, <1 Vulnerable
         if monthly_fixed_expenses and monthly_fixed_expenses > 0:
             annual_fixed = monthly_fixed_expenses * 12
             sovereignty_ratio = portfolio_total / annual_fixed if annual_fixed > 0 else 0
