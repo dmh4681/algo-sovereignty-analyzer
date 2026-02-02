@@ -343,8 +343,28 @@ class LPParser:
 
     def get_pool_info(self, asset_id: int) -> Optional[Dict[str, Any]]:
         """
-        Get pool information for an LP token.
-        Returns pool reserves and total LP supply.
+        Retrieve pool configuration for an LP token by querying the Algorand node.
+
+        Fetches the LP token's ASA metadata from the blockchain and extracts
+        pool information (underlying asset pair, creator/pool address). Results
+        are cached in ``_pool_cache`` to avoid redundant network requests.
+
+        Algorithm:
+            1. Check in-memory cache first
+            2. Fetch ASA params from Algorand node (``/v2/assets/{id}``)
+            3. Extract creator address (this is the pool account on Tinyman)
+            4. Parse the asset pair from the ASA name using ``_parse_tinyman_pool``
+            5. Cache and return the result
+
+        Args:
+            asset_id: The ASA ID of the LP token to look up.
+
+        Returns:
+            Dict with pool info (asset tickers, creator address, LP asset ID),
+            or None if the LP token metadata cannot be fetched or parsed.
+
+        Raises:
+            No exceptions raised; errors are caught and logged, returning None.
         """
         if asset_id in self._pool_cache:
             return self._pool_cache[asset_id]
@@ -433,8 +453,26 @@ class LPParser:
 
     def _get_pool_assets(self, creator_address: str) -> Tuple[Optional[int], Optional[int]]:
         """
-        Fetch the assets held by the pool account to identify the pair.
-        Returns (asset1_id, asset2_id).
+        Fetch the underlying asset IDs by inspecting the pool account's holdings.
+
+        On Algorand, a DEX pool account must opt-in to (and therefore hold) the
+        ASAs it trades. By querying the pool account's asset holdings, we can
+        determine which two assets the pool trades.
+
+        Edge Cases:
+            - If the pool account holds exactly 2 ASAs, those are the pair.
+            - If the pool account holds exactly 1 ASA, the other asset is ALGO
+              (ASA ID 0), since ALGO doesn't appear in the ``assets`` list.
+            - If the pool account holds 0 or 3+ ASAs, we cannot reliably
+              determine the pair and return (None, None).
+            - Zero-balance assets are filtered out (``amount > 0``), so drained
+              pools may return fewer assets than expected.
+
+        Args:
+            creator_address: The Algorand address of the pool account.
+
+        Returns:
+            Tuple of (asset1_id, asset2_id), or (None, None) if resolution fails.
         """
         try:
             url = f"{self.algod_address}/v2/accounts/{creator_address}"
@@ -461,8 +499,44 @@ class LPParser:
     
     def get_pool_state(self, pool_address: str, lp_asset_id: int, asset1_id: int, asset2_id: int) -> Optional[dict]:
         """
-        Query pool using Tinyman SDK to get exact reserves and total supply.
-        Returns dict with: total_supply, reserve1, reserve2
+        Query on-chain pool state via the Tinyman V2 SDK for exact reserves.
+
+        This is the preferred (accurate) method for LP valuation. It uses the
+        Tinyman Python SDK to fetch the actual pool reserves and total LP token
+        supply directly from the blockchain application state.
+
+        Tinyman vs Pact Difference:
+            - **Tinyman**: Uses ``tinyman-py-sdk`` with ``TinymanV2MainnetClient``.
+              Pool state is read from the Tinyman V2 application's local state.
+            - **Pact**: Not directly supported by this method. Pact LP tokens
+              fall through to the geometric mean fallback in ``estimate_lp_value``.
+
+        Algorithm:
+            1. Initialize an AlgodClient and TinymanV2MainnetClient
+            2. Fetch Asset objects for both underlying assets
+            3. Fetch the pool for the asset pair
+            4. Read pool info (reserves, issued LP tokens) from app state
+            5. Convert raw amounts from microunits using asset decimals
+
+        Args:
+            pool_address: The Algorand address of the pool account (unused by
+                SDK but kept for interface consistency).
+            lp_asset_id: The ASA ID of the LP token.
+            asset1_id: ASA ID of the first underlying asset (0 for ALGO).
+            asset2_id: ASA ID of the second underlying asset (0 for ALGO).
+
+        Returns:
+            Dict with keys:
+                - ``total_supply``: Total LP tokens issued (in human-readable units)
+                - ``reserve1``: Pool's reserve of asset 1 (human-readable)
+                - ``reserve2``: Pool's reserve of asset 2 (human-readable)
+            Returns None if the Tinyman SDK is not installed, the pool doesn't
+            exist, or any error occurs during the query.
+
+        Note:
+            The Tinyman SDK import is done lazily inside this method so the
+            module can still be used without the SDK installed (falling back
+            to geometric mean estimation).
         """
         try:
             print(f"🔍 Using Tinyman SDK for LP {lp_asset_id}")
@@ -503,14 +577,17 @@ class LPParser:
             info = pool.info()
             print(f"   ℹ️ Tinyman info keys: {list(info.keys())}")
             
-            # info is a dict, not an object
-            # Keys usually use underscores in V2 state
+            # Pool info is returned as a dict (not an object) from Tinyman V2.
+            # LP token amounts are always in microunits with 6 decimals.
             total_supply = info.get('issued_pool_tokens', 0) / (10 ** 6)
-            
-            # Try both formats just in case
+
+            # Tinyman V2 SDK key names have varied between versions;
+            # try both underscore formats to handle SDK version differences.
             r1 = info.get('asset_1_reserves') or info.get('asset1_reserves', 0)
             r2 = info.get('asset_2_reserves') or info.get('asset2_reserves', 0)
-            
+
+            # Convert from raw microunits to human-readable amounts
+            # using each asset's declared decimal precision
             reserve1 = r1 / (10 ** asset1.decimals)
             reserve2 = r2 / (10 ** asset2.decimals)
             
@@ -566,8 +643,10 @@ class LPParser:
             - May query Algorand blockchain for pool state
             - Caches pool info in self._pool_cache
         """
-        # Parse the LP name to get underlying assets
-        # Expected format: "TinymanPool2.0 XALGO-ALGO"
+        # --- Step 1: Extract underlying asset tickers from LP token name ---
+        # Strip the Tinyman prefix to isolate the pair, e.g. "XALGO-ALGO"
+        # This simple split only works for hyphen-separated pairs; names with
+        # multiple hyphens or other formats will fail and return None.
         parts = lp_name.replace("TinymanPool2.0 ", "").split("-")
         if len(parts) != 2:
             print(f"⚠️  Could not parse LP name: {lp_name}")
@@ -576,8 +655,9 @@ class LPParser:
         asset1_ticker = parts[0]
         asset2_ticker = parts[1]
         
-        # Resolve asset IDs
-        # We need the pool creator address to find the assets
+        # --- Step 2: Resolve ASA IDs for the underlying assets ---
+        # We need numeric ASA IDs to fetch prices and query pool state.
+        # Primary method: query the pool account's holdings via get_pool_info.
         pool_info = self.get_pool_info(asset_id)
         
         asset1_id = None
@@ -591,9 +671,11 @@ class LPParser:
                 asset1_id = assets[0]
                 asset2_id = assets[1]
         
-        # Fallback IDs if resolution failed
+        # --- Step 2b: Hardcoded fallback ASA ID mappings ---
+        # If on-chain resolution failed (pool account query error, pool drained,
+        # non-Tinyman pool, etc.), use known ASA IDs for common sovereignty assets.
+        # This ensures pricing works even when the pool account is unreachable.
         if asset1_id is None or asset2_id is None:
-            # Apply hardcoded fallbacks based on ticker names
             if asset1_ticker == 'XALGO': asset1_id = 1134696561
             elif asset1_ticker == 'ALGO': asset1_id = 0
             elif asset1_ticker == 'FUSDC': asset1_id = 3184331239
@@ -612,13 +694,14 @@ class LPParser:
             elif asset2_ticker == 'SILVER$': asset2_id = 1241945177
             elif asset2_ticker == 'goBTC': asset2_id = 386192725
 
-        # Get prices using resolved IDs if available, otherwise fallback to ticker
-        # We do NOT normalize tickers anymore, so xALGO stays xALGO.
+        # --- Step 3: Fetch USD prices for both underlying assets ---
+        # Pass both ticker and ASA ID to the pricing function for best resolution.
+        # Tickers are NOT normalized (xALGO stays xALGO) to preserve pricing accuracy.
         price1 = get_price_fn(asset1_ticker, asset1_id) or 0
         price2 = get_price_fn(asset2_ticker, asset2_id) or 0
 
-        # TINYMAN ACCURATE FORMULA
-        # Get pool state (total LP supply and reserves) for exact calculation
+        # --- Step 4: Attempt exact valuation via Tinyman SDK (Method 1) ---
+        # Query on-chain pool state for total LP supply and reserves.
         pool_state = None
         if pool_info and 'creator' in pool_info and asset1_id is not None and asset2_id is not None:
             pool_state = self.get_pool_state(
@@ -628,15 +711,16 @@ class LPParser:
                 asset2_id
             )
         
-        # Check if pool state is valid AND has non-zero value
+        # Check if pool state is valid AND has non-zero supply.
+        # Zero supply means the pool is drained or the SDK returned bad data.
         if pool_state and pool_state['total_supply'] > 0:
-            # Calculate potential value to see if it's valid
+            # User's proportional share of the pool = their LP tokens / total LP supply
             user_share = lp_amount / pool_state['total_supply']
             reserve1_value = pool_state['reserve1'] * price1
             reserve2_value = pool_state['reserve2'] * price2
             potential_total_usd = user_share * (reserve1_value + reserve2_value)
             
-            if potential_total_usd > 0.01: # Threshold to avoid zero values
+            if potential_total_usd > 0.01:  # Guard: skip near-zero values from stale/empty pools
                 total_usd = potential_total_usd
                 
                 # Calculate user's share of each asset
@@ -662,15 +746,20 @@ class LPParser:
             else:
                 print(f"⚠️  Tinyman SDK returned near-zero value (${potential_total_usd:.4f}), falling back to geometric mean")
 
-        # FALLBACK: If pool state query failed OR returned zero value, use geometric mean
+        # --- Step 5: Fallback to geometric mean estimation (Method 2) ---
+        # Reached when: Tinyman SDK not installed, pool not found, pool drained,
+        # non-Tinyman pool (Pact, Humble), or SDK returned near-zero value.
         print(f"⚠️  Pool state unavailable or invalid for {lp_ticker}, using geometric mean estimate")
         
-        # If we have no price data, we can't estimate
+        # If both prices are zero, we have no basis for estimation at all
         if price1 == 0 and price2 == 0:
             return None
-            
-        # Standard AMM Pricing Formula (Geometric Mean)
-        # Value of 1 LP Token = 2 * math.sqrt(Price1 * Price2)
+
+        # Geometric Mean formula for constant-product AMM (x * y = k):
+        # Value per LP token ≈ 2 × √(price_asset1 × price_asset2)
+        # This assumes the pool is balanced (50/50 value split), which is
+        # approximately true for well-arbitraged pools but less accurate
+        # for imbalanced or low-liquidity pools.
         
         if price1 > 0 and price2 > 0:
             # Calculate value per LP token
@@ -678,11 +767,11 @@ class LPParser:
             
             total_usd = lp_amount * lp_token_value
             
-            # Split value 50/50 between assets
+            # Assume 50/50 value split (constant product AMM invariant)
             asset1_usd = total_usd / 2
             asset2_usd = total_usd / 2
             
-            # Calculate amounts based on prices
+            # Back-derive token amounts from USD values and prices
             asset1_amount = asset1_usd / price1
             asset2_amount = asset2_usd / price2
             
