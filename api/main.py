@@ -268,7 +268,10 @@ async def startup_event():
 
 # Add CORS middleware
 # Production: restrict to specific origins via CORS_ORIGINS env var
-allowed_origins = os.environ.get("CORS_ORIGINS", "*").split(",")
+allowed_origins = os.environ.get(
+    "CORS_ORIGINS",
+    "http://localhost:3000,https://algosovereignty.com,https://www.algosovereignty.com"
+).split(",")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins if allowed_origins != ["*"] else ["*"],
