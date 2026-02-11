@@ -7,6 +7,8 @@ for each wallet address.
 
 import json
 import os
+import shutil
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import List, Optional
@@ -90,12 +92,49 @@ class HistoryManager:
         except (json.JSONDecodeError, IOError):
             return []
 
+    def _validate_snapshot(self, snapshot: dict) -> bool:
+        """Validate a snapshot has required fields before writing."""
+        required = ('address', 'timestamp', 'sovereignty_ratio')
+        return all(snapshot.get(field) is not None for field in required)
+
     def _save_raw_data(self, address: str, data: List[dict]) -> None:
-        """Save raw snapshot data to file."""
+        """Save raw snapshot data to file atomically.
+
+        Writes to a temp file first, fsyncs, then renames to avoid
+        data corruption if a crash occurs mid-write.
+        """
         file_path = self._get_file_path(address)
 
-        with open(file_path, 'w') as f:
-            json.dump(data, f, indent=2, default=str)
+        # Back up existing file before overwriting
+        if file_path.exists():
+            try:
+                shutil.copy2(file_path, file_path.with_suffix('.json.bak'))
+            except OSError:
+                pass  # Backup is best-effort
+
+        # Atomic write: temp file -> fsync -> rename
+        tmp_fd = None
+        tmp_path = None
+        try:
+            tmp_fd, tmp_path = tempfile.mkstemp(
+                dir=self.history_dir, suffix='.tmp'
+            )
+            with os.fdopen(tmp_fd, 'w') as f:
+                tmp_fd = None  # os.fdopen takes ownership of fd
+                json.dump(data, f, indent=2, default=str)
+                f.flush()
+                os.fsync(f.fileno())
+            Path(tmp_path).replace(file_path)
+        except Exception:
+            # Clean up temp file on failure; original file is untouched
+            if tmp_fd is not None:
+                os.close(tmp_fd)
+            if tmp_path and Path(tmp_path).exists():
+                try:
+                    Path(tmp_path).unlink()
+                except OSError:
+                    pass
+            raise
 
     def _prune_old_snapshots(self, snapshots: List[dict]) -> List[dict]:
         """Remove snapshots older than MAX_DAYS."""
@@ -127,11 +166,17 @@ class HistoryManager:
             True if saved successfully, False otherwise.
         """
         try:
+            # Validate before persisting
+            snap_dict = snapshot.model_dump()
+            if not self._validate_snapshot(snap_dict):
+                print(f"Snapshot validation failed for {snapshot.address}")
+                return False
+
             # Load existing data
             snapshots = self._load_raw_data(snapshot.address)
 
             # Add new snapshot
-            snapshots.append(snapshot.model_dump())
+            snapshots.append(snap_dict)
 
             # Prune old data
             snapshots = self._prune_old_snapshots(snapshots)

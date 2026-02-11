@@ -501,21 +501,30 @@ class SovereigntyCache:
         return None
 
     def set_analysis(self, address: str, analysis: Dict[str, Any], ttl: Optional[int] = None) -> None:
-        """Cache wallet analysis results (memory + disk)."""
-        key = self._hash_address(address)
-        self._backend.set(
-            key,
-            analysis,
-            ttl=ttl or CacheConfig.ANALYSIS_TTL,
-            category=CacheCategory.ANALYSIS
-        )
+        """Cache wallet analysis results (disk first, then memory).
 
-        # Also persist to disk (best-effort)
+        Persists to disk before memory so that a disk failure can be reflected
+        in a shorter memory TTL, preventing stale data from being served
+        indefinitely if the disk cache is unavailable.
+        """
+        key = self._hash_address(address)
+        effective_ttl = ttl or CacheConfig.ANALYSIS_TTL
+
+        # Persist to disk first
         try:
             from core.persistence import get_persistence
             get_persistence().set_analysis(address, analysis)
-        except Exception:
-            pass
+        except Exception as e:
+            # Disk failed — reduce memory TTL so stale data expires sooner
+            logger.warning(f"Disk persist failed for {address[:8]}…, reducing memory TTL: {e}")
+            effective_ttl = min(effective_ttl, 300)  # Cap at 5 minutes
+
+        self._backend.set(
+            key,
+            analysis,
+            ttl=effective_ttl,
+            category=CacheCategory.ANALYSIS
+        )
 
     def invalidate_analysis(self, address: str) -> bool:
         """Invalidate cached analysis for a specific wallet."""
