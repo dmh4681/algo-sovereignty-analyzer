@@ -481,12 +481,27 @@ class SovereigntyCache:
     # =========================================================================
 
     def get_analysis(self, address: str) -> Optional[Dict[str, Any]]:
-        """Get cached wallet analysis."""
+        """Get cached wallet analysis (memory first, then disk)."""
         key = self._hash_address(address)
-        return self._backend.get(key, CacheCategory.ANALYSIS)
+        result = self._backend.get(key, CacheCategory.ANALYSIS)
+        if result is not None:
+            return result
+
+        # Fall through to disk cache
+        try:
+            from core.persistence import get_persistence
+            disk_result = get_persistence().get_analysis(address)
+            if disk_result is not None:
+                # Promote back to memory cache
+                self._backend.set(key, disk_result, ttl=CacheConfig.ANALYSIS_TTL, category=CacheCategory.ANALYSIS)
+                return disk_result
+        except Exception:
+            pass  # Disk cache is best-effort
+
+        return None
 
     def set_analysis(self, address: str, analysis: Dict[str, Any], ttl: Optional[int] = None) -> None:
-        """Cache wallet analysis results."""
+        """Cache wallet analysis results (memory + disk)."""
         key = self._hash_address(address)
         self._backend.set(
             key,
@@ -494,6 +509,13 @@ class SovereigntyCache:
             ttl=ttl or CacheConfig.ANALYSIS_TTL,
             category=CacheCategory.ANALYSIS
         )
+
+        # Also persist to disk (best-effort)
+        try:
+            from core.persistence import get_persistence
+            get_persistence().set_analysis(address, analysis)
+        except Exception:
+            pass
 
     def invalidate_analysis(self, address: str) -> bool:
         """Invalidate cached analysis for a specific wallet."""

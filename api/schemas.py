@@ -707,3 +707,38 @@ class AdvisorResponse(BaseModel):
     """Response combining analysis and advisor output."""
     analysis: AnalysisResponse = Field(..., description="Wallet analysis results")
     advice: AdvisorAdvice = Field(..., description="Structured sovereignty advice")
+
+
+# -----------------------------------------------------------------------------
+# Async Job Schemas
+# -----------------------------------------------------------------------------
+
+class AsyncAnalyzeRequest(BaseModel):
+    """Request to start an async wallet analysis job."""
+    address: str = Field(..., description="58-character Algorand wallet address", min_length=58, max_length=58)
+    monthly_fixed_expenses: Optional[float] = Field(None, description="Monthly fixed expenses in USD", ge=0, le=1_000_000)
+
+    @field_validator("address")
+    @classmethod
+    def check_algorand_address(cls, v: str) -> str:
+        return validate_algorand_address(v)
+
+
+class AsyncAnalyzeResponse(BaseModel):
+    """Response after submitting an async analysis job."""
+    job_id: str = Field(..., description="Unique job identifier for polling")
+    status: str = Field(..., description="Current job status")
+    poll_url: str = Field(..., description="URL to poll for job status")
+
+
+class JobStatusResponse(BaseModel):
+    """Response for job status polling."""
+    job_id: str
+    status: str
+    address: str
+    progress_message: str = ""
+    result: Optional[Dict[str, Any]] = None
+    error: Optional[str] = None
+    created_at: str
+    started_at: Optional[str] = None
+    completed_at: Optional[str] = None

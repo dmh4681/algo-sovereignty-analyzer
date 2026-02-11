@@ -4490,3 +4490,119 @@ async def get_advisor_for_address(
         monthly_fixed_expenses=monthly_fixed_expenses,
     )
     return await get_advisor_analysis(request)
+
+
+# =============================================================================
+# Async Analysis Jobs
+# =============================================================================
+
+from fastapi import BackgroundTasks
+from core.jobs import get_job_store, JobStatus
+from .schemas import AsyncAnalyzeRequest, AsyncAnalyzeResponse, JobStatusResponse
+
+
+def _run_analysis_job(job_id: str, address: str, monthly_expenses: Optional[float]) -> None:
+    """Background task that runs wallet analysis and updates the job store."""
+    store = get_job_store()
+    store.update_job(job_id, status=JobStatus.PROCESSING, progress_message="Fetching wallet data...")
+
+    try:
+        analyzer = AlgorandSovereigntyAnalyzer(use_local_node=False)
+
+        # Check cache first
+        cached = get_cached_analysis(address)
+        if cached:
+            categories = cached['categories']
+            is_participating = cached['is_participating']
+            hard_money_algo = cached['hard_money_algo']
+            participation_info = cached.get('participation_info')
+        else:
+            store.update_job(job_id, progress_message="Analyzing wallet assets...")
+            categories = analyzer.analyze_wallet(address)
+            if not categories:
+                store.update_job(job_id, status=JobStatus.FAILED, error="Wallet not found or contains no assets")
+                return
+
+            is_participating = analyzer.last_is_participating
+            hard_money_algo = analyzer.last_hard_money_algo
+            participation_info = analyzer.last_participation_info
+
+            # Cache the result
+            cache_analysis(address, {
+                'address': address,
+                'is_participating': is_participating,
+                'hard_money_algo': hard_money_algo,
+                'categories': categories,
+                'participation_info': participation_info,
+            })
+
+        store.update_job(job_id, progress_message="Calculating sovereignty metrics...")
+
+        sovereignty_data = None
+        if monthly_expenses:
+            sovereignty_data = analyzer.calculate_sovereignty_metrics(categories, monthly_expenses)
+
+        result = {
+            "address": address,
+            "is_participating": is_participating,
+            "hard_money_algo": hard_money_algo,
+            "categories": categories,
+            "sovereignty_data": sovereignty_data.model_dump() if sovereignty_data else None,
+            "participation_info": participation_info,
+        }
+
+        store.update_job(job_id, status=JobStatus.COMPLETED, result=result, progress_message="Analysis complete")
+
+    except Exception as e:
+        logger.exception(f"Async analysis job {job_id} failed: {e}")
+        store.update_job(job_id, status=JobStatus.FAILED, error=str(e))
+
+
+@router.post(
+    "/analyze/async",
+    response_model=AsyncAnalyzeResponse,
+    summary="Start async wallet analysis",
+    description="Submit a wallet for background analysis. Returns a job ID for polling.",
+    tags=["Wallet Analysis"],
+)
+async def analyze_wallet_async(request: AsyncAnalyzeRequest, background_tasks: BackgroundTasks):
+    """Start an async wallet analysis job."""
+    validate_algorand_address(request.address)
+
+    store = get_job_store()
+    job = store.create_job(request.address)
+
+    background_tasks.add_task(
+        _run_analysis_job,
+        job.id,
+        request.address,
+        request.monthly_fixed_expenses,
+    )
+
+    return AsyncAnalyzeResponse(
+        job_id=job.id,
+        status=job.status.value,
+        poll_url=f"/api/v1/jobs/{job.id}",
+    )
+
+
+@router.get(
+    "/jobs/{job_id}",
+    response_model=JobStatusResponse,
+    summary="Get job status",
+    description="Poll for the status of a background analysis job.",
+    tags=["Jobs"],
+)
+async def get_job_status(job_id: str = Path(..., description="Job ID from async analyze")):
+    """Get the status of a background job."""
+    store = get_job_store()
+    job = store.get_job(job_id)
+
+    if not job:
+        raise NotFoundException(
+            detail="Job not found",
+            error_code="JOB_NOT_FOUND",
+            details={"job_id": job_id},
+        )
+
+    return JobStatusResponse(**job.to_dict())

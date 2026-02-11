@@ -215,6 +215,77 @@ class HistoryManager:
         except (IndexError, ValueError):
             return None
 
+    def get_progress(self, address: str, days: int = 30) -> Optional[dict]:
+        """
+        Calculate sovereignty ratio change and trend over a period.
+
+        Returns dict with current_ratio, previous_ratio, change, trend.
+        """
+        snapshots = self.get_history(address, days)
+        if not snapshots:
+            return None
+
+        current = snapshots[-1]
+        if len(snapshots) < 2:
+            return {
+                "current_ratio": current.sovereignty_ratio,
+                "previous_ratio": None,
+                "change_absolute": None,
+                "change_pct": None,
+                "trend": "new",
+                "days_tracked": 0,
+                "snapshots_count": len(snapshots),
+            }
+
+        previous = snapshots[0]
+        change = current.sovereignty_ratio - previous.sovereignty_ratio
+        change_pct = (change / previous.sovereignty_ratio * 100) if previous.sovereignty_ratio else None
+
+        if abs(change) < 0.01:
+            trend = "stable"
+        elif change > 0:
+            trend = "improving"
+        else:
+            trend = "declining"
+
+        return {
+            "current_ratio": current.sovereignty_ratio,
+            "previous_ratio": previous.sovereignty_ratio,
+            "change_absolute": round(change, 4),
+            "change_pct": round(change_pct, 2) if change_pct is not None else None,
+            "trend": trend,
+            "days_tracked": days,
+            "snapshots_count": len(snapshots),
+        }
+
+    def get_all_time_stats(self, address: str) -> Optional[dict]:
+        """
+        Get all-time high, low, and average sovereignty ratio from all snapshots.
+        """
+        raw_data = self._load_raw_data(address)
+        if not raw_data:
+            return None
+
+        ratios = []
+        first_ts = None
+        for snap in raw_data:
+            ratio = snap.get("sovereignty_ratio")
+            if ratio is not None:
+                ratios.append(ratio)
+                ts = snap.get("timestamp")
+                if first_ts is None or (ts and ts < first_ts):
+                    first_ts = ts
+
+        if not ratios:
+            return None
+
+        return {
+            "high": round(max(ratios), 4),
+            "low": round(min(ratios), 4),
+            "average": round(sum(ratios) / len(ratios), 4),
+            "first_tracked": first_ts or "unknown",
+        }
+
     def clear_history(self, address: str) -> bool:
         """
         Clear all history for an address.
