@@ -7,6 +7,18 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { isValidAlgorandAddress } from '@/lib/utils'
 
+/**
+ * Props for the {@link SearchBar} component.
+ *
+ * @property defaultAddress - Pre-filled Algorand address (e.g., from URL params)
+ * @property onAnalyze - Callback invoked with the validated address when the user
+ *   submits. If not provided, the component navigates to `/analyze?address=...`
+ *   using Next.js router.
+ * @property showExamples - Whether to show the "Try an example" link below the
+ *   input when no address is entered. Defaults to true.
+ * @property size - Visual size variant. "large" increases input height and button
+ *   size for hero/landing page use. Defaults to "default".
+ */
 interface SearchBarProps {
   defaultAddress?: string
   onAnalyze?: (address: string) => void
@@ -14,6 +26,33 @@ interface SearchBarProps {
   size?: 'default' | 'large'
 }
 
+/**
+ * Algorand wallet address input with validation and navigation.
+ *
+ * This is the primary entry point for users to begin wallet analysis. It provides:
+ * - Real-time address validation (58 uppercase alphanumeric characters)
+ * - Visual feedback: red border and character count when address is invalid
+ * - Auto-uppercase conversion on input
+ * - Example address pre-fill button for demo purposes
+ * - Two submission modes: callback (`onAnalyze`) or router navigation
+ *
+ * Validation uses `isValidAlgorandAddress()` from `@/lib/utils`, which checks
+ * that the address is exactly 58 characters and matches the Algorand base32 format.
+ *
+ * Accessibility: Uses `role="search"`, `aria-label`, `aria-describedby`,
+ * `aria-invalid`, and `role="alert"` for error messages.
+ *
+ * @param props - Component props
+ *
+ * @example
+ * ```tsx
+ * // On landing page (navigates to /analyze)
+ * <SearchBar size="large" showExamples={true} />
+ *
+ * // In a modal (callback mode)
+ * <SearchBar onAnalyze={(addr) => fetchData(addr)} showExamples={false} />
+ * ```
+ */
 export function SearchBar({
   defaultAddress = '',
   onAnalyze,

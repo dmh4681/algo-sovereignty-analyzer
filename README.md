@@ -12,6 +12,26 @@ A tool that analyzes ANY Algorand wallet and outputs a "sovereignty score" based
 
 ---
 
+## Key Features
+
+- **Wallet Sovereignty Analysis** - Connect any Algorand wallet (Pera, Defly, Exodus, or paste an address) to analyze holdings through a hard money lens
+- **Four-Category Asset Classification** - Assets classified as Hard Money (BTC, Gold, Silver), Algorand (ALGO and staking derivatives), Dollars (stablecoins), or Shitcoins (everything else)
+- **Sovereignty Score** - Calculates how many years of fixed expenses your portfolio can cover, ranked from Vulnerable (<1 year) to Generationally Sovereign (20+ years)
+- **LP Token Decomposition** - Automatically breaks down Tinyman and Pact liquidity pool tokens into underlying assets for accurate classification
+- **AI Sovereignty Coaching** - Claude-powered personalized advice based on your portfolio composition
+- **Progressive Loading** - Quick sovereignty score displayed immediately, with full asset details loading progressively for large wallets
+- **Precious Metals Arbitrage** - Compares on-chain Meld Gold/Silver prices to spot prices for arbitrage detection
+- **Network Sovereignty Audit** - Analyzes Algorand relay node infrastructure centralization (Tier 1 Sovereign vs Tier 3 Hyperscale)
+- **Gold/Silver Ratio Tracker** - Monitors the gold-to-silver ratio with historical context and rotation signals
+- **Inflation-Adjusted Charts** - CPI-adjusted gold and silver price history with M2 money supply comparisons
+- **Central Bank Gold Tracker** - Tracks global central bank gold purchases and de-dollarization trends
+- **Miner Earnings Calendar** - Quarterly earnings tracking for gold and silver mining companies
+- **Physical Premium Tracker** - Compares dealer premiums on physical gold and silver products
+- **Sovereignty History** - Tracks your sovereignty ratio over time with historical snapshots
+- **News Curation** - AI-analyzed hard money news with sovereignty relevance scoring
+
+---
+
 ## Table of Contents
 
 - [Quick Start](#quick-start)
@@ -722,6 +742,7 @@ uvicorn api.main:app --reload --log-level debug
 
 Detailed documentation available in `docs/`:
 
+- **[Sovereignty Scoring Philosophy](docs/SOVEREIGNTY-SCORING.md)** - Deep dive into the scoring methodology, philosophical framework, and tier definitions
 - **[API Documentation](docs/api/README.md)** - Complete endpoint reference
 - **[Analyzer](docs/analyzer.md)** - Core analysis engine
 - **[LP Parser](docs/lp-parser.md)** - LP token decomposition
@@ -743,4 +764,4 @@ Proprietary - © 2025 Sovereign Path LLC
 
 ---
 
-*Last Updated: 2026-01-15*
+*Last Updated: 2026-02-19*

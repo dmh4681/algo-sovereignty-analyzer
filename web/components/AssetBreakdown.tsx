@@ -7,10 +7,40 @@ import { Asset, Categories, CATEGORY_CONFIGS, getHardMoneyType, HARD_MONEY_COLOR
 import { CoinStack, GoldBars } from '@/components/illustrations'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 
+/**
+ * Props for the {@link AssetBreakdown} component.
+ *
+ * @property categories - The categorized asset data from wallet analysis,
+ *   containing arrays of assets keyed by category: hard_money, algo, dollars, shitcoin.
+ */
 interface AssetBreakdownProps {
   categories: Categories
 }
 
+/**
+ * Displays a wallet's assets organized by sovereignty category in a visual card layout.
+ *
+ * The component renders two sections:
+ * 1. **Treasure Vault** (full-width top card): Hard money assets (Bitcoin, Gold, Silver)
+ *    displayed in a 3-column grid with sub-type cards for each precious metal/crypto.
+ *    Each sub-card shows the total USD value and individual token holdings.
+ *
+ * 2. **Other Categories** (3-column grid below): Algorand, Dollars, and Shitcoins
+ *    rendered as individual {@link CategoryCard} components.
+ *
+ * Features:
+ * - Mobile-responsive with collapsible sections (accordion pattern)
+ * - LP token detection and expandable details showing pool composition
+ * - NFT/dust filtering in the shitcoin category for cleaner display
+ * - Decorative gold bar and coin stack illustrations
+ * - Color-coded borders and backgrounds per category
+ *
+ * Data flow: Receives categorized assets from the parent analyze page,
+ * which fetches them from `POST /api/v1/analyze`.
+ *
+ * @param props - Component props
+ * @param props.categories - Object with hard_money, algo, dollars, and shitcoin arrays
+ */
 export function AssetBreakdown({ categories }: AssetBreakdownProps) {
   // Collapsible section state for mobile
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -186,12 +216,26 @@ export function AssetBreakdown({ categories }: AssetBreakdownProps) {
   )
 }
 
+/**
+ * Props for the {@link CategoryCard} internal component.
+ *
+ * @property config - Category display configuration from CATEGORY_CONFIGS (title, emoji, colors)
+ * @property assets - Array of assets belonging to this category
+ */
 interface CategoryCardProps {
   config: typeof CATEGORY_CONFIGS[number]
   assets: Asset[]
 }
 
-// Get color styling for hard money assets
+/**
+ * Returns Tailwind text color classes and optional emoji for an asset based on
+ * its hard money sub-type (gold, silver, bitcoin). Non-hard-money assets
+ * receive a neutral slate color.
+ *
+ * @param asset - The asset to style
+ * @param isHardMoney - Whether the asset is in the hard_money category
+ * @returns Object with `textClass` (Tailwind CSS class) and optional `emoji`
+ */
 function getAssetColor(asset: Asset, isHardMoney: boolean): { textClass: string; emoji?: string } {
   if (!isHardMoney) return { textClass: 'text-slate-200' }
 
@@ -205,7 +249,15 @@ function getAssetColor(asset: Asset, isHardMoney: boolean): { textClass: string;
   return { textClass: 'text-slate-200' }
 }
 
-// Detect LP (liquidity pool) tokens by ticker patterns
+/**
+ * Detects whether an asset is a Liquidity Pool (LP) token by checking its
+ * ticker and name against known LP patterns from Algorand DEXs
+ * (Tinyman, Pact, Humble, etc.).
+ *
+ * @param ticker - The asset's ticker symbol (e.g., "ALGO-USDC-LP")
+ * @param name - The asset's full name (e.g., "TinymanPool2.0 ALGO-USDC")
+ * @returns True if the asset matches LP token patterns
+ */
 function isLPToken(ticker: string, name: string): boolean {
   const t = ticker.toUpperCase()
   const n = name.toUpperCase()
@@ -220,7 +272,19 @@ function isLPToken(ticker: string, name: string): boolean {
   )
 }
 
-// Parse LP token name to extract underlying assets (heuristic)
+/**
+ * Extracts the underlying asset pair from an LP token's ticker or name using
+ * regex pattern matching. Tries multiple formats common to Algorand DEXs.
+ *
+ * Supported patterns:
+ * - "ALGO-USDC-LP" (hyphenated with LP suffix)
+ * - "ALGO/USDC" (slash-separated)
+ * - "ALGO-USDC" (hyphenated)
+ *
+ * @param ticker - The LP token's ticker symbol
+ * @param name - The LP token's full name
+ * @returns Array of two asset ticker strings, or empty array if parsing fails
+ */
 function parseLPComponents(ticker: string, name: string): string[] {
   // Try to extract from patterns like "ALGO-USDC-LP" or "TinymanPool ALGO/USDC"
   const patterns = [
@@ -237,7 +301,21 @@ function parseLPComponents(ticker: string, name: string): string[] {
   return []
 }
 
-// Filter out insignificant assets for cleaner display (NFTs, dust, etc.)
+/**
+ * Filters out insignificant assets (NFTs, dust, collectibles) from the display
+ * to reduce visual noise. Only applies filtering to the shitcoin category;
+ * all other categories show every asset.
+ *
+ * Shitcoin filters:
+ * - NFTs/collectibles: amount <= 1 and value < $1
+ * - NFDs (Algorand domain names): ticker starts with "NFD" or name contains "NFD"
+ * - Verification badges: tickers matching "VL" + digits, "AFK", "OGG"
+ * - Dust: amount < 0.01 with zero value
+ *
+ * @param assets - Array of assets to filter
+ * @param categoryKey - The category key (filtering only applies to "shitcoin")
+ * @returns Filtered array of assets suitable for display
+ */
 function filterDisplayAssets(assets: Asset[], categoryKey: string): Asset[] {
   // For shitcoins, filter out noise
   if (categoryKey === 'shitcoin') {
@@ -265,6 +343,22 @@ function filterDisplayAssets(assets: Asset[], categoryKey: string): Asset[] {
   return assets
 }
 
+/**
+ * Renders a single category card showing asset count, total USD value, and a
+ * scrollable list of individual assets. Used for Algorand, Dollars, and
+ * Shitcoin categories (hard money has its own dedicated section in AssetBreakdown).
+ *
+ * Features:
+ * - LP token expansion: clicking an LP token reveals pool composition details
+ * - Keyboard-accessible LP toggles (Enter/Space)
+ * - Hard money sub-type color coding (gold, silver, bitcoin text/background)
+ * - NFT/dust count display for filtered assets
+ * - Capped at 10 visible items with "+N more tokens" indicator
+ *
+ * @param props - Component props
+ * @param props.config - Category display configuration (title, colors, emoji)
+ * @param props.assets - Array of assets in this category
+ */
 function CategoryCard({ config, assets }: CategoryCardProps) {
   // State for expanded LP tokens
   const [expandedLPs, setExpandedLPs] = useState<Set<string>>(new Set())
@@ -413,10 +507,26 @@ function CategoryCard({ config, assets }: CategoryCardProps) {
   )
 }
 
+/**
+ * Props for the {@link AssetBreakdownSummary} compact summary component.
+ *
+ * @property categories - The categorized asset data from wallet analysis
+ */
 interface AssetBreakdownSummaryProps {
   categories: Categories
 }
 
+/**
+ * A compact inline summary showing asset counts and percentage allocation
+ * for each category. Used in headers or condensed views where the full
+ * AssetBreakdown card layout is too large.
+ *
+ * Renders a horizontal flex row with each category's emoji, count, and
+ * percentage of total portfolio value.
+ *
+ * @param props - Component props
+ * @param props.categories - Object with hard_money, algo, dollars, and shitcoin arrays
+ */
 export function AssetBreakdownSummary({ categories }: AssetBreakdownSummaryProps) {
   const totals = CATEGORY_CONFIGS.map(config => ({
     ...config,

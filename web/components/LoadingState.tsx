@@ -3,6 +3,18 @@
 import { Skeleton } from '@/components/ui/skeleton'
 import { Loader2 } from 'lucide-react'
 
+/**
+ * Full-page loading skeleton that mimics the layout of the analysis dashboard.
+ *
+ * Renders placeholder blocks for:
+ * - Header row (title + badge)
+ * - Main sovereignty score card
+ * - 4-column asset category grid
+ * - 2-column calculator section
+ *
+ * Uses `animate-in fade-in` for a smooth appearance transition. Intended as the
+ * initial loading state while the wallet analysis API call is in progress.
+ */
 export function LoadingState() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -31,6 +43,13 @@ export function LoadingState() {
   )
 }
 
+/**
+ * Centered loading spinner with a pulsing ring effect and customizable text.
+ * Used for full-section loading states where a skeleton layout is not appropriate.
+ *
+ * @param props - Component props
+ * @param props.text - Text displayed below the spinner. Defaults to "Analyzing wallet..."
+ */
 export function LoadingSpinner({ text = 'Analyzing wallet...' }: { text?: string }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 space-y-4">
@@ -43,6 +62,11 @@ export function LoadingSpinner({ text = 'Analyzing wallet...' }: { text?: string
   )
 }
 
+/**
+ * Inline animated loading indicator showing three bouncing dots.
+ * Used within text content or buttons to indicate an ongoing operation
+ * without taking up significant vertical space.
+ */
 export function LoadingDots() {
   return (
     <span className="inline-flex gap-1">
@@ -53,7 +77,12 @@ export function LoadingDots() {
   )
 }
 
-// Content-aware skeleton for sovereignty score display
+/**
+ * Content-aware skeleton for the sovereignty score display. Mimics the layout
+ * of the {@link SovereigntyScore} component with a circular score placeholder,
+ * status text block, and tag pills. Provides a more accurate loading preview
+ * than a generic rectangle skeleton.
+ */
 export function SovereigntyScoreSkeleton() {
   return (
     <div className="rounded-xl bg-slate-800 p-6 animate-pulse">
@@ -79,7 +108,11 @@ export function SovereigntyScoreSkeleton() {
   )
 }
 
-// Content-aware skeleton for asset breakdown cards
+/**
+ * Content-aware skeleton for the 4-column asset breakdown grid. Each card
+ * mimics the {@link AssetBreakdown} category card layout with a header icon,
+ * value placeholder, and three asset row skeletons.
+ */
 export function AssetBreakdownSkeleton() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -104,7 +137,12 @@ export function AssetBreakdownSkeleton() {
   )
 }
 
-// Combined dashboard skeleton with all sections
+/**
+ * Complete dashboard loading skeleton combining all section skeletons.
+ * Renders the full page layout placeholder including header, sovereignty score,
+ * asset breakdown, and calculator sections. Used as the initial loading state
+ * for the `/analyze` page before any data has loaded.
+ */
 export function DashboardLoadingSkeleton() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
@@ -143,12 +181,25 @@ export function DashboardLoadingSkeleton() {
   )
 }
 
-// Section loading indicator - subtle inline loading for individual sections
+/**
+ * Props for the {@link SectionLoading} component.
+ *
+ * @property title - Bold heading text for the loading section
+ * @property description - Smaller description text below the title
+ */
 interface SectionLoadingProps {
   title?: string
   description?: string
 }
 
+/**
+ * Subtle inline loading indicator for individual dashboard sections.
+ * Shows a spinning icon with optional title and description text.
+ * Used when a specific section is loading independently (e.g., coaching
+ * panel or history chart) while the rest of the dashboard is already rendered.
+ *
+ * @param props - Component props
+ */
 export function SectionLoading({ title, description }: SectionLoadingProps) {
   return (
     <div className="flex items-center gap-3 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
@@ -161,7 +212,15 @@ export function SectionLoading({ title, description }: SectionLoadingProps) {
   )
 }
 
-// Progressive loading indicator showing what's loaded and what's pending
+/**
+ * Props for the {@link ProgressiveLoadingIndicator} component.
+ *
+ * @property stages - Array of loading stage objects, each with:
+ *   - `id`: Unique identifier for the stage
+ *   - `label`: Human-readable description (e.g., "Loading sovereignty data")
+ *   - `status`: Current state -- pending (not started), loading (in progress),
+ *     complete (finished), or error (failed)
+ */
 interface ProgressiveLoadingIndicatorProps {
   stages: {
     id: string
@@ -170,6 +229,19 @@ interface ProgressiveLoadingIndicatorProps {
   }[]
 }
 
+/**
+ * Multi-stage loading progress indicator showing which analysis steps are
+ * pending, in progress, complete, or failed. Used during the progressive
+ * loading flow where sovereignty data loads first, then full asset details.
+ *
+ * Visual indicators per stage:
+ * - **Pending**: Gray circle
+ * - **Loading**: Orange spinning icon
+ * - **Complete**: Green filled circle
+ * - **Error**: Red filled circle
+ *
+ * @param props - Component props
+ */
 export function ProgressiveLoadingIndicator({ stages }: ProgressiveLoadingIndicatorProps) {
   return (
     <div className="space-y-2 p-4 rounded-lg bg-slate-800/50 border border-slate-700/50">
@@ -206,7 +278,11 @@ export function ProgressiveLoadingIndicator({ stages }: ProgressiveLoadingIndica
   )
 }
 
-// Category summary loading skeleton for quick view
+/**
+ * Loading skeleton for the 4-column category summary grid (quick view).
+ * Each card shows a compact placeholder with icon, label, and value skeletons.
+ * Used during progressive loading before category totals are available.
+ */
 export function CategorySummarySkeleton() {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

@@ -5,11 +5,30 @@ import { formatUSD, formatNumber } from '@/lib/utils'
 import { SovereigntyData } from '@/lib/types'
 import { TreasureChest } from '@/components/illustrations'
 
+/**
+ * Props for the {@link SovereigntyScore} component.
+ *
+ * @property data - The sovereignty calculation results including ratio, status,
+ *   portfolio value, and annual expenses. Sourced from the `/analyze` API response
+ *   or calculated client-side via `calculateSovereigntyMetrics()`.
+ */
 interface SovereigntyScoreProps {
   data: SovereigntyData
 }
 
-// Mining-themed status names
+/**
+ * Maps a sovereignty status string to a mining-themed display name and emoji.
+ *
+ * The mining theme is used throughout the UI to gamify the sovereignty journey:
+ * - Generationally Sovereign -> "Dragon's Hoard"
+ * - Antifragile -> "King's Treasury"
+ * - Robust -> "Merchant's Chest"
+ * - Fragile -> "Miner's Pouch"
+ * - Vulnerable -> "Empty Mine"
+ *
+ * @param status - The sovereignty status string (e.g., "Robust", "Antifragile")
+ * @returns An object with `title` (mining theme name) and `emoji` for display
+ */
 const getMiningStatus = (status: string): { title: string; emoji: string } => {
   if (status.includes('Generationally')) {
     return { title: "Dragon's Hoard", emoji: '🐉' }
@@ -26,6 +45,44 @@ const getMiningStatus = (status: string): { title: string; emoji: string } => {
   return { title: 'Empty Mine', emoji: '🪨' }
 }
 
+/**
+ * Displays the sovereignty score as a large, visually prominent card with a
+ * tier-based gradient background. This is the primary "hero" element on the
+ * analysis dashboard.
+ *
+ * The component renders:
+ * - The sovereignty ratio as years of financial runway (e.g., "3.5 years")
+ * - A mining-themed status name (e.g., "Merchant's Chest") with emoji
+ * - The formal status label (e.g., "Robust")
+ * - Portfolio total value and annual expenses in a 2-column grid
+ * - A decorative TreasureChest illustration (opens when ratio > 3)
+ *
+ * Background gradients change based on sovereignty tier:
+ * - Generationally Sovereign: emerald gradient
+ * - Antifragile: green gradient
+ * - Robust: yellow/amber gradient
+ * - Fragile: red gradient
+ * - Vulnerable: stone/gray gradient
+ *
+ * Accessibility: Uses `role="meter"` with `aria-valuenow`, `aria-valuemin`,
+ * and `aria-valuemax` for screen reader support.
+ *
+ * @param props - Component props
+ * @param props.data - SovereigntyData with ratio, status, portfolio value, and expenses
+ *
+ * @example
+ * ```tsx
+ * <SovereigntyScore data={{
+ *   sovereignty_ratio: 3.5,
+ *   sovereignty_status: "Robust",
+ *   portfolio_usd: 210000,
+ *   annual_fixed_expenses: 60000,
+ *   monthly_fixed_expenses: 5000,
+ *   algo_price: 0.42,
+ *   years_of_runway: 3.5
+ * }} />
+ * ```
+ */
 export function SovereigntyScore({ data }: SovereigntyScoreProps) {
   const { sovereignty_ratio, sovereignty_status, portfolio_usd, annual_fixed_expenses } = data
   const miningStatus = getMiningStatus(sovereignty_status)
@@ -96,12 +153,32 @@ export function SovereigntyScore({ data }: SovereigntyScoreProps) {
   )
 }
 
+/**
+ * Props for the {@link SovereigntyScoreMini} compact display component.
+ *
+ * @property ratio - The sovereignty ratio (years of runway)
+ * @property status - The sovereignty status string (e.g., "Robust")
+ * @property portfolioUSD - Total portfolio value in USD
+ */
 interface SovereigntyScoreMiniProps {
   ratio: number
   status: string
   portfolioUSD: number
 }
 
+/**
+ * A compact, inline version of the sovereignty score for use in headers,
+ * summaries, or sidebar contexts. Displays the ratio, mining theme name,
+ * and portfolio value in a single row.
+ *
+ * Color-coded text matches the sovereignty tier (emerald for top tier,
+ * stone for vulnerable).
+ *
+ * @param props - Component props
+ * @param props.ratio - Sovereignty ratio as a number (years)
+ * @param props.status - Sovereignty status label
+ * @param props.portfolioUSD - Total portfolio value in USD
+ */
 export function SovereigntyScoreMini({ ratio, status, portfolioUSD }: SovereigntyScoreMiniProps) {
   const miningStatus = getMiningStatus(status)
 

@@ -8,6 +8,18 @@ import { Button } from '@/components/ui/button'
 import { formatUSD, formatNumber } from '@/lib/utils'
 import { calculateSovereigntyMetrics } from '@/lib/api'
 
+/**
+ * Props for the {@link RunwayCalculator} component.
+ *
+ * @property portfolioUSD - Total portfolio value in USD across all asset categories.
+ *   Used as the numerator in the sovereignty ratio calculation.
+ * @property algoPrice - Current ALGO price in USD. Used to calculate how many
+ *   ALGO tokens are needed to reach the next sovereignty milestone.
+ * @property initialExpenses - Pre-filled monthly expense value (e.g., from URL params
+ *   or previous calculation). Defaults to 0 (empty input).
+ * @property onUpdate - Callback invoked with the new monthly expense value when the
+ *   user recalculates. Allows the parent to update URL params or other state.
+ */
 interface RunwayCalculatorProps {
   portfolioUSD: number
   algoPrice: number
@@ -15,6 +27,32 @@ interface RunwayCalculatorProps {
   onUpdate?: (expenses: number) => void
 }
 
+/**
+ * Interactive calculator that lets users input their monthly fixed expenses
+ * to compute their sovereignty ratio and runway in real-time.
+ *
+ * The calculation is performed client-side using `calculateSovereigntyMetrics()`
+ * from `@/lib/api`, which mirrors the backend's sovereignty formula:
+ * `ratio = portfolioUSD / (monthlyExpenses * 12)`.
+ *
+ * Features:
+ * - Minimum expense threshold of $1,000/month (auto-enforced)
+ * - Enter key submission support
+ * - Displays sovereignty ratio (years), status tier, and annual expenses
+ * - Memoized calculation via `useMemo` to avoid unnecessary recomputation
+ *
+ * @param props - Component props
+ *
+ * @example
+ * ```tsx
+ * <RunwayCalculator
+ *   portfolioUSD={180000}
+ *   algoPrice={0.42}
+ *   initialExpenses={5000}
+ *   onUpdate={(expenses) => updateURLParams({ expenses })}
+ * />
+ * ```
+ */
 export function RunwayCalculator({
   portfolioUSD,
   algoPrice,
@@ -113,12 +151,43 @@ export function RunwayCalculator({
   )
 }
 
+/**
+ * Props for the {@link NextMilestone} component.
+ *
+ * @property portfolioUSD - Current total portfolio value in USD
+ * @property monthlyExpenses - User's monthly fixed expenses in USD
+ * @property algoPrice - Current ALGO price in USD for ALGO-needed calculations
+ */
 interface NextMilestoneProps {
   portfolioUSD: number
   monthlyExpenses: number
   algoPrice: number
 }
 
+/**
+ * Displays progress toward the next sovereignty tier with a visual progress bar.
+ *
+ * Uses `calculateSovereigntyMetrics()` to determine the next milestone and
+ * calculates:
+ * - Target tier name and required ratio
+ * - USD amount needed to reach the next tier
+ * - Equivalent ALGO tokens needed at current price
+ * - Visual progress bar showing percentage toward the goal
+ *
+ * If the user has already reached "Generationally Sovereign" (20+ years),
+ * shows a congratulatory message instead of a milestone target.
+ *
+ * @param props - Component props
+ *
+ * @example
+ * ```tsx
+ * <NextMilestone
+ *   portfolioUSD={180000}
+ *   monthlyExpenses={5000}
+ *   algoPrice={0.42}
+ * />
+ * ```
+ */
 export function NextMilestone({ portfolioUSD, monthlyExpenses, algoPrice }: NextMilestoneProps) {
   const metrics = calculateSovereigntyMetrics(portfolioUSD, monthlyExpenses, algoPrice)
 

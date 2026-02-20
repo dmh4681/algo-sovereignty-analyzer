@@ -9,35 +9,60 @@ import { formatUSD, formatNumber } from '@/lib/utils'
 import { Asset, CategoryType, CATEGORY_CONFIGS, getHardMoneyType, HARD_MONEY_COLORS } from '@/lib/types'
 import { getPaginatedAssets, ApiError } from '@/lib/api'
 
-// Page size for loading more assets
+/** Number of assets fetched per server-side pagination request. */
 const PAGE_SIZE = 20
 
-// Number of items to show initially before Load More
+/** Number of assets displayed on initial render before "Load More" is shown. */
 const INITIAL_DISPLAY_COUNT = 10
 
+/**
+ * Props for the {@link AssetList} component.
+ *
+ * @property address - The Algorand wallet address. Required for server-side
+ *   pagination API calls via `getPaginatedAssets()`.
+ * @property category - The asset category key (hard_money, algo, dollars, shitcoin).
+ *   Determines styling and the API endpoint for fetching additional pages.
+ * @property initialAssets - The first batch of assets from the full analysis response.
+ *   Displayed immediately without an additional API call.
+ * @property totalCount - Total number of assets in this category across all pages.
+ *   Used to calculate remaining items and determine if pagination is needed.
+ * @property totalUsd - Total USD value for all assets in this category.
+ *   Displayed as the category header value.
+ * @property needsPagination - Whether this category has more than 50 assets,
+ *   triggering server-side pagination behavior. Categories below this threshold
+ *   include all assets in the initial response.
+ * @property onAssetsLoaded - Optional callback invoked with the cumulative
+ *   asset array each time a new page is loaded.
+ */
 interface AssetListProps {
-  // The wallet address (needed for pagination API calls)
   address: string
-  // Category configuration
   category: CategoryType
-  // Initial assets to display (first batch from full analysis)
   initialAssets: Asset[]
-  // Total number of assets in this category
   totalCount: number
-  // Total USD value for the category
   totalUsd: number
-  // Whether the category needs pagination (>50 assets)
   needsPagination: boolean
-  // Optional callback when assets are loaded
   onAssetsLoaded?: (assets: Asset[]) => void
 }
 
+/**
+ * Props for the {@link AssetItem} internal component.
+ *
+ * @property asset - The individual asset to render
+ * @property isHardMoney - Whether this asset belongs to the hard_money category
+ */
 interface AssetItemProps {
   asset: Asset
   isHardMoney: boolean
 }
 
-// Get color styling for hard money assets
+/**
+ * Returns Tailwind text color classes and optional emoji based on hard money
+ * sub-type (gold, silver, bitcoin). Non-hard-money assets get neutral styling.
+ *
+ * @param asset - The asset to style
+ * @param isHardMoney - Whether the asset is in the hard_money category
+ * @returns Object with `textClass` and optional `emoji`
+ */
 function getAssetColor(asset: Asset, isHardMoney: boolean): { textClass: string; emoji?: string } {
   if (!isHardMoney) return { textClass: 'text-slate-200' }
 
@@ -51,7 +76,14 @@ function getAssetColor(asset: Asset, isHardMoney: boolean): { textClass: string;
   return { textClass: 'text-slate-200' }
 }
 
-// Detect LP (liquidity pool) tokens
+/**
+ * Detects whether an asset is a Liquidity Pool token by checking ticker and
+ * name against known Algorand DEX LP patterns (Tinyman, Pact, etc.).
+ *
+ * @param ticker - The asset's ticker symbol
+ * @param name - The asset's full name
+ * @returns True if the asset matches LP token patterns
+ */
 function isLPToken(ticker: string, name: string): boolean {
   const t = ticker.toUpperCase()
   const n = name.toUpperCase()
@@ -66,6 +98,15 @@ function isLPToken(ticker: string, name: string): boolean {
   )
 }
 
+/**
+ * Renders a single asset row with ticker, name, amount, and USD value.
+ * Hard money assets receive color-coded styling based on their sub-type.
+ * LP tokens are visually tagged with a purple "LP" badge.
+ *
+ * @param props - Component props
+ * @param props.asset - The asset data to display
+ * @param props.isHardMoney - Whether to apply hard money color coding
+ */
 function AssetItem({ asset, isHardMoney }: AssetItemProps) {
   const { textClass, emoji } = getAssetColor(asset, isHardMoney)
   const isLP = isLPToken(asset.ticker, asset.name)
@@ -99,7 +140,7 @@ function AssetItem({ asset, isHardMoney }: AssetItemProps) {
   )
 }
 
-// Skeleton for loading assets
+/** Loading skeleton placeholder for a single asset row. */
 function AssetItemSkeleton() {
   return (
     <div className="flex justify-between items-center py-1.5 border-b border-slate-700/50">
@@ -115,6 +156,30 @@ function AssetItemSkeleton() {
   )
 }
 
+/**
+ * A paginated, scrollable list of assets for a single category with
+ * server-side pagination support and optional infinite scroll.
+ *
+ * This component is used in the progressive loading architecture. The analyze
+ * page first shows quick sovereignty data, then loads full asset details.
+ * For categories with more than 50 assets (PAGINATION_THRESHOLD in the backend),
+ * assets are fetched in pages of 20.
+ *
+ * Loading strategy:
+ * 1. Initial assets are passed as props (first batch from full analysis)
+ * 2. First 10 are displayed immediately (INITIAL_DISPLAY_COUNT)
+ * 3. "Load More" button fetches additional pages from `GET /api/v1/assets/{category}`
+ * 4. Optional infinite scroll mode uses IntersectionObserver for automatic loading
+ *
+ * Features:
+ * - Hard money sub-type color coding (gold/silver/bitcoin)
+ * - LP token badge detection
+ * - Loading skeletons during pagination fetches
+ * - Error display with inline retry button
+ * - Asset count and total USD value in the header
+ *
+ * @param props - Component props
+ */
 export function AssetList({
   address,
   category,
@@ -313,7 +378,13 @@ export function AssetList({
   )
 }
 
-// Skeleton component for loading state
+/**
+ * Full-card loading skeleton for the AssetList component. Displays the category
+ * header, a value placeholder, and four skeleton asset rows with pulse animation.
+ *
+ * @param props - Component props
+ * @param props.category - The category type, used to apply correct colors and styling
+ */
 export function AssetListSkeleton({ category }: { category: CategoryType }) {
   const config = CATEGORY_CONFIGS.find(c => c.key === category)!
 
@@ -339,7 +410,14 @@ export function AssetListSkeleton({ category }: { category: CategoryType }) {
   )
 }
 
-// Compact summary for quick display before full list loads
+/**
+ * Props for the {@link AssetListSummary} compact display component.
+ *
+ * @property category - The asset category type
+ * @property count - Number of assets in this category
+ * @property totalUsd - Total USD value of all assets in this category
+ * @property isLoading - When true, shows skeleton placeholders instead of values
+ */
 interface AssetListSummaryProps {
   category: CategoryType
   count: number
@@ -347,6 +425,15 @@ interface AssetListSummaryProps {
   isLoading?: boolean
 }
 
+/**
+ * A compact, single-row summary card for a category. Used in the progressive
+ * loading flow to show category totals before the full asset list has loaded.
+ *
+ * Displays the category emoji, title, description, total USD value, and asset count.
+ * When `isLoading` is true, the value and count are replaced with skeleton placeholders.
+ *
+ * @param props - Component props
+ */
 export function AssetListSummary({ category, count, totalUsd, isLoading }: AssetListSummaryProps) {
   const config = CATEGORY_CONFIGS.find(c => c.key === category)!
 

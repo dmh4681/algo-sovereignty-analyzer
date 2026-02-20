@@ -3,8 +3,24 @@
 import { AlertTriangle, RefreshCcw, X, Wifi, Server, Key } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+/** The five error categories that determine the alert's icon, color, and help text. */
 type ErrorType = 'network' | 'server' | 'validation' | 'auth' | 'generic'
 
+/**
+ * Props for the {@link ErrorAlert} component.
+ *
+ * @property message - The error message to display. Also used for auto-detection
+ *   of error type if `type` is not explicitly provided.
+ * @property type - Explicit error type override. If omitted, the type is
+ *   auto-detected from the message content using keyword matching.
+ * @property onRetry - Callback for the "Try again" button. If not provided,
+ *   the retry button is hidden.
+ * @property onDismiss - Callback for the dismiss button (X icon). If not provided,
+ *   the dismiss button is hidden.
+ * @property retrying - When true, shows a spinning animation on the retry button
+ *   and disables it. Defaults to false.
+ * @property className - Additional CSS classes to merge with the alert container.
+ */
 interface ErrorAlertProps {
   message: string
   type?: ErrorType
@@ -42,6 +58,20 @@ const errorConfig: Record<ErrorType, { icon: typeof AlertTriangle; title: string
   },
 }
 
+/**
+ * Auto-detects the error type from the error message content using keyword matching.
+ *
+ * Detection priority (first match wins):
+ * 1. Rate limiting: "rate", "429", "too many", "throttl" -> network
+ * 2. Network issues: "network", "timeout", "fetch" -> network
+ * 3. Server errors: "server", "500", "503" -> server
+ * 4. Validation: "invalid", "not found", "empty" -> validation
+ * 5. Auth: "auth", "unauthorized", "403" -> auth
+ * 6. Default: generic
+ *
+ * @param message - The error message string to analyze
+ * @returns The detected ErrorType
+ */
 function getErrorType(message: string): ErrorType {
   const lowerMessage = message.toLowerCase()
   // Rate limit detection
@@ -63,11 +93,50 @@ function getErrorType(message: string): ErrorType {
   return 'generic'
 }
 
+/**
+ * Checks if an error message indicates a rate limit condition. Used to show
+ * specific help text ("wait a moment") instead of generic network error advice.
+ *
+ * @param message - The error message to check
+ * @returns True if the message contains rate-limiting keywords
+ */
 function isRateLimitError(message: string): boolean {
   const lowerMessage = message.toLowerCase()
   return lowerMessage.includes('rate') || lowerMessage.includes('429') || lowerMessage.includes('too many') || lowerMessage.includes('throttl')
 }
 
+/**
+ * A color-coded, accessible error alert with auto-detection of error types,
+ * contextual help text, and optional retry/dismiss actions.
+ *
+ * The component renders a rounded card with:
+ * - Type-specific icon (Wifi, Server, AlertTriangle, Key)
+ * - Type-specific title (e.g., "Connection Error", "Server Error")
+ * - The error message
+ * - Contextual help text based on error type:
+ *   - Validation + "not found": suggests checking the wallet address
+ *   - Network + rate limit: suggests waiting before retrying
+ *   - Network (general): suggests checking internet connection
+ * - Retry button with spinning animation when `retrying` is true
+ * - Dismiss button (both inline and corner X icon)
+ *
+ * Color coding: network=orange, server=red, validation=yellow,
+ * auth=purple, generic=red.
+ *
+ * Accessibility: Uses `role="alert"` for screen reader announcements and
+ * `aria-label="Dismiss"` on the close button.
+ *
+ * @param props - Component props
+ *
+ * @example
+ * ```tsx
+ * <ErrorAlert
+ *   message="Failed to fetch wallet data"
+ *   onRetry={() => refetch()}
+ *   retrying={isRetrying}
+ * />
+ * ```
+ */
 export function ErrorAlert({
   message,
   type,
