@@ -1,11 +1,10 @@
 'use client'
 
-import { useEffect, useState, Suspense, useCallback, useRef } from 'react'
+import { useEffect, useState, Suspense, useRef } from 'react'
 import { useSearchParams, useRouter } from 'next/navigation'
-import { ArrowLeft, CheckCircle2, Circle, Clock, RefreshCw, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Circle, Clock, RefreshCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { SearchBar } from '@/components/SearchBar'
 import { NodeStatusCard } from '@/components/NodeStatusCard'
 

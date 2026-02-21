@@ -5,6 +5,13 @@ __pycache__/
 venv/
 .idea/
 .vscode/
+
+# Data artifacts and analysis outputs
+sovereignty_analysis_*.json
+data/sovereignty_cache.db
+*.bak
+
+# Preserve specific JSON files needed by frontend
 !package.json
 !web/public/manifest.json
 !web/public/nfts/metadata/*.json

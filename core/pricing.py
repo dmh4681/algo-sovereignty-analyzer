@@ -29,8 +29,6 @@ import logging
 import requests
 import time
 from typing import Optional
-from datetime import datetime, timedelta
-
 from .cache import get_cache, CacheCategory, CacheConfig
 
 # Configure module logger

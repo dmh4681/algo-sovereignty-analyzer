@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatUSD, formatNumber } from '@/lib/utils'
-import { Asset, Categories, CATEGORY_CONFIGS, getHardMoneyType, HARD_MONEY_COLORS, HardMoneyType } from '@/lib/types'
+import { Asset, Categories, CATEGORY_CONFIGS, getHardMoneyType, HARD_MONEY_COLORS } from '@/lib/types'
 import { CoinStack, GoldBars } from '@/components/illustrations'
 import { ChevronDown, ChevronUp } from 'lucide-react'
 

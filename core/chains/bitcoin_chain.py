@@ -10,7 +10,6 @@ Full implementation will require:
 TODO: Implement full Bitcoin support in future phase.
 """
 
-import re
 from typing import Optional, Dict, Any
 
 from .chain_base import (

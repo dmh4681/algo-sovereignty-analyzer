@@ -5,11 +5,10 @@ import { useWallet } from '@txnlab/use-wallet-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Loader2, Lock, Unlock, Brain, Shield, Zap } from 'lucide-react'
+import { Loader2, Lock, Unlock, Brain } from 'lucide-react'
 import algosdk from 'algosdk'
 import ReactMarkdown from 'react-markdown'
 import { analyzeWallet } from '@/lib/api'
-import { AnalyzedArticle } from '@/lib/types'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1'
 
