@@ -11,10 +11,14 @@ Data Sources:
 
 import sqlite3
 import os
+import time
+import logging
 from datetime import datetime, date
 from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass, asdict
 import json
+
+logger = logging.getLogger(__name__)
 
 # Try to import requests for FRED API calls
 try:
@@ -43,6 +47,68 @@ FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/observations'
 # FRED Series IDs
 FRED_CPI_SERIES = 'CPIAUCSL'  # Consumer Price Index for All Urban Consumers
 FRED_M2_SERIES = 'M2SL'  # M2 Money Stock (Billions of Dollars)
+
+
+def _fetch_from_fred(series_id: str, start_date: str = '1970-01-01') -> Optional[List[Tuple[str, float]]]:
+    """
+    Fetch time series data from the FRED API.
+
+    Args:
+        series_id: FRED series ID (e.g. 'CPIAUCSL', 'M2SL')
+        start_date: Start date in YYYY-MM-DD format
+
+    Returns:
+        List of (YYYY-MM, value) tuples, or None on failure.
+    """
+    if not HAS_REQUESTS:
+        logger.warning("requests library not available, cannot fetch from FRED")
+        return None
+
+    if not FRED_API_KEY:
+        logger.debug("FRED_API_KEY not set, skipping FRED fetch")
+        return None
+
+    max_retries = 3
+    base_delay = 1
+
+    for attempt in range(max_retries):
+        try:
+            response = requests.get(
+                FRED_BASE_URL,
+                params={
+                    'series_id': series_id,
+                    'api_key': FRED_API_KEY,
+                    'file_type': 'json',
+                    'observation_start': start_date,
+                    'frequency': 'm',  # Monthly
+                },
+                timeout=10,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            results = []
+            for obs in data.get('observations', []):
+                if obs.get('value') == '.':
+                    continue  # FRED uses '.' for missing values
+                try:
+                    date_str = obs['date'][:7]  # YYYY-MM-DD -> YYYY-MM
+                    value = float(obs['value'])
+                    results.append((date_str, value))
+                except (KeyError, ValueError):
+                    continue
+
+            logger.info(f"Fetched {len(results)} observations from FRED series {series_id}")
+            return results
+
+        except Exception as e:
+            if attempt == max_retries - 1:
+                logger.warning(f"Failed to fetch FRED series {series_id} after {max_retries} attempts: {e}")
+                return None
+            delay = base_delay * (2 ** attempt)
+            time.sleep(delay)
+
+    return None
 
 
 # Historical seed data - Monthly CPI values (1970-2025)
@@ -490,6 +556,50 @@ class InflationDataDB:
                    set(d for d, _ in M2_SEED_DATA) |
                    set(d for d, _ in GOLD_SEED_DATA) |
                    set(d for d, _ in SILVER_SEED_DATA))
+
+    def update_from_fred(self) -> Dict[str, int]:
+        """
+        Fetch latest CPI and M2 data from FRED API and merge into the database.
+
+        Only updates CPI and M2 columns — gold/silver stay from seed data
+        since FRED doesn't provide commodity spot prices.
+
+        Returns:
+            Dict with counts of updated records per series.
+        """
+        results = {'cpi': 0, 'm2': 0}
+
+        cpi_data = _fetch_from_fred(FRED_CPI_SERIES)
+        if cpi_data:
+            with sqlite3.connect(self.db_path) as conn:
+                for date_str, value in cpi_data:
+                    conn.execute('''
+                        INSERT INTO inflation_data (date, cpi)
+                        VALUES (?, ?)
+                        ON CONFLICT(date) DO UPDATE SET
+                            cpi = excluded.cpi,
+                            updated_at = CURRENT_TIMESTAMP
+                    ''', (date_str, value))
+                conn.commit()
+            results['cpi'] = len(cpi_data)
+            logger.info(f"Updated {len(cpi_data)} CPI records from FRED")
+
+        m2_data = _fetch_from_fred(FRED_M2_SERIES)
+        if m2_data:
+            with sqlite3.connect(self.db_path) as conn:
+                for date_str, value in m2_data:
+                    conn.execute('''
+                        INSERT INTO inflation_data (date, m2)
+                        VALUES (?, ?)
+                        ON CONFLICT(date) DO UPDATE SET
+                            m2 = excluded.m2,
+                            updated_at = CURRENT_TIMESTAMP
+                    ''', (date_str, value))
+                conn.commit()
+            results['m2'] = len(m2_data)
+            logger.info(f"Updated {len(m2_data)} M2 records from FRED")
+
+        return results
 
     def get_all_data(self, start_date: Optional[str] = None, end_date: Optional[str] = None) -> List[InflationDataPoint]:
         """Get all inflation data, optionally filtered by date range."""

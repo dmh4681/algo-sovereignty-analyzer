@@ -3024,6 +3024,35 @@ async def reseed_inflation_data():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/inflation/update-fred")
+async def update_inflation_from_fred():
+    """
+    Fetch latest CPI and M2 data from FRED API and merge into the database.
+
+    Requires FRED_API_KEY environment variable to be set.
+    Gold/silver prices are not affected (FRED doesn't provide commodity spot prices).
+    """
+    try:
+        db = get_inflation_db()
+        results = db.update_from_fred()
+        total = results['cpi'] + results['m2']
+        if total == 0:
+            return {
+                'success': False,
+                'message': 'No data fetched. Is FRED_API_KEY set?',
+                'results': results,
+            }
+        return {
+            'success': True,
+            'message': f"Updated {results['cpi']} CPI and {results['m2']} M2 records from FRED",
+            'results': results,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        logger.exception(f"Error updating from FRED: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # -----------------------------------------------------------------------------
 # Central Bank Gold Tracker Endpoints
 # -----------------------------------------------------------------------------
