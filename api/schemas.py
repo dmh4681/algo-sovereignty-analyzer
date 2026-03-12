@@ -437,14 +437,40 @@ class ArbitrageMetalError(BaseModel):
     meld_available: bool = Field(..., description="Whether Meld price was available")
 
 
-class ArbitrageBitcoinData(BaseModel):
-    """Arbitrage data for Bitcoin/goBTC comparison."""
-    spot_price: float = Field(..., description="Coinbase BTC spot price in USD")
-    gobtc_price: float = Field(..., description="goBTC price from Vestige in USD")
-    premium_pct: float = Field(..., description="Premium percentage ((gobtc - spot) / spot * 100)")
-    premium_usd: float = Field(..., description="Premium in USD (gobtc - spot)")
+class BitcoinTokenData(BaseModel):
+    """Arbitrage data for a single wrapped Bitcoin token (goBTC or WBTC)."""
+    price: float = Field(..., description="Token price from Vestige DEX in USD")
+    premium_pct: float = Field(..., description="Premium percentage vs Coinbase spot ((token - spot) / spot * 100)")
+    premium_usd: float = Field(..., description="Premium in USD (token_price - spot_price)")
     signal: str = Field(..., description="Trading signal: STRONG_BUY, BUY, HOLD, SELL, STRONG_SELL")
     signal_strength: float = Field(..., ge=0, le=100, description="Signal strength 0-100")
+    asa_id: int = Field(..., description="Algorand Standard Asset ID")
+    tinyman_url: str = Field(..., description="Tinyman swap URL for this token")
+    liquidity_warning: Optional[str] = Field(None, description="Warning if liquidity is low")
+
+
+class CrossDexSpread(BaseModel):
+    """Cross-DEX spread between goBTC and WBTC."""
+    gobtc_vs_wbtc_pct: float = Field(..., description="goBTC price relative to WBTC ((gobtc - wbtc) / wbtc * 100)")
+    description: str = Field(..., description="Human-readable spread description")
+
+
+class BestOpportunity(BaseModel):
+    """Best arbitrage opportunity between goBTC and WBTC."""
+    token: str = Field(..., description="Which token has the better opportunity: goBTC or WBTC")
+    action: str = Field(..., description="Recommended action: BUY, PREFER, or EQUAL")
+    reason: str = Field(..., description="Human-readable explanation")
+    advantage_pct: float = Field(..., description="Percentage advantage vs the alternative token")
+    liquidity_note: Optional[str] = Field(None, description="Liquidity caveat if applicable")
+
+
+class ArbitrageBitcoinData(BaseModel):
+    """3-way Bitcoin arbitrage data: Coinbase spot vs goBTC vs WBTC."""
+    spot_price: float = Field(..., description="Coinbase BTC spot price in USD")
+    gobtc: Dict[str, Any] = Field(..., description="goBTC token data (BitcoinTokenData) or error dict")
+    wbtc: Dict[str, Any] = Field(..., description="WBTC token data (BitcoinTokenData) or error dict")
+    cross_dex_spread: Optional[Dict[str, Any]] = Field(None, description="Cross-DEX spread between goBTC and WBTC")
+    best_opportunity: Optional[Dict[str, Any]] = Field(None, description="Best trading opportunity recommendation")
 
 
 class GSRContext(BaseModel):
@@ -480,6 +506,43 @@ class MeldArbitrageResponse(BaseModel):
     rotation: Optional[Dict[str, Any]] = Field(None, description="Rotation signal between gold and silver")
     timestamp: str = Field(..., description="ISO timestamp of analysis")
     data_complete: bool = Field(..., description="Whether all price data was available")
+
+
+# -----------------------------------------------------------------------------
+# Bitcoin Price History Schemas
+# -----------------------------------------------------------------------------
+
+class BTCHistoryDataPoint(BaseModel):
+    """Single data point in the Bitcoin price history time series."""
+    timestamp: str = Field(..., description="ISO 8601 timestamp (UTC)")
+    spot_btc: float = Field(..., description="Coinbase BTC spot price in USD")
+    gobtc_price: float = Field(..., description="goBTC price from Vestige in USD")
+    wbtc_price: Optional[float] = Field(None, description="WBTC price from Vestige in USD (may be None)")
+    gobtc_premium_pct: float = Field(..., description="goBTC premium/discount vs spot (%)")
+    wbtc_premium_pct: Optional[float] = Field(None, description="WBTC premium/discount vs spot (%) (may be None)")
+
+
+class BTCHistoryTokenStats(BaseModel):
+    """Statistics for a single token over the requested time window."""
+    avg_premium_pct: Optional[float] = Field(None, description="Average premium/discount (%)")
+    min_premium_pct: Optional[float] = Field(None, description="Minimum (most negative = biggest discount) premium (%)")
+    max_premium_pct: Optional[float] = Field(None, description="Maximum (highest premium) (%)")
+
+
+class BTCHistoryStats(BaseModel):
+    """Aggregate statistics for both tokens over the requested time window."""
+    gobtc: BTCHistoryTokenStats = Field(..., description="goBTC statistics")
+    wbtc: BTCHistoryTokenStats = Field(..., description="WBTC statistics")
+    data_points: int = Field(..., description="Total number of data points in this window")
+    hours: int = Field(..., description="Hours of history requested")
+
+
+class BTCHistoryResponse(BaseModel):
+    """Response for the /arbitrage/btc-history endpoint."""
+    data_points: List[BTCHistoryDataPoint] = Field(..., description="Time-series data, oldest first")
+    stats: BTCHistoryStats = Field(..., description="Aggregate statistics for the time window")
+    hours_requested: int = Field(..., description="Hours of history that were requested")
+    timestamp: str = Field(..., description="ISO 8601 timestamp when this response was generated")
 
 
 # -----------------------------------------------------------------------------

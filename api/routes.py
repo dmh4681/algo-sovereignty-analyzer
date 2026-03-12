@@ -123,6 +123,7 @@ from .schemas import (
     WalletParticipationResponse,
     ParticipationKeyInfo,
     MeldArbitrageResponse,
+    BTCHistoryResponse,
     AdvisorRequest,
 )
 from .agent import SovereigntyCoach, AdviceRequest
@@ -2363,7 +2364,7 @@ async def get_meld_arbitrage():
     return result
 
 
-@router.get("/arbitrage/btc-history")
+@router.get("/arbitrage/btc-history", response_model=BTCHistoryResponse)
 async def get_btc_arbitrage_history(
     hours: int = Query(24, ge=1, le=720, description="Hours of history (1-720, default 24)")
 ):
