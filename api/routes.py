@@ -3505,20 +3505,50 @@ async def update_earnings_event(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.post("/earnings/refresh")
+async def refresh_earnings_from_edgar():
+    """
+    Refresh earnings data from SEC EDGAR without clearing existing records.
+
+    Fetches the latest quarterly EPS and revenue from real SEC filings.
+    Adds new quarters and updates SEC-sourced fields on existing records.
+    Records marked as data_source='manual' are not overwritten.
+    """
+    try:
+        db = get_earnings_db()
+        result = db.refresh_from_edgar()
+        return {
+            'success': True,
+            'message': (
+                f"SEC EDGAR refresh complete: "
+                f"{result['inserted']} new records, {result['updated']} updated"
+            ),
+            'inserted': result['inserted'],
+            'updated': result['updated'],
+            'data_source': 'sec_edgar',
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }
+    except Exception as e:
+        print(f"Error refreshing earnings from SEC EDGAR: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.post("/earnings/reseed")
 async def reseed_earnings_data():
     """
-    Clear all earnings data and reseed with built-in historical data.
+    Clear all earnings data and re-populate from SEC EDGAR.
 
-    WARNING: This deletes all existing data!
+    WARNING: This deletes all existing records including manual corrections!
+    Use /earnings/refresh to update without destroying manual data.
     """
     try:
         db = get_earnings_db()
         count = db.reseed()
         return {
             'success': True,
-            'message': f"Database reseeded with {count} earnings events",
+            'message': f"Database reseeded with {count} earnings events from SEC EDGAR",
             'count': count,
+            'data_source': 'sec_edgar',
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
     except Exception as e:

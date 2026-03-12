@@ -3,6 +3,12 @@ Miner Earnings Calendar Module
 
 Tracks quarterly earnings events for gold and silver mining companies.
 Includes historical beat/miss data, price reactions, and upcoming events.
+
+Data Source: SEC EDGAR XBRL API (real filings) — not fabricated.
+  - EPS and revenue are sourced from actual 10-Q / 10-K / 40-F SEC filings.
+  - Production (oz) and AISC data are NOT in SEC filings; those fields require
+    manual entry from company press releases and are left null until populated.
+  - Stock price data is not sourced here; populate via the update_event() API.
 """
 
 import sqlite3
@@ -35,13 +41,13 @@ class EarningsEvent:
     revenue_actual: Optional[float] = None  # in millions
     revenue_estimate: Optional[float] = None
 
-    # Mining-specific
+    # Mining-specific (from press releases / earnings calls — not in SEC filings)
     production_actual: Optional[int] = None  # oz
     production_guidance: Optional[int] = None
     aisc_actual: Optional[float] = None
     aisc_guidance: Optional[float] = None
 
-    # Post-earnings price data
+    # Post-earnings price data (populated separately via market data)
     price_before: Optional[float] = None
     price_1d_after: Optional[float] = None
     price_5d_after: Optional[float] = None
@@ -50,6 +56,7 @@ class EarningsEvent:
     # Metadata
     transcript_url: Optional[str] = None
     press_release_url: Optional[str] = None
+    data_source: Optional[str] = None  # 'sec_edgar', 'manual', 'estimated'
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -78,6 +85,7 @@ class EarningsEvent:
             'price_30d_after': self.price_30d_after,
             'transcript_url': self.transcript_url,
             'press_release_url': self.press_release_url,
+            'data_source': self.data_source,
             'created_at': self.created_at,
             'updated_at': self.updated_at,
             # Computed fields
@@ -91,7 +99,6 @@ class EarningsEvent:
         }
 
     def _calc_beat(self, actual: Optional[float], estimate: Optional[float]) -> Optional[bool]:
-        """Calculate if actual beat estimate."""
         if actual is None or estimate is None:
             return None
         return actual >= estimate
@@ -103,7 +110,6 @@ class EarningsEvent:
         return self.aisc_actual <= self.aisc_guidance
 
     def _calc_price_change(self, before: Optional[float], after: Optional[float]) -> Optional[float]:
-        """Calculate percentage price change."""
         if before is None or after is None or before == 0:
             return None
         return round(((after - before) / before) * 100, 2)
@@ -202,13 +208,12 @@ class EarningsCalendarDB:
         self._init_db()
 
     def _get_conn(self) -> sqlite3.Connection:
-        """Get database connection with row factory."""
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         return conn
 
     def _init_db(self):
-        """Initialize database schema."""
+        """Initialize database schema and populate from SEC EDGAR on first run."""
         conn = self._get_conn()
         try:
             conn.execute('''
@@ -235,6 +240,7 @@ class EarningsCalendarDB:
                     price_30d_after REAL,
                     transcript_url TEXT,
                     press_release_url TEXT,
+                    data_source TEXT DEFAULT 'unknown',
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(ticker, quarter)
@@ -251,133 +257,91 @@ class EarningsCalendarDB:
             ''')
             conn.commit()
 
-            # Check if we need to seed
+            # Run schema migration to add data_source if it doesn't exist (for existing DBs)
+            self._migrate_schema(conn)
+
+            # Populate from SEC EDGAR on first run
             cursor = conn.execute('SELECT COUNT(*) FROM earnings_events')
             count = cursor.fetchone()[0]
             if count == 0:
-                self._seed_data(conn)
+                populated = self._populate_from_edgar(conn)
+                if not populated:
+                    print("SEC EDGAR unavailable — earnings calendar will be empty until refreshed")
+                    print("Run POST /api/v1/earnings/refresh to populate from SEC EDGAR")
         finally:
             conn.close()
 
-    def _seed_data(self, conn: sqlite3.Connection):
-        """Seed database with historical earnings data."""
-        # Historical earnings data for gold miners (2023-2024)
-        gold_earnings = [
-            # Newmont (NEM)
-            ('NEM', 'gold', 'Newmont', 'Q1 2023', '2023-04-27', 'pre-market', 1, 0.38, 0.35, 3100, 3050, 1580000, 1600000, 1276, 1300, 45.50, 46.20, 47.10, 44.80),
-            ('NEM', 'gold', 'Newmont', 'Q2 2023', '2023-07-20', 'pre-market', 1, 0.29, 0.32, 2800, 2900, 1420000, 1500000, 1388, 1350, 44.20, 43.50, 44.10, 43.20),
-            ('NEM', 'gold', 'Newmont', 'Q3 2023', '2023-10-26', 'pre-market', 1, 0.36, 0.34, 3050, 3000, 1510000, 1480000, 1305, 1320, 40.10, 39.20, 38.80, 37.50),
-            ('NEM', 'gold', 'Newmont', 'Q4 2023', '2024-02-22', 'pre-market', 1, 0.41, 0.38, 3200, 3100, 1620000, 1580000, 1260, 1280, 35.80, 36.50, 37.20, 38.10),
-            ('NEM', 'gold', 'Newmont', 'Q1 2024', '2024-04-25', 'pre-market', 1, 0.55, 0.48, 4100, 3900, 1680000, 1650000, 1185, 1220, 37.90, 38.60, 39.80, 41.20),
-            ('NEM', 'gold', 'Newmont', 'Q2 2024', '2024-07-24', 'pre-market', 1, 0.72, 0.62, 4600, 4300, 1750000, 1700000, 1120, 1150, 45.30, 47.80, 49.10, 52.40),
-            ('NEM', 'gold', 'Newmont', 'Q3 2024', '2024-10-23', 'pre-market', 1, 0.88, 0.78, 5100, 4800, 1820000, 1780000, 1050, 1100, 53.20, 55.40, 54.80, 52.10),
+    def _migrate_schema(self, conn: sqlite3.Connection):
+        """Add new columns to existing databases without losing data."""
+        try:
+            conn.execute("ALTER TABLE earnings_events ADD COLUMN data_source TEXT DEFAULT 'unknown'")
+            conn.commit()
+        except sqlite3.OperationalError:
+            pass  # Column already exists
 
-            # Barrick Gold (GOLD)
-            ('GOLD', 'gold', 'Barrick Gold', 'Q1 2023', '2023-05-03', 'pre-market', 1, 0.14, 0.16, 2640, 2700, 952000, 980000, 1380, 1350, 17.20, 16.80, 16.50, 15.90),
-            ('GOLD', 'gold', 'Barrick Gold', 'Q2 2023', '2023-08-07', 'pre-market', 1, 0.19, 0.18, 2830, 2800, 1010000, 1000000, 1320, 1340, 15.60, 15.90, 16.30, 15.80),
-            ('GOLD', 'gold', 'Barrick Gold', 'Q3 2023', '2023-11-02', 'pre-market', 1, 0.24, 0.22, 2980, 2900, 1050000, 1020000, 1260, 1290, 15.20, 15.80, 16.10, 15.40),
-            ('GOLD', 'gold', 'Barrick Gold', 'Q4 2023', '2024-02-14', 'pre-market', 1, 0.27, 0.25, 3100, 3050, 1080000, 1060000, 1220, 1250, 16.10, 16.70, 17.20, 17.80),
-            ('GOLD', 'gold', 'Barrick Gold', 'Q1 2024', '2024-05-01', 'pre-market', 1, 0.32, 0.28, 3250, 3100, 1100000, 1080000, 1180, 1200, 17.50, 18.10, 18.60, 19.40),
-            ('GOLD', 'gold', 'Barrick Gold', 'Q2 2024', '2024-08-12', 'pre-market', 1, 0.42, 0.36, 3600, 3400, 1150000, 1120000, 1090, 1120, 18.20, 19.40, 20.10, 21.30),
-            ('GOLD', 'gold', 'Barrick Gold', 'Q3 2024', '2024-11-07', 'pre-market', 1, 0.52, 0.45, 4100, 3800, 1200000, 1160000, 1020, 1060, 20.80, 21.90, 22.50, 21.80),
+    def _populate_from_edgar(self, conn: sqlite3.Connection) -> bool:
+        """
+        Fetch real earnings data from SEC EDGAR and populate the database.
 
-            # Agnico Eagle (AEM)
-            ('AEM', 'gold', 'Agnico Eagle', 'Q1 2023', '2023-04-27', 'pre-market', 1, 0.68, 0.62, 1630, 1580, 878000, 860000, 1145, 1160, 52.30, 53.80, 55.10, 54.20),
-            ('AEM', 'gold', 'Agnico Eagle', 'Q2 2023', '2023-07-26', 'pre-market', 1, 0.75, 0.70, 1720, 1680, 915000, 900000, 1095, 1120, 50.10, 51.60, 52.40, 51.80),
-            ('AEM', 'gold', 'Agnico Eagle', 'Q3 2023', '2023-10-26', 'pre-market', 1, 0.82, 0.76, 1810, 1750, 952000, 930000, 1050, 1080, 48.20, 49.80, 50.90, 49.10),
-            ('AEM', 'gold', 'Agnico Eagle', 'Q4 2023', '2024-02-15', 'pre-market', 1, 0.88, 0.81, 1920, 1850, 985000, 960000, 1015, 1050, 52.40, 54.10, 55.80, 57.20),
-            ('AEM', 'gold', 'Agnico Eagle', 'Q1 2024', '2024-04-25', 'pre-market', 1, 1.02, 0.92, 2050, 1980, 1020000, 1000000, 965, 1000, 58.80, 61.20, 63.50, 66.40),
-            ('AEM', 'gold', 'Agnico Eagle', 'Q2 2024', '2024-07-31', 'pre-market', 1, 1.18, 1.05, 2280, 2150, 1080000, 1050000, 920, 960, 68.50, 71.80, 74.20, 78.10),
-            ('AEM', 'gold', 'Agnico Eagle', 'Q3 2024', '2024-10-30', 'pre-market', 1, 1.32, 1.18, 2480, 2350, 1140000, 1100000, 875, 910, 82.40, 85.90, 88.30, 86.20),
+        Returns True if any records were inserted, False if SEC EDGAR was unavailable.
+        """
+        try:
+            from core.sec_edgar import (
+                SECEdgarClient, TICKER_METAL_MAP, TICKER_NAME_MAP, build_upcoming_stubs
+            )
+        except ImportError:
+            print("sec_edgar module not available")
+            return False
 
-            # Kinross Gold (KGC)
-            ('KGC', 'gold', 'Kinross Gold', 'Q1 2023', '2023-05-10', 'pre-market', 1, 0.08, 0.10, 1020, 1080, 480000, 500000, 1280, 1250, 4.80, 4.60, 4.40, 4.20),
-            ('KGC', 'gold', 'Kinross Gold', 'Q2 2023', '2023-08-02', 'pre-market', 1, 0.12, 0.11, 1150, 1120, 520000, 510000, 1220, 1240, 4.50, 4.70, 4.90, 5.10),
-            ('KGC', 'gold', 'Kinross Gold', 'Q3 2023', '2023-11-08', 'pre-market', 1, 0.15, 0.13, 1280, 1220, 560000, 540000, 1160, 1190, 4.30, 4.50, 4.80, 5.20),
-            ('KGC', 'gold', 'Kinross Gold', 'Q4 2023', '2024-02-14', 'pre-market', 1, 0.18, 0.15, 1380, 1320, 590000, 570000, 1100, 1140, 5.40, 5.80, 6.20, 6.80),
-            ('KGC', 'gold', 'Kinross Gold', 'Q1 2024', '2024-05-08', 'pre-market', 1, 0.22, 0.18, 1480, 1400, 620000, 600000, 1040, 1080, 6.50, 7.10, 7.60, 8.20),
-            ('KGC', 'gold', 'Kinross Gold', 'Q2 2024', '2024-07-31', 'pre-market', 1, 0.28, 0.24, 1620, 1550, 680000, 650000, 980, 1020, 8.40, 9.20, 9.80, 10.50),
-            ('KGC', 'gold', 'Kinross Gold', 'Q3 2024', '2024-11-06', 'pre-market', 1, 0.35, 0.30, 1780, 1700, 720000, 690000, 920, 960, 10.20, 11.10, 11.80, 11.40),
+        client = SECEdgarClient()
+        print("Fetching real earnings data from SEC EDGAR...")
 
-            # B2Gold (BTG)
-            ('BTG', 'gold', 'B2Gold', 'Q1 2023', '2023-05-03', 'pre-market', 1, 0.06, 0.07, 420, 450, 230000, 250000, 1320, 1280, 3.20, 3.10, 3.00, 2.85),
-            ('BTG', 'gold', 'B2Gold', 'Q2 2023', '2023-08-08', 'pre-market', 1, 0.08, 0.08, 480, 470, 260000, 255000, 1260, 1290, 2.90, 2.95, 3.05, 2.80),
-            ('BTG', 'gold', 'B2Gold', 'Q3 2023', '2023-11-07', 'pre-market', 1, 0.09, 0.08, 510, 490, 275000, 265000, 1200, 1240, 2.70, 2.85, 2.95, 2.60),
-            ('BTG', 'gold', 'B2Gold', 'Q4 2023', '2024-02-21', 'pre-market', 1, 0.10, 0.09, 550, 520, 290000, 280000, 1140, 1180, 2.80, 2.95, 3.10, 3.30),
-            ('BTG', 'gold', 'B2Gold', 'Q1 2024', '2024-05-07', 'pre-market', 1, 0.11, 0.10, 580, 550, 300000, 290000, 1080, 1120, 3.10, 3.30, 3.50, 3.75),
-            ('BTG', 'gold', 'B2Gold', 'Q2 2024', '2024-08-06', 'pre-market', 1, 0.14, 0.12, 640, 600, 330000, 310000, 1020, 1060, 3.60, 3.90, 4.15, 4.40),
-            ('BTG', 'gold', 'B2Gold', 'Q3 2024', '2024-11-05', 'pre-market', 1, 0.17, 0.14, 720, 670, 360000, 340000, 960, 1000, 4.20, 4.55, 4.80, 4.50),
-        ]
+        total_inserted = 0
 
-        # Historical earnings for silver miners
-        silver_earnings = [
-            # Pan American Silver (PAAS)
-            ('PAAS', 'silver', 'Pan American Silver', 'Q1 2023', '2023-05-10', 'pre-market', 1, 0.12, 0.15, 680, 720, 5200000, 5500000, 18.50, 18.00, 15.20, 14.80, 14.50, 13.90),
-            ('PAAS', 'silver', 'Pan American Silver', 'Q2 2023', '2023-08-09', 'pre-market', 1, 0.18, 0.16, 750, 730, 5600000, 5400000, 17.20, 17.50, 14.50, 14.90, 15.30, 14.80),
-            ('PAAS', 'silver', 'Pan American Silver', 'Q3 2023', '2023-11-08', 'pre-market', 1, 0.22, 0.19, 820, 780, 5900000, 5700000, 16.40, 16.80, 13.80, 14.30, 14.80, 14.20),
-            ('PAAS', 'silver', 'Pan American Silver', 'Q4 2023', '2024-02-21', 'pre-market', 1, 0.25, 0.21, 880, 840, 6200000, 6000000, 15.80, 16.20, 14.60, 15.20, 15.80, 16.40),
-            ('PAAS', 'silver', 'Pan American Silver', 'Q1 2024', '2024-05-08', 'pre-market', 1, 0.30, 0.26, 940, 900, 6500000, 6300000, 15.00, 15.50, 17.20, 18.10, 18.80, 19.60),
-            ('PAAS', 'silver', 'Pan American Silver', 'Q2 2024', '2024-08-07', 'pre-market', 1, 0.38, 0.32, 1080, 1000, 7000000, 6700000, 14.20, 14.80, 20.40, 21.80, 22.60, 24.10),
-            ('PAAS', 'silver', 'Pan American Silver', 'Q3 2024', '2024-11-06', 'pre-market', 1, 0.45, 0.38, 1200, 1120, 7500000, 7100000, 13.50, 14.20, 25.80, 27.40, 28.60, 27.20),
+        all_records = client.fetch_all_miners(min_year=2022)
+        for ticker, records in all_records.items():
+            metal = TICKER_METAL_MAP.get(ticker, "unknown")
+            company_name = TICKER_NAME_MAP.get(ticker, ticker)
 
-            # First Majestic (AG)
-            ('AG', 'silver', 'First Majestic Silver', 'Q1 2023', '2023-05-04', 'pre-market', 1, -0.08, -0.05, 145, 160, 3100000, 3400000, 22.50, 21.80, 6.20, 5.90, 5.60, 5.30),
-            ('AG', 'silver', 'First Majestic Silver', 'Q2 2023', '2023-08-02', 'pre-market', 1, -0.04, -0.03, 165, 170, 3400000, 3500000, 21.20, 21.50, 5.40, 5.50, 5.70, 5.40),
-            ('AG', 'silver', 'First Majestic Silver', 'Q3 2023', '2023-11-01', 'pre-market', 1, 0.02, -0.01, 190, 180, 3700000, 3600000, 19.80, 20.20, 4.80, 5.10, 5.40, 5.00),
-            ('AG', 'silver', 'First Majestic Silver', 'Q4 2023', '2024-02-22', 'pre-market', 1, 0.06, 0.03, 215, 200, 3900000, 3800000, 18.60, 19.20, 5.20, 5.60, 5.90, 6.30),
-            ('AG', 'silver', 'First Majestic Silver', 'Q1 2024', '2024-05-02', 'pre-market', 1, 0.10, 0.07, 245, 230, 4100000, 4000000, 17.50, 18.20, 6.40, 6.90, 7.30, 7.80),
-            ('AG', 'silver', 'First Majestic Silver', 'Q2 2024', '2024-08-01', 'pre-market', 1, 0.16, 0.12, 290, 270, 4500000, 4300000, 16.20, 17.00, 8.20, 8.90, 9.50, 10.20),
-            ('AG', 'silver', 'First Majestic Silver', 'Q3 2024', '2024-10-31', 'pre-market', 1, 0.22, 0.17, 340, 310, 4900000, 4600000, 15.00, 15.80, 10.80, 11.60, 12.30, 11.70),
+            for rec in records:
+                try:
+                    conn.execute('''
+                        INSERT OR IGNORE INTO earnings_events (
+                            ticker, metal, company_name, quarter, earnings_date,
+                            time_of_day, is_confirmed,
+                            eps_actual, revenue_actual,
+                            press_release_url, data_source
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        ticker, metal, company_name, rec.quarter, rec.filed_date,
+                        'pre-market', 1,
+                        rec.eps_actual, rec.revenue_actual,
+                        rec.edgar_url, 'sec_edgar',
+                    ))
+                    total_inserted += 1
+                except sqlite3.IntegrityError:
+                    pass  # Skip duplicates
 
-            # Hecla Mining (HL)
-            ('HL', 'silver', 'Hecla Mining', 'Q1 2023', '2023-05-09', 'pre-market', 1, 0.02, 0.03, 180, 195, 3800000, 4000000, 16.80, 16.20, 4.90, 4.70, 4.50, 4.20),
-            ('HL', 'silver', 'Hecla Mining', 'Q2 2023', '2023-08-08', 'pre-market', 1, 0.04, 0.04, 210, 210, 4100000, 4100000, 15.90, 16.00, 4.30, 4.35, 4.50, 4.20),
-            ('HL', 'silver', 'Hecla Mining', 'Q3 2023', '2023-11-07', 'pre-market', 1, 0.06, 0.05, 235, 225, 4400000, 4300000, 14.80, 15.20, 3.90, 4.10, 4.30, 4.00),
-            ('HL', 'silver', 'Hecla Mining', 'Q4 2023', '2024-02-21', 'pre-market', 1, 0.08, 0.06, 260, 245, 4600000, 4500000, 13.90, 14.40, 4.10, 4.40, 4.70, 5.00),
-            ('HL', 'silver', 'Hecla Mining', 'Q1 2024', '2024-05-09', 'pre-market', 1, 0.10, 0.08, 285, 270, 4800000, 4700000, 13.20, 13.80, 5.30, 5.70, 6.10, 6.50),
-            ('HL', 'silver', 'Hecla Mining', 'Q2 2024', '2024-08-07', 'pre-market', 1, 0.14, 0.11, 330, 305, 5200000, 5000000, 12.40, 13.00, 6.80, 7.40, 7.90, 8.50),
-            ('HL', 'silver', 'Hecla Mining', 'Q3 2024', '2024-11-05', 'pre-market', 1, 0.18, 0.14, 380, 350, 5600000, 5400000, 11.60, 12.20, 8.90, 9.60, 10.20, 9.80),
-
-            # Coeur Mining (CDE)
-            ('CDE', 'silver', 'Coeur Mining', 'Q1 2023', '2023-05-03', 'pre-market', 1, -0.05, -0.03, 195, 210, 2900000, 3100000, 19.20, 18.60, 3.10, 2.90, 2.70, 2.50),
-            ('CDE', 'silver', 'Coeur Mining', 'Q2 2023', '2023-08-02', 'pre-market', 1, -0.02, -0.01, 225, 230, 3200000, 3300000, 18.40, 18.80, 2.60, 2.70, 2.85, 2.60),
-            ('CDE', 'silver', 'Coeur Mining', 'Q3 2023', '2023-11-01', 'pre-market', 1, 0.03, 0.01, 260, 250, 3500000, 3400000, 17.20, 17.80, 2.40, 2.55, 2.70, 2.45),
-            ('CDE', 'silver', 'Coeur Mining', 'Q4 2023', '2024-02-21', 'pre-market', 1, 0.06, 0.04, 290, 275, 3700000, 3600000, 16.00, 16.60, 2.80, 3.00, 3.25, 3.50),
-            ('CDE', 'silver', 'Coeur Mining', 'Q1 2024', '2024-05-01', 'pre-market', 1, 0.09, 0.07, 320, 305, 3900000, 3800000, 15.00, 15.60, 3.60, 3.90, 4.20, 4.55),
-            ('CDE', 'silver', 'Coeur Mining', 'Q2 2024', '2024-07-31', 'pre-market', 1, 0.14, 0.11, 380, 350, 4300000, 4100000, 13.80, 14.40, 4.80, 5.30, 5.70, 6.20),
-            ('CDE', 'silver', 'Coeur Mining', 'Q3 2024', '2024-10-30', 'pre-market', 1, 0.19, 0.15, 440, 400, 4700000, 4500000, 12.60, 13.20, 6.50, 7.10, 7.60, 7.20),
-        ]
-
-        # Upcoming earnings (2026) - Q4 2025 results
-        upcoming_2026 = [
-            # Gold Q4 2025
-            ('NEM', 'gold', 'Newmont', 'Q4 2025', '2026-02-19', 'pre-market', 0, None, 1.05, None, 5800, None, 1950000, None, 980, None, None, None, None),
-            ('GOLD', 'gold', 'Barrick Gold', 'Q4 2025', '2026-02-11', 'pre-market', 0, None, 0.62, None, 4600, None, 1280000, None, 960, None, None, None, None),
-            ('AEM', 'gold', 'Agnico Eagle', 'Q4 2025', '2026-02-12', 'pre-market', 0, None, 1.52, None, 2800, None, 1220000, None, 840, None, None, None, None),
-            ('KGC', 'gold', 'Kinross Gold', 'Q4 2025', '2026-02-11', 'pre-market', 0, None, 0.42, None, 2000, None, 780000, None, 860, None, None, None, None),
-            ('BTG', 'gold', 'B2Gold', 'Q4 2025', '2026-02-18', 'pre-market', 0, None, 0.21, None, 820, None, 400000, None, 900, None, None, None, None),
-
-            # Silver Q4 2025
-            ('PAAS', 'silver', 'Pan American Silver', 'Q4 2025', '2026-02-18', 'pre-market', 0, None, 0.55, None, 1400, None, 8000000, None, 12.50, None, None, None, None),
-            ('AG', 'silver', 'First Majestic Silver', 'Q4 2025', '2026-02-19', 'pre-market', 0, None, 0.32, None, 420, None, 5400000, None, 14.00, None, None, None, None),
-            ('HL', 'silver', 'Hecla Mining', 'Q4 2025', '2026-02-18', 'pre-market', 0, None, 0.24, None, 460, None, 6100000, None, 10.50, None, None, None, None),
-            ('CDE', 'silver', 'Coeur Mining', 'Q4 2025', '2026-02-18', 'pre-market', 0, None, 0.26, None, 520, None, 5200000, None, 11.50, None, None, None, None),
-        ]
-
-        # Insert all data
-        all_earnings = gold_earnings + silver_earnings + upcoming_2026
-
-        for event in all_earnings:
-            conn.execute('''
-                INSERT OR IGNORE INTO earnings_events (
-                    ticker, metal, company_name, quarter, earnings_date, time_of_day,
-                    is_confirmed, eps_actual, eps_estimate, revenue_actual, revenue_estimate,
-                    production_actual, production_guidance, aisc_actual, aisc_guidance,
-                    price_before, price_1d_after, price_5d_after, price_30d_after
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', event)
+        # Add upcoming stub records (estimated dates, no financial data)
+        stubs = build_upcoming_stubs(quarters=2)
+        for stub in stubs:
+            try:
+                conn.execute('''
+                    INSERT OR IGNORE INTO earnings_events (
+                        ticker, metal, company_name, quarter, earnings_date,
+                        time_of_day, is_confirmed, data_source
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    stub["ticker"], stub["metal"], stub["company_name"],
+                    stub["quarter"], stub["earnings_date"], stub["time_of_day"],
+                    0, stub["data_source"],
+                ))
+            except sqlite3.IntegrityError:
+                pass  # Upcoming stub already exists
 
         conn.commit()
+        print(f"Populated {total_inserted} earnings records from SEC EDGAR")
+        return total_inserted > 0
 
     def get_calendar(self, month: str = None) -> List[EarningsEvent]:
         """
@@ -437,12 +401,10 @@ class EarningsCalendarDB:
         if not events:
             return None
 
-        # Filter to completed earnings only
         completed = [e for e in events if e.eps_actual is not None]
         if not completed:
             return None
 
-        # Calculate beat/miss counts
         eps_beats = sum(1 for e in completed if e.eps_actual and e.eps_estimate and e.eps_actual >= e.eps_estimate)
         eps_misses = sum(1 for e in completed if e.eps_actual and e.eps_estimate and e.eps_actual < e.eps_estimate)
         eps_total = eps_beats + eps_misses
@@ -459,14 +421,12 @@ class EarningsCalendarDB:
         aisc_misses = sum(1 for e in completed if e.aisc_actual and e.aisc_guidance and e.aisc_actual > e.aisc_guidance)
         aisc_total = aisc_beats + aisc_misses
 
-        # Calculate price reactions
         reactions_1d = [
             ((e.price_1d_after - e.price_before) / e.price_before * 100)
             for e in completed
             if e.price_before and e.price_1d_after and e.price_before > 0
         ]
 
-        # Reactions on beat vs miss
         beat_reactions = []
         miss_reactions = []
         for e in completed:
@@ -504,7 +464,6 @@ class EarningsCalendarDB:
         """Get sector-wide earnings statistics."""
         conn = self._get_conn()
         try:
-            # Get upcoming earnings
             today = datetime.now().date().isoformat()
 
             if metal:
@@ -522,7 +481,6 @@ class EarningsCalendarDB:
 
             upcoming = [self._row_to_event(row) for row in cursor.fetchall()]
 
-            # Get historical data for beat rates
             if metal:
                 cursor = conn.execute('''
                     SELECT * FROM earnings_events
@@ -536,7 +494,6 @@ class EarningsCalendarDB:
 
             completed = [self._row_to_event(row) for row in cursor.fetchall()]
 
-            # Calculate sector averages
             eps_beats = sum(1 for e in completed if e.eps_actual and e.eps_estimate and e.eps_actual >= e.eps_estimate)
             eps_total = sum(1 for e in completed if e.eps_actual and e.eps_estimate)
 
@@ -549,7 +506,6 @@ class EarningsCalendarDB:
                 if e.price_before and e.price_1d_after and e.price_before > 0
             ]
 
-            # Count unique companies
             if metal:
                 cursor = conn.execute('SELECT COUNT(DISTINCT ticker) FROM earnings_events WHERE metal = ?', (metal,))
             else:
@@ -569,7 +525,7 @@ class EarningsCalendarDB:
         finally:
             conn.close()
 
-    def create_event(self, event: EarningsEvent) -> Optional[int]:
+    def create_event(self, event: 'EarningsEvent') -> Optional[int]:
         """Create a new earnings event."""
         conn = self._get_conn()
         try:
@@ -579,15 +535,16 @@ class EarningsCalendarDB:
                     is_confirmed, eps_actual, eps_estimate, revenue_actual, revenue_estimate,
                     production_actual, production_guidance, aisc_actual, aisc_guidance,
                     price_before, price_1d_after, price_5d_after, price_30d_after,
-                    transcript_url, press_release_url
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    transcript_url, press_release_url, data_source
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 event.ticker.upper(), event.metal, event.company_name, event.quarter,
                 event.earnings_date, event.time_of_day, 1 if event.is_confirmed else 0,
                 event.eps_actual, event.eps_estimate, event.revenue_actual, event.revenue_estimate,
                 event.production_actual, event.production_guidance, event.aisc_actual, event.aisc_guidance,
                 event.price_before, event.price_1d_after, event.price_5d_after, event.price_30d_after,
-                event.transcript_url, event.press_release_url
+                event.transcript_url, event.press_release_url,
+                event.data_source or 'manual',
             ))
             conn.commit()
             return cursor.lastrowid
@@ -600,20 +557,20 @@ class EarningsCalendarDB:
         """Update an existing earnings event."""
         conn = self._get_conn()
         try:
-            # Build dynamic update query
             allowed_fields = [
                 'eps_actual', 'eps_estimate', 'revenue_actual', 'revenue_estimate',
                 'production_actual', 'production_guidance', 'aisc_actual', 'aisc_guidance',
                 'price_before', 'price_1d_after', 'price_5d_after', 'price_30d_after',
-                'earnings_date', 'time_of_day', 'is_confirmed', 'transcript_url', 'press_release_url'
+                'earnings_date', 'time_of_day', 'is_confirmed', 'transcript_url',
+                'press_release_url', 'data_source',
             ]
 
             set_clauses = []
             values = []
-            for field, value in updates.items():
-                if field in allowed_fields:
-                    set_clauses.append(f'{field} = ?')
-                    values.append(value)
+            for f, v in updates.items():
+                if f in allowed_fields:
+                    set_clauses.append(f'{f} = ?')
+                    values.append(v)
 
             if not set_clauses:
                 return False
@@ -628,14 +585,108 @@ class EarningsCalendarDB:
         finally:
             conn.close()
 
+    def refresh_from_edgar(self) -> Dict[str, int]:
+        """
+        Re-fetch data from SEC EDGAR and update the database.
+
+        Existing records are updated with fresh SEC data (eps_actual, revenue_actual,
+        press_release_url, data_source). New quarters are inserted. Records already
+        in the DB with manual corrections are preserved for non-SEC fields.
+
+        Returns dict with 'inserted' and 'updated' counts.
+        """
+        try:
+            from core.sec_edgar import (
+                SECEdgarClient, TICKER_METAL_MAP, TICKER_NAME_MAP, build_upcoming_stubs
+            )
+        except ImportError:
+            raise RuntimeError("sec_edgar module not available")
+
+        client = SECEdgarClient()
+        print("Refreshing earnings data from SEC EDGAR...")
+
+        inserted = 0
+        updated = 0
+
+        conn = self._get_conn()
+        try:
+            all_records = client.fetch_all_miners(min_year=2022)
+            for ticker, records in all_records.items():
+                metal = TICKER_METAL_MAP.get(ticker, "unknown")
+                company_name = TICKER_NAME_MAP.get(ticker, ticker)
+
+                for rec in records:
+                    # Try insert first
+                    try:
+                        conn.execute('''
+                            INSERT INTO earnings_events (
+                                ticker, metal, company_name, quarter, earnings_date,
+                                time_of_day, is_confirmed,
+                                eps_actual, revenue_actual,
+                                press_release_url, data_source
+                            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        ''', (
+                            ticker, metal, company_name, rec.quarter, rec.filed_date,
+                            'pre-market', 1,
+                            rec.eps_actual, rec.revenue_actual,
+                            rec.edgar_url, 'sec_edgar',
+                        ))
+                        inserted += 1
+                    except sqlite3.IntegrityError:
+                        # Record exists — update SEC-sourced fields only
+                        conn.execute('''
+                            UPDATE earnings_events
+                            SET eps_actual = ?,
+                                revenue_actual = ?,
+                                press_release_url = ?,
+                                data_source = 'sec_edgar',
+                                updated_at = CURRENT_TIMESTAMP
+                            WHERE ticker = ? AND quarter = ?
+                              AND data_source != 'manual'
+                        ''', (rec.eps_actual, rec.revenue_actual, rec.edgar_url, ticker, rec.quarter))
+                        updated += 1
+
+            # Refresh upcoming stubs (don't overwrite confirmed events)
+            stubs = build_upcoming_stubs(quarters=2)
+            for stub in stubs:
+                try:
+                    conn.execute('''
+                        INSERT OR IGNORE INTO earnings_events (
+                            ticker, metal, company_name, quarter, earnings_date,
+                            time_of_day, is_confirmed, data_source
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (
+                        stub["ticker"], stub["metal"], stub["company_name"],
+                        stub["quarter"], stub["earnings_date"], stub["time_of_day"],
+                        0, stub["data_source"],
+                    ))
+                except sqlite3.IntegrityError:
+                    pass
+
+            conn.commit()
+        finally:
+            conn.close()
+
+        print(f"SEC EDGAR refresh: {inserted} inserted, {updated} updated")
+        return {"inserted": inserted, "updated": updated}
+
     def reseed(self) -> int:
-        """Clear all data and reseed from scratch."""
+        """
+        Clear all earnings data and re-populate from SEC EDGAR.
+
+        This is a destructive operation that replaces all data with real
+        SEC EDGAR filings data. Manual corrections will be lost.
+        """
         conn = self._get_conn()
         try:
             conn.execute('DELETE FROM earnings_events')
             conn.commit()
-            self._seed_data(conn)
-
+            populated = self._populate_from_edgar(conn)
+            if not populated:
+                raise RuntimeError(
+                    "SEC EDGAR unavailable — could not reseed. "
+                    "Check network connectivity and try again."
+                )
             cursor = conn.execute('SELECT COUNT(*) FROM earnings_events')
             return cursor.fetchone()[0]
         finally:
@@ -643,6 +694,12 @@ class EarningsCalendarDB:
 
     def _row_to_event(self, row: sqlite3.Row) -> EarningsEvent:
         """Convert database row to EarningsEvent object."""
+        # Handle both old schema (no data_source) and new schema
+        try:
+            data_source = row['data_source']
+        except (IndexError, KeyError):
+            data_source = 'unknown'
+
         return EarningsEvent(
             id=row['id'],
             ticker=row['ticker'],
@@ -666,6 +723,7 @@ class EarningsCalendarDB:
             price_30d_after=row['price_30d_after'],
             transcript_url=row['transcript_url'],
             press_release_url=row['press_release_url'],
+            data_source=data_source,
             created_at=row['created_at'],
             updated_at=row['updated_at'],
         )
@@ -673,6 +731,7 @@ class EarningsCalendarDB:
 
 # Singleton instance
 _db_instance: Optional[EarningsCalendarDB] = None
+
 
 def get_earnings_db() -> EarningsCalendarDB:
     """Get singleton database instance."""
