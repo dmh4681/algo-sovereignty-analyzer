@@ -599,6 +599,8 @@ async def config_status():
         # Add warnings for important missing configs
         if name == "ANTHROPIC_API_KEY" and not status["is_set"]:
             warnings.append("AI coaching feature unavailable (ANTHROPIC_API_KEY not set)")
+        if name == "FRED_API_KEY" and not status["is_set"]:
+            warnings.append("Live CPI/M2 data unavailable — falling back to seed data (FRED_API_KEY not set)")
 
     return {
         "status": "ok" if not warnings else "degraded",

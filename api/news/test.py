@@ -4,7 +4,6 @@ Run with: python -m api.news.test
 """
 
 import asyncio
-import os
 from pathlib import Path
 
 # Find project root and load .env
@@ -15,6 +14,7 @@ if env_file.exists():
     from dotenv import load_dotenv
     load_dotenv(env_file)
 
+from core.secrets import get_secret
 from .aggregator import NewsAggregator
 from .curator import MetalsCurator
 
@@ -157,7 +157,7 @@ def main():
         return
 
     # Check for API key
-    api_key = os.getenv('ANTHROPIC_API_KEY')
+    api_key = get_secret('ANTHROPIC_API_KEY')
     if not api_key:
         print("=" * 60)
         print("SETUP REQUIRED: ANTHROPIC_API_KEY not found")

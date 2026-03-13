@@ -15,7 +15,6 @@ Environment:
 
 import argparse
 import json
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -24,6 +23,8 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+from core.secrets import get_secret
 
 try:
     from algosdk import account, mnemonic, transaction
@@ -82,7 +83,7 @@ def get_algod_client(network: str) -> algod.AlgodClient:
 
 def get_creator_account() -> tuple[str, str]:
     """Load creator account from environment variable."""
-    mnemonic_phrase = os.environ.get("ALGO_MNEMONIC")
+    mnemonic_phrase = get_secret("ALGO_MNEMONIC")
     if not mnemonic_phrase:
         print("Error: ALGO_MNEMONIC environment variable not set")
         print("Set it with: export ALGO_MNEMONIC='your 25 word mnemonic phrase'")

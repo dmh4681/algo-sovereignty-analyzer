@@ -18,6 +18,8 @@ from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass, asdict
 import json
 
+from core.secrets import get_secret
+
 logger = logging.getLogger(__name__)
 
 # Try to import requests for FRED API calls
@@ -41,7 +43,7 @@ DATA_DIR = _get_data_dir()
 DB_PATH = os.path.join(DATA_DIR, 'inflation_data.db')
 
 # FRED API configuration
-FRED_API_KEY = os.environ.get('FRED_API_KEY', '')
+FRED_API_KEY = get_secret('FRED_API_KEY', '')
 FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/observations'
 
 # FRED Series IDs

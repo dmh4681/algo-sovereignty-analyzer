@@ -4,13 +4,14 @@ Finish contract setup for already-deployed NFT sale contract.
 Opts into ASAs and transfers NFTs.
 """
 
-import os
 from dotenv import load_dotenv
 from algosdk import account, mnemonic
 from algosdk.v2client import algod
 from algosdk.transaction import ApplicationNoOpTxn, AssetTransferTxn, wait_for_confirmation
 
 load_dotenv()
+
+from core.secrets import get_secret
 
 # Configuration
 APP_ID = 3381223080
@@ -38,7 +39,7 @@ def get_app_address(app_id: int) -> str:
 
 def main():
     # Load mnemonic
-    mnemonic_phrase = os.getenv("ALGO_MNEMONIC")
+    mnemonic_phrase = get_secret("ALGO_MNEMONIC")
     if not mnemonic_phrase:
         print("❌ ALGO_MNEMONIC not set in .env")
         return

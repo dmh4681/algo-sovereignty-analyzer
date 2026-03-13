@@ -74,6 +74,22 @@ SECRETS_REGISTRY: Dict[str, SecretConfig] = {
         default="*"
     ),
 
+    # FRED API (Federal Reserve Economic Data)
+    "FRED_API_KEY": SecretConfig(
+        name="FRED_API_KEY",
+        description="API key for FRED (Federal Reserve Economic Data) — enables live CPI and M2 data",
+        required=False,
+        default=None
+    ),
+
+    # Algorand wallet mnemonic (only needed for deployment scripts, never for the API server)
+    "ALGO_MNEMONIC": SecretConfig(
+        name="ALGO_MNEMONIC",
+        description="25-word Algorand mnemonic for NFT deployment scripts (NOT required for API server)",
+        required=False,
+        default=None
+    ),
+
     # Database reseed flags (not secrets, but env config)
     "RESEED_MINERS": SecretConfig(
         name="RESEED_MINERS",
