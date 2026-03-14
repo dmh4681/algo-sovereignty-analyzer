@@ -52,11 +52,9 @@ export async function analyzeWallet(
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      throw new ApiError(
-        errorData.detail || 'Wallet analysis failed',
-        response.status,
-        errorData.code
-      )
+      const message = errorData.error?.message || errorData.detail || 'Wallet analysis failed'
+      const code = errorData.error?.code || errorData.code
+      throw new ApiError(message, response.status, code)
     }
 
     return response.json()
@@ -161,10 +159,8 @@ export async function saveHistorySnapshot(
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}))
-    throw new ApiError(
-      errorData.detail || 'Failed to save history snapshot',
-      response.status
-    )
+    const message = errorData.error?.message || errorData.detail || 'Failed to save history snapshot'
+    throw new ApiError(message, response.status, errorData.error?.code)
   }
 
   return response.json()

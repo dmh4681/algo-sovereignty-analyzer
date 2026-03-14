@@ -93,7 +93,7 @@ export function SearchBar({
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500" aria-hidden="true" />
           <Input
             value={address}
-            onChange={(e) => setAddress(e.target.value.toUpperCase())}
+            onChange={(e) => setAddress(e.target.value.trim().toUpperCase())}
             placeholder="Paste Algorand address (58 characters)"
             aria-label="Algorand wallet address"
             aria-describedby={address && !isValid ? "address-error" : undefined}

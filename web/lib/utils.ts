@@ -27,7 +27,7 @@ export function truncateAddress(address: string): string {
 }
 
 export function isValidAlgorandAddress(address: string): boolean {
-  return address.length === 58 && /^[A-Z0-9]+$/.test(address)
+  return address.length === 58 && /^[A-Z2-7]+$/.test(address)
 }
 
 export function getSovereigntyColor(status: string): string {

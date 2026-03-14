@@ -44,6 +44,25 @@ from tests.fixtures.price_data import (
 
 
 # ============================================================================
+# Rate Limiter Bypass for Tests
+# ============================================================================
+
+@pytest.fixture(autouse=True)
+def bypass_rate_limits():
+    """
+    Prevent rate limiter from blocking tests by raising the per-IP limits
+    to a value that no test suite will exhaust.
+
+    The SlidingWindowRateLimitMiddleware reads EXPENSIVE_LIMIT and
+    STANDARD_LIMIT from module-level constants at call time, so patching
+    them here is sufficient for the duration of each test.
+    """
+    with patch("api.middleware.rate_limit.EXPENSIVE_LIMIT", 1000), \
+         patch("api.middleware.rate_limit.STANDARD_LIMIT", 1000):
+        yield
+
+
+# ============================================================================
 # Cache Management Fixtures
 # ============================================================================
 

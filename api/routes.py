@@ -1503,6 +1503,9 @@ async def get_history(
     Returns:
         Dict with snapshots array, count, progress metrics, and all-time stats
     """
+    # Validate address format
+    validate_algorand_address(address)
+
     # Validate days parameter
     if days not in (30, 90, 365):
         days = 90
