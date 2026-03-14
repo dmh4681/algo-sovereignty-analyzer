@@ -44,6 +44,7 @@ from .classifier import AssetClassifier
 from .pricing import get_algo_price, get_asset_price
 from .lp_parser import LPParser
 from .secrets import get_algorand_node_config
+from .retry import retry_with_backoff
 
 # Configure module logger
 logger = logging.getLogger("core.analyzer")
@@ -125,27 +126,40 @@ class AlgorandSovereigntyAnalyzer:
     def get_account_assets(self, address: str) -> Optional[Dict[str, Any]]:
         """Get all assets for an Algorand address.
 
+        Retries up to 3 times on transient network failures (timeouts,
+        connection errors, 5xx responses) with exponential backoff.
+
         Args:
             address: 58-character Algorand wallet address
 
         Returns:
-            Account data dict from Algorand node, or None on failure
+            Account data dict from Algorand node, or None if wallet not found
 
         Raises:
-            requests.exceptions.Timeout: If request times out (propagated)
-            requests.exceptions.ConnectionError: If connection fails (propagated)
+            requests.exceptions.Timeout: If all retry attempts time out
+            requests.exceptions.ConnectionError: If all retry attempts fail with
+                a connection error
         """
         url = f"{self.algod_address}/v2/accounts/{address}"
-        try:
+
+        def _do_fetch():
             response = requests.get(url, headers=self.headers, timeout=15)
             response.raise_for_status()
             return response.json()
+
+        try:
+            return retry_with_backoff(
+                _do_fetch,
+                max_retries=3,
+                base_delay=1.0,
+                operation_name=f"AlgorandNode.account_{address[:8]}",
+            )
         except requests.exceptions.Timeout as e:
-            logger.error(f"Algorand API timeout for address {address[:8]}...: {e}")
-            raise  # Let caller handle timeout explicitly
+            logger.error(f"Algorand API timeout for address {address[:8]}... (after retries): {e}")
+            raise
         except requests.exceptions.ConnectionError as e:
-            logger.error(f"Algorand API connection error: {e}")
-            raise  # Let caller handle connection error explicitly
+            logger.error(f"Algorand API connection error (after retries): {e}")
+            raise
         except requests.exceptions.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
                 logger.warning(f"Wallet not found: {address[:8]}...")
@@ -159,25 +173,34 @@ class AlgorandSovereigntyAnalyzer:
     def get_asset_details(self, asset_id: int) -> Optional[Dict[str, Any]]:
         """Get details for a specific ASA.
 
+        Retries up to 2 times on transient failures. Failures don't raise —
+        analysis continues with whatever asset data is available.
+
         Args:
             asset_id: Algorand Standard Asset ID
 
         Returns:
             Asset details dict, or None on failure
-
-        Note:
-            Failures are logged but don't raise - analysis continues with available data
         """
         url = f"{self.algod_address}/v2/assets/{asset_id}"
-        try:
+
+        def _do_fetch():
             response = requests.get(url, headers=self.headers, timeout=10)
             response.raise_for_status()
             return response.json()
+
+        try:
+            return retry_with_backoff(
+                _do_fetch,
+                max_retries=2,
+                base_delay=0.5,
+                operation_name=f"AlgorandNode.asset_{asset_id}",
+            )
         except requests.exceptions.Timeout:
-            logger.debug(f"Timeout fetching asset {asset_id} details - skipping")
+            logger.debug(f"Timeout fetching asset {asset_id} details (after retries) - skipping")
             return None
         except requests.exceptions.RequestException as e:
-            logger.debug(f"Failed to fetch asset {asset_id} details: {e}")
+            logger.debug(f"Failed to fetch asset {asset_id} details (after retries): {e}")
             return None
 
     def _is_dust_or_nft(self, amount: float, usd_value: float, price: Optional[float], name: str) -> bool:

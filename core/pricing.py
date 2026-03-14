@@ -30,6 +30,7 @@ import requests
 import time
 from typing import Optional
 from .cache import get_cache, CacheCategory, CacheConfig
+from .retry import retry_with_backoff, with_retry
 
 # Configure module logger
 logger = logging.getLogger("core.pricing")
@@ -119,25 +120,23 @@ def _fetch_price_with_cache(
 
 def _fetch_price(coin_id: str) -> Optional[float]:
     """Helper to fetch price from CoinGecko with retry logic"""
-    max_retries = 3
-    base_delay = 1
+    def _do_fetch():
+        url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd"
+        response = requests.get(url, timeout=5)
+        response.raise_for_status()
+        data = response.json()
+        return data[coin_id]['usd']
 
-    for attempt in range(max_retries):
-        try:
-            url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd"
-            response = requests.get(url, timeout=5)
-            response.raise_for_status()
-            data = response.json()
-            return data[coin_id]['usd']
-        except Exception as e:
-            if attempt == max_retries - 1:
-                logger.warning(f"Failed to fetch {coin_id} price after {max_retries} attempts: {e}")
-                return None
-
-            # Exponential backoff: 1s, 2s, 4s
-            delay = base_delay * (2 ** attempt)
-            time.sleep(delay)
-    return None
+    try:
+        return retry_with_backoff(
+            _do_fetch,
+            max_retries=3,
+            base_delay=1.0,
+            operation_name=f"CoinGecko.{coin_id}",
+        )
+    except Exception as e:
+        logger.warning(f"Failed to fetch {coin_id} price from CoinGecko: {e}")
+        return None
 
 
 def _fetch_coingecko_price_cached(coin_id: str, ticker: str) -> Optional[float]:
@@ -184,18 +183,26 @@ def get_ethereum_price() -> Optional[float]:
 
 
 def _fetch_coinbase_btc_price() -> Optional[float]:
-    """Fetch BTC price from Coinbase API (internal, no caching)."""
-    try:
+    """Fetch BTC price from Coinbase API (internal, no caching) with retry."""
+    def _do_fetch():
         response = requests.get(COINBASE_BTC_URL, timeout=10)
         response.raise_for_status()
         data = response.json()
         return float(data['data']['amount'])
+
+    try:
+        return retry_with_backoff(
+            _do_fetch,
+            max_retries=3,
+            base_delay=1.0,
+            operation_name="Coinbase.BTC",
+        )
     except requests.exceptions.Timeout:
-        logger.warning("Timeout fetching Bitcoin price from Coinbase")
+        logger.warning("Timeout fetching Bitcoin price from Coinbase (after retries)")
     except requests.exceptions.RequestException as e:
-        logger.warning(f"Network error fetching Bitcoin price from Coinbase: {e}")
+        logger.warning(f"Network error fetching Bitcoin price from Coinbase (after retries): {e}")
     except Exception as e:
-        logger.warning(f"Error fetching Bitcoin price from Coinbase: {e}")
+        logger.warning(f"Error fetching Bitcoin price from Coinbase (after retries): {e}")
     return None
 
 
@@ -233,8 +240,8 @@ def get_bitcoin_spot_price() -> Optional[float]:
 
 
 def _fetch_vestige_price_raw(asset_id: int) -> Optional[float]:
-    """Fetch price from Vestige API (internal, no caching)."""
-    try:
+    """Fetch price from Vestige API (internal, no caching) with retry."""
+    def _do_fetch():
         url = f"https://api.vestigelabs.org/assets/price?asset_ids={asset_id}&denominating_asset_id=31566704"
         response = requests.get(url, timeout=5)
         response.raise_for_status()
@@ -243,12 +250,21 @@ def _fetch_vestige_price_raw(asset_id: int) -> Optional[float]:
             price = data[0].get('price')
             if price is not None and price > 0:
                 return price
+        return None
+
+    try:
+        return retry_with_backoff(
+            _do_fetch,
+            max_retries=3,
+            base_delay=1.0,
+            operation_name=f"Vestige.asset_{asset_id}",
+        )
     except requests.exceptions.Timeout:
-        logger.warning(f"Timeout fetching Vestige price for asset {asset_id}")
+        logger.warning(f"Timeout fetching Vestige price for asset {asset_id} (after retries)")
     except requests.exceptions.RequestException as e:
-        logger.warning(f"Network error fetching Vestige price for asset {asset_id}: {e}")
+        logger.warning(f"Network error fetching Vestige price for asset {asset_id} (after retries): {e}")
     except Exception as e:
-        logger.warning(f"Unexpected error fetching Vestige price for asset {asset_id}: {e}")
+        logger.warning(f"Unexpected error fetching Vestige price for asset {asset_id} (after retries): {e}")
     return None
 
 
@@ -351,7 +367,7 @@ def get_wbtc_price() -> Optional[float]:
 
 def _fetch_yahoo_finance_price(symbol: str) -> Optional[float]:
     """
-    Fetch real-time commodity prices from Yahoo Finance.
+    Fetch real-time commodity prices from Yahoo Finance with retry.
 
     Args:
         symbol: Yahoo Finance symbol (e.g., 'GC=F' for gold futures, 'SI=F' for silver futures)
@@ -359,36 +375,32 @@ def _fetch_yahoo_finance_price(symbol: str) -> Optional[float]:
     Returns:
         Current market price in USD, or None on failure
     """
-    max_retries = 3
-    base_delay = 1
+    _headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
 
-    for attempt in range(max_retries):
-        try:
-            url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1d"
-            headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-            response = requests.get(url, headers=headers, timeout=10)
-            response.raise_for_status()
-            data = response.json()
+    def _do_fetch():
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?interval=1d&range=1d"
+        response = requests.get(url, headers=_headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        result = data.get('chart', {}).get('result', [])
+        if result and len(result) > 0:
+            price = result[0].get('meta', {}).get('regularMarketPrice')
+            if price is not None and price > 0:
+                return float(price)
+        return None
 
-            # Extract the regularMarketPrice from the response
-            result = data.get('chart', {}).get('result', [])
-            if result and len(result) > 0:
-                price = result[0].get('meta', {}).get('regularMarketPrice')
-                if price is not None and price > 0:
-                    return float(price)
-
-            return None
-        except Exception as e:
-            if attempt == max_retries - 1:
-                logger.warning(f"Failed to fetch {symbol} price after {max_retries} attempts: {e}")
-                return None
-
-            # Exponential backoff: 1s, 2s, 4s
-            delay = base_delay * (2 ** attempt)
-            time.sleep(delay)
-    return None
+    try:
+        return retry_with_backoff(
+            _do_fetch,
+            max_retries=3,
+            base_delay=1.0,
+            operation_name=f"YahooFinance.{symbol}",
+        )
+    except Exception as e:
+        logger.warning(f"Failed to fetch {symbol} price from Yahoo Finance (after retries): {e}")
+        return None
 
 
 def _fetch_yahoo_price_cached(symbol: str, ticker: str) -> Optional[float]:
@@ -479,33 +491,36 @@ def _fetch_meld_price_from_vestige(asset_id: int) -> Optional[float]:
         return price
 
     # Fallback: try the free API endpoint
-    try:
+    _free_headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+    }
+
+    def _do_free_fetch():
         url = f"https://free-api.vestige.fi/asset/{asset_id}/price"
-        headers = {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-        }
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=_free_headers, timeout=10)
         response.raise_for_status()
         data = response.json()
-
-        # The free API returns price in ALGO
         price_in_algo = data.get('price')
         if price_in_algo is None or price_in_algo <= 0:
             return None
-
-        # Convert to USD using current ALGO price
         algo_price = get_algo_price()
         if algo_price is None or algo_price <= 0:
             return None
-
         return price_in_algo * algo_price
 
+    try:
+        return retry_with_backoff(
+            _do_free_fetch,
+            max_retries=3,
+            base_delay=1.0,
+            operation_name=f"VestigeFree.asset_{asset_id}",
+        )
     except requests.exceptions.Timeout:
-        logger.warning(f"Timeout fetching Meld price from Vestige for ASA {asset_id}")
+        logger.warning(f"Timeout fetching Meld price from Vestige free API for ASA {asset_id} (after retries)")
     except requests.exceptions.RequestException as e:
-        logger.warning(f"Network error fetching Meld price from Vestige: {e}")
+        logger.warning(f"Network error fetching Meld price from Vestige free API (after retries): {e}")
     except Exception as e:
-        logger.warning(f"Error fetching Meld price from Vestige: {e}")
+        logger.warning(f"Error fetching Meld price from Vestige free API (after retries): {e}")
     return None
 
 

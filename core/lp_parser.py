@@ -203,12 +203,16 @@ See Also
 - core/analyzer.py: Main wallet analysis that uses this parser
 """
 
+import logging
 import requests
 import re
 import math
 import traceback
 from typing import Dict, Any, Optional, List, Tuple
 from dataclasses import dataclass
+from .retry import retry_with_backoff
+
+logger = logging.getLogger("core.lp_parser")
 
 
 @dataclass
@@ -370,13 +374,19 @@ class LPParser:
             return self._pool_cache[asset_id]
 
         # First, get the LP token details to find pool app ID
-        try:
+        def _do_fetch():
             url = f"{self.algod_address}/v2/assets/{asset_id}"
             response = requests.get(url, headers=self.headers, timeout=10)
-            if response.status_code != 200:
-                return None
+            response.raise_for_status()
+            return response.json()
 
-            asset_data = response.json()
+        try:
+            asset_data = retry_with_backoff(
+                _do_fetch,
+                max_retries=3,
+                base_delay=1.0,
+                operation_name=f"LPParser.pool_info_{asset_id}",
+            )
             params = asset_data.get('params', {})
 
             # The LP token's creator is often the pool application address
@@ -391,8 +401,13 @@ class LPParser:
                 self._pool_cache[asset_id] = pool_info
                 return pool_info
 
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code == 404:
+                logger.debug(f"LP token {asset_id} not found on Algorand node")
+            else:
+                logger.warning(f"HTTP error fetching pool info for LP token {asset_id}: {e}")
         except Exception as e:
-            print(f"⚠️  Failed to get pool info for LP token {asset_id}: {e}")
+            logger.warning(f"Failed to get pool info for LP token {asset_id}: {e}")
 
         return None
 
@@ -474,27 +489,34 @@ class LPParser:
         Returns:
             Tuple of (asset1_id, asset2_id), or (None, None) if resolution fails.
         """
-        try:
+        def _do_fetch():
             url = f"{self.algod_address}/v2/accounts/{creator_address}"
             response = requests.get(url, headers=self.headers, timeout=5)
-            if response.status_code == 200:
-                data = response.json()
-                assets = data.get('assets', [])
-                
-                # Tinyman pools hold 2 assets. One might be ALGO (which isn't in 'assets' list).
-                # If we find 2 assets, those are the pair.
-                # If we find 1 asset, the other is ALGO (Asset 0).
-                
-                found_ids = [a['asset-id'] for a in assets if a['amount'] > 0]
-                
-                if len(found_ids) == 2:
-                    return found_ids[0], found_ids[1]
-                elif len(found_ids) == 1:
-                    return found_ids[0], 0  # Asset + ALGO
-                
+            response.raise_for_status()
+            return response.json()
+
+        try:
+            data = retry_with_backoff(
+                _do_fetch,
+                max_retries=3,
+                base_delay=1.0,
+                operation_name=f"LPParser.pool_assets_{creator_address[:8]}",
+            )
+            assets = data.get('assets', [])
+
+            # Tinyman pools hold 2 assets. One might be ALGO (which isn't in 'assets' list).
+            # If we find 2 assets, those are the pair.
+            # If we find 1 asset, the other is ALGO (Asset 0).
+            found_ids = [a['asset-id'] for a in assets if a['amount'] > 0]
+
+            if len(found_ids) == 2:
+                return found_ids[0], found_ids[1]
+            elif len(found_ids) == 1:
+                return found_ids[0], 0  # Asset + ALGO
+
         except Exception as e:
-            print(f"⚠️  Failed to fetch pool assets for {creator_address}: {e}")
-        
+            logger.warning(f"Failed to fetch pool assets for {creator_address[:8]}...: {e}")
+
         return None, None
     
     def get_pool_state(self, pool_address: str, lp_asset_id: int, asset1_id: int, asset2_id: int) -> Optional[dict]:
@@ -539,8 +561,7 @@ class LPParser:
             to geometric mean estimation).
         """
         try:
-            print(f"🔍 Using Tinyman SDK for LP {lp_asset_id}")
-            print(f"   Asset IDs: {asset1_id}, {asset2_id}")
+            logger.debug(f"Using Tinyman SDK for LP {lp_asset_id} (assets: {asset1_id}, {asset2_id})")
             
             from tinyman.v2.client import TinymanV2MainnetClient
             from algosdk.v2client.algod import AlgodClient
@@ -570,12 +591,12 @@ class LPParser:
             pool = tinyman_client.fetch_pool(asset1, asset2)
             
             if not pool or not pool.exists:
-                print(f"   ❌ Pool not found")
+                logger.debug(f"Tinyman pool not found for LP {lp_asset_id}")
                 return None
-            
+
             # Get pool info
             info = pool.info()
-            print(f"   ℹ️ Tinyman info keys: {list(info.keys())}")
+            logger.debug(f"Tinyman pool info keys for LP {lp_asset_id}: {list(info.keys())}")
             
             # Pool info is returned as a dict (not an object) from Tinyman V2.
             # LP token amounts are always in microunits with 6 decimals.
@@ -591,10 +612,10 @@ class LPParser:
             reserve1 = r1 / (10 ** asset1.decimals)
             reserve2 = r2 / (10 ** asset2.decimals)
             
-            print(f"   ✅ Tinyman SDK data:")
-            print(f"      Total LP supply: {total_supply:,.2f}")
-            print(f"      Reserve1 ({asset1.unit_name}): {reserve1:,.2f}")
-            print(f"      Reserve2 ({asset2.unit_name}): {reserve2:,.2f}")
+            logger.debug(
+                f"Tinyman SDK LP {lp_asset_id}: supply={total_supply:,.2f}, "
+                f"{asset1.unit_name}={reserve1:,.2f}, {asset2.unit_name}={reserve2:,.2f}"
+            )
             
             return {
                 'total_supply': total_supply,
@@ -603,8 +624,8 @@ class LPParser:
             }
             
         except Exception as e:
-            print(f"Tinyman SDK error: {e}")
-            traceback.print_exc()
+            logger.warning(f"Tinyman SDK error for LP {lp_asset_id}: {e}")
+            logger.debug(traceback.format_exc())
             return None
 
     def estimate_lp_value(self, lp_ticker: str, lp_name: str, lp_amount: float,
@@ -649,7 +670,7 @@ class LPParser:
         # multiple hyphens or other formats will fail and return None.
         parts = lp_name.replace("TinymanPool2.0 ", "").split("-")
         if len(parts) != 2:
-            print(f"⚠️  Could not parse LP name: {lp_name}")
+            logger.debug(f"Could not parse LP name: {lp_name}")
             return None
             
         asset1_ticker = parts[0]
@@ -730,7 +751,7 @@ class LPParser:
                 asset1_usd = asset1_amount * price1
                 asset2_usd = asset2_amount * price2
                 
-                print(f"✅ Tinyman formula: {lp_amount:.2f} LP / {pool_state['total_supply']:.2f} total = {user_share*100:.4f}% share = ${total_usd:.2f}")
+                logger.debug(f"Tinyman formula: {lp_amount:.2f} LP / {pool_state['total_supply']:.2f} total = {user_share*100:.4f}% share = ${total_usd:.2f}")
                 
                 return LPBreakdown(
                     lp_ticker=lp_ticker,
@@ -744,12 +765,12 @@ class LPParser:
                     total_usd=total_usd
                 )
             else:
-                print(f"⚠️  Tinyman SDK returned near-zero value (${potential_total_usd:.4f}), falling back to geometric mean")
+                logger.debug(f"Tinyman SDK returned near-zero value (${potential_total_usd:.4f}) for {lp_ticker}, falling back to geometric mean")
 
         # --- Step 5: Fallback to geometric mean estimation (Method 2) ---
         # Reached when: Tinyman SDK not installed, pool not found, pool drained,
         # non-Tinyman pool (Pact, Humble), or SDK returned near-zero value.
-        print(f"⚠️  Pool state unavailable or invalid for {lp_ticker}, using geometric mean estimate")
+        logger.debug(f"Pool state unavailable or invalid for {lp_ticker}, using geometric mean estimate")
         
         # If both prices are zero, we have no basis for estimation at all
         if price1 == 0 and price2 == 0:
