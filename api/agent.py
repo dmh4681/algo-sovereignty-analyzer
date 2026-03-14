@@ -1,8 +1,12 @@
+import logging
 import traceback
 import anthropic
 from pydantic import BaseModel
 
 from core.secrets import get_secret
+from core.retry import retry_with_backoff
+
+logger = logging.getLogger("api.agent")
 
 class AdviceRequest(BaseModel):
     address: str
@@ -87,7 +91,7 @@ class SovereigntyCoach:
         - Acknowledge at the end that this only covers their Algorand wallet and they may have additional hard money elsewhere.
         """
 
-        try:
+        def _do_call():
             message = self.client.messages.create(
                 model="claude-sonnet-4-20250514",
                 max_tokens=1000,
@@ -98,9 +102,18 @@ class SovereigntyCoach:
                 ]
             )
             return message.content[0].text
+
+        try:
+            return retry_with_backoff(
+                _do_call,
+                max_retries=2,
+                base_delay=2.0,
+                max_delay=30.0,
+                operation_name="SovereigntyCoach.generate_advice",
+            )
         except Exception as e:
-            print(f"ERROR: Failed to generate advice: {e}")
-            traceback.print_exc()
+            logger.error(f"Failed to generate AI coaching advice (after retries): {e}")
+            logger.debug(traceback.format_exc())
             return f"My connection to the sovereignty network is interrupted. (Error: {str(e)})"
 
     def _format_holdings(self, categories):
