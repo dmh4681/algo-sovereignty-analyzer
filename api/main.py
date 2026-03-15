@@ -94,6 +94,7 @@ from .routes import router
 from .news.routes import router as news_router
 from .services.infra_routes import router as infra_router
 from .alerts_routes import router as alerts_router, rebalance_router
+from .validation_routes import router as validation_router
 from .errors import (
     ApiException,
     TimeoutException,
@@ -202,6 +203,10 @@ consider adding API key authentication via the `X-API-Key` header.
         {
             "name": "Health",
             "description": "API health and status endpoints"
+        },
+        {
+            "name": "Validation",
+            "description": "Unified input validation without triggering full analysis"
         }
     ]
 )
@@ -509,6 +514,7 @@ app.include_router(news_router, prefix="/api/v1")
 app.include_router(infra_router, prefix="/api/v1")
 app.include_router(alerts_router, prefix="/api/v1")
 app.include_router(rebalance_router, prefix="/api/v1")
+app.include_router(validation_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():

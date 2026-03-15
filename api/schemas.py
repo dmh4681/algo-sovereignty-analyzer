@@ -805,3 +805,206 @@ class JobStatusResponse(BaseModel):
     created_at: str
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
+
+
+# -----------------------------------------------------------------------------
+# Unified Data Validation Schemas
+# -----------------------------------------------------------------------------
+
+class AddressValidationRequest(BaseModel):
+    """Request to validate an Algorand wallet address."""
+    address: str = Field(..., description="Algorand wallet address to validate")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4"
+            }
+        }
+
+
+class AddressValidationResponse(BaseModel):
+    """Result of Algorand address validation."""
+    valid: bool = Field(..., description="Whether the address passed all checks")
+    address: str = Field(..., description="The address that was validated (partially masked)")
+    format_check: bool = Field(..., description="Whether address matches 58-char base32 pattern")
+    checksum_check: bool = Field(..., description="Whether address has a valid algosdk checksum")
+    errors: List[str] = Field(default_factory=list, description="List of validation error messages")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "valid": True,
+                "address": "I26BHUL...BIP4",
+                "format_check": True,
+                "checksum_check": True,
+                "errors": []
+            }
+        }
+
+
+class ExpensesValidationRequest(BaseModel):
+    """Request to validate monthly fixed expenses."""
+    monthly_fixed_expenses: float = Field(..., description="Monthly fixed expenses in USD to validate")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "monthly_fixed_expenses": 4000.0
+            }
+        }
+
+
+class ExpensesValidationResponse(BaseModel):
+    """Result of monthly expenses validation."""
+    valid: bool = Field(..., description="Whether the expenses value is valid")
+    monthly_expenses: Optional[float] = Field(None, description="The validated monthly value")
+    annual_expenses: Optional[float] = Field(None, description="Annualized value (monthly * 12)")
+    errors: List[str] = Field(default_factory=list, description="List of validation error messages")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "valid": True,
+                "monthly_expenses": 4000.0,
+                "annual_expenses": 48000.0,
+                "errors": []
+            }
+        }
+
+
+class AssetCategoryValidationRequest(BaseModel):
+    """Request to validate an asset category string."""
+    category: str = Field(..., description="Asset category to validate")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "category": "hard_money"
+            }
+        }
+
+
+class AssetCategoryValidationResponse(BaseModel):
+    """Result of asset category validation."""
+    valid: bool = Field(..., description="Whether the category is recognized")
+    category: str = Field(..., description="The category that was validated")
+    valid_categories: List[str] = Field(..., description="Full list of accepted categories")
+    errors: List[str] = Field(default_factory=list, description="List of validation error messages")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "valid": True,
+                "category": "hard_money",
+                "valid_categories": ["algo", "dollars", "hard_money", "shitcoin"],
+                "errors": []
+            }
+        }
+
+
+class CorrectionValidationRequest(BaseModel):
+    """Request to dry-run validate a classification correction without submitting it."""
+    asset_id: str = Field(..., description="ASA asset ID", max_length=20)
+    asset_name: str = Field(..., description="Human-readable asset name", max_length=100)
+    ticker: str = Field(..., description="Asset ticker symbol", max_length=20)
+    original_category: str = Field(..., description="Current auto-classified category")
+    corrected_category: str = Field(..., description="Suggested corrected category")
+    reason: Optional[str] = Field(None, description="Explanation for the correction", max_length=500)
+    submitted_by: Optional[str] = Field(None, description="Submitter wallet address", max_length=58)
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "asset_id": "386192725",
+                "asset_name": "Wrapped Bitcoin",
+                "ticker": "WBTC",
+                "original_category": "shitcoin",
+                "corrected_category": "hard_money",
+                "reason": "WBTC is a wrapped Bitcoin token",
+                "submitted_by": None
+            }
+        }
+
+
+class CorrectionValidationResponse(BaseModel):
+    """Result of a dry-run correction validation."""
+    valid: bool = Field(..., description="Whether all fields pass validation")
+    field_errors: Dict[str, List[str]] = Field(
+        default_factory=dict,
+        description="Per-field validation errors (field name -> list of messages)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "valid": False,
+                "field_errors": {
+                    "corrected_category": ["Category must be one of: algo, dollars, hard_money, shitcoin"],
+                    "submitted_by": ["Algorand address is invalid (bad base32 encoding or checksum)"]
+                }
+            }
+        }
+
+
+class BatchValidationItem(BaseModel):
+    """A single item in a batch validation request."""
+    type: str = Field(
+        ...,
+        description="Validation type: 'address', 'expenses', or 'category'"
+    )
+    value: Any = Field(..., description="The value to validate")
+    label: Optional[str] = Field(None, description="Optional caller-defined label for this item", max_length=100)
+
+
+class BatchValidationResult(BaseModel):
+    """Result for a single item in a batch validation response."""
+    type: str = Field(..., description="Validation type that was applied")
+    label: Optional[str] = Field(None, description="Caller-defined label (echoed from request)")
+    valid: bool = Field(..., description="Whether this item passed validation")
+    errors: List[str] = Field(default_factory=list, description="Validation error messages")
+
+
+class BatchValidationRequest(BaseModel):
+    """Request to validate multiple inputs in a single call."""
+    items: List[BatchValidationItem] = Field(
+        ...,
+        description="List of items to validate (max 50)",
+        min_length=1,
+        max_length=50
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "items": [
+                    {"type": "address", "value": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4", "label": "wallet"},
+                    {"type": "expenses", "value": 4000.0, "label": "monthly_budget"},
+                    {"type": "category", "value": "hard_money", "label": "asset_class"}
+                ]
+            }
+        }
+
+
+class BatchValidationResponse(BaseModel):
+    """Response containing validation results for all batch items."""
+    all_valid: bool = Field(..., description="True only if every item in the batch passed")
+    total_items: int = Field(..., description="Total number of items submitted")
+    valid_count: int = Field(..., description="Number of items that passed")
+    invalid_count: int = Field(..., description="Number of items that failed")
+    results: List[BatchValidationResult] = Field(..., description="Per-item results in submission order")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "all_valid": False,
+                "total_items": 3,
+                "valid_count": 2,
+                "invalid_count": 1,
+                "results": [
+                    {"type": "address", "label": "wallet", "valid": True, "errors": []},
+                    {"type": "expenses", "label": "monthly_budget", "valid": False, "errors": ["Monthly expenses cannot be negative"]},
+                    {"type": "category", "label": "asset_class", "valid": True, "errors": []}
+                ]
+            }
+        }
