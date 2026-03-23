@@ -162,14 +162,19 @@ export function BitcoinHistoryChart({ className = '' }: BitcoinHistoryChartProps
   const [data, setData] = useState<BTCHistoryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [retryCount, setRetryCount] = useState(0)
 
-  // Fetch data when time range changes
+  // Fetch data when time range or retry count changes
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
       setError(null)
       try {
         const result = await getBTCHistory(timeRange)
+        // Validate response shape before using it
+        if (!result || !Array.isArray(result.data_points)) {
+          throw new Error('Invalid response format from server')
+        }
         setData(result)
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Failed to fetch data')
@@ -178,7 +183,7 @@ export function BitcoinHistoryChart({ className = '' }: BitcoinHistoryChartProps
       }
     }
     fetchData()
-  }, [timeRange])
+  }, [timeRange, retryCount])
 
   // Loading state
   if (loading) {
@@ -213,7 +218,7 @@ export function BitcoinHistoryChart({ className = '' }: BitcoinHistoryChartProps
               variant="outline"
               size="sm"
               className="mt-4"
-              onClick={() => setTimeRange(timeRange)}
+              onClick={() => setRetryCount(c => c + 1)}
             >
               Retry
             </Button>

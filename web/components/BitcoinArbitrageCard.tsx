@@ -118,10 +118,42 @@ function TokenColumn({
 }
 
 // =============================================================================
+// Validation
+// =============================================================================
+
+function validateBitcoinData(data: ArbitrageBitcoinData): string | null {
+  if (!data) return 'No Bitcoin data provided'
+  if (typeof data.spot_price !== 'number' || !isFinite(data.spot_price) || data.spot_price <= 0) {
+    return `Invalid spot price: ${data.spot_price}`
+  }
+  return null
+}
+
+// =============================================================================
 // Main Component
 // =============================================================================
 
 export function BitcoinArbitrageCard({ data, className = '' }: BitcoinArbitrageCardProps) {
+  const validationError = validateBitcoinData(data)
+  if (validationError) {
+    return (
+      <Card className={`border-slate-700 bg-slate-900/50 ${className}`}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span className="text-2xl">₿</span>
+            Bitcoin Arbitrage Monitor
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2 text-amber-400 text-sm">
+            <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+            <span>Invalid data: {validationError}</span>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
   const gobtcData = isTokenData(data.gobtc) ? data.gobtc : null
   const wbtcData = isTokenData(data.wbtc) ? data.wbtc : null
 
