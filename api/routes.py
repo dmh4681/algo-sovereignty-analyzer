@@ -109,6 +109,7 @@ from core.pricing import (
     WBTC_ASA
 )
 from core.network import AlgorandNetworkStats, microalgos_to_algo
+from core.circuit_breaker import get_all_circuit_breaker_states
 from .schemas import (
     AnalysisResponse,
     AnalyzeRequest,
@@ -4669,3 +4670,35 @@ async def get_job_status(job_id: str = Path(..., description="Job ID from async 
         )
 
     return JobStatusResponse(**job.to_dict())
+
+
+@router.get(
+    "/circuit-breakers",
+    summary="Circuit breaker status",
+    description="""
+Return the current state of all registered circuit breakers.
+
+Each entry shows:
+- **state**: `closed` (healthy), `open` (failing fast), or `half_open` (probing recovery)
+- **failure_count_in_window**: Recent failures within the rolling window
+- **rejected_calls**: Calls blocked due to an open circuit
+- **seconds_since_last_failure** / **seconds_since_last_success**: Timing diagnostics
+- **seconds_open**: How long the circuit has been open (if applicable)
+
+Use this endpoint to:
+- Diagnose which external services are currently degraded
+- Monitor recovery after an outage
+- Verify circuit breakers are operating correctly
+""",
+    tags=["Health"],
+)
+async def get_circuit_breaker_status() -> Dict[str, Any]:
+    """Return current state of all circuit breakers for external service calls."""
+    states = get_all_circuit_breaker_states()
+    overall_healthy = all(
+        s.get("state") == "closed" for s in states.values()
+    )
+    return {
+        "healthy": overall_healthy,
+        "circuit_breakers": states,
+    }

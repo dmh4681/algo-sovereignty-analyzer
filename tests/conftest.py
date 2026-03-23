@@ -44,6 +44,26 @@ from tests.fixtures.price_data import (
 
 
 # ============================================================================
+# Circuit Breaker Reset for Tests
+# ============================================================================
+
+@pytest.fixture(autouse=True)
+def reset_circuit_breakers():
+    """
+    Reset all circuit breakers to CLOSED state before each test.
+
+    Circuit breakers hold process-wide state. Without this fixture, a test
+    that triggers the failure threshold will leave the circuit OPEN, causing
+    subsequent tests to get CircuitOpenError instead of real responses.
+    """
+    from core.circuit_breaker import _registry
+    _registry.reset_all()
+    yield
+    # Reset again after the test so any trips don't leak into the next test
+    _registry.reset_all()
+
+
+# ============================================================================
 # Rate Limiter Bypass for Tests
 # ============================================================================
 

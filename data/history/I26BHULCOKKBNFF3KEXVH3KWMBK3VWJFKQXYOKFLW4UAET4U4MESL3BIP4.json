@@ -1,0 +1,317 @@
+[
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:09:34.082325",
+    "sovereignty_ratio": 1.27,
+    "hard_money_usd": 47500.0,
+    "total_portfolio_usd": 61000.0,
+    "algo_price": 0.35,
+    "participation_status": true
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:09:34.098852",
+    "sovereignty_ratio": 0.05,
+    "hard_money_usd": 2250.0,
+    "total_portfolio_usd": 2250.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:09:34.116113",
+    "sovereignty_ratio": 1.19,
+    "hard_money_usd": 57000.0,
+    "total_portfolio_usd": 57000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:09:34.130915",
+    "sovereignty_ratio": 3.65,
+    "hard_money_usd": 175000.0,
+    "total_portfolio_usd": 175000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:09:34.145146",
+    "sovereignty_ratio": 9.77,
+    "hard_money_usd": 469000.0,
+    "total_portfolio_usd": 469000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:09:34.161226",
+    "sovereignty_ratio": 29.18,
+    "hard_money_usd": 1400500.0,
+    "total_portfolio_usd": 1400500.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:09:34.181125",
+    "sovereignty_ratio": 2.08,
+    "hard_money_usd": 0.0,
+    "total_portfolio_usd": 100000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:10:38.939717",
+    "sovereignty_ratio": 1.27,
+    "hard_money_usd": 47500.0,
+    "total_portfolio_usd": 61000.0,
+    "algo_price": 0.35,
+    "participation_status": true
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:10:38.967992",
+    "sovereignty_ratio": 0.05,
+    "hard_money_usd": 2250.0,
+    "total_portfolio_usd": 2250.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:10:38.984503",
+    "sovereignty_ratio": 1.19,
+    "hard_money_usd": 57000.0,
+    "total_portfolio_usd": 57000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:10:39.001385",
+    "sovereignty_ratio": 3.65,
+    "hard_money_usd": 175000.0,
+    "total_portfolio_usd": 175000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:10:39.018594",
+    "sovereignty_ratio": 9.77,
+    "hard_money_usd": 469000.0,
+    "total_portfolio_usd": 469000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:10:39.035822",
+    "sovereignty_ratio": 29.18,
+    "hard_money_usd": 1400500.0,
+    "total_portfolio_usd": 1400500.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:10:39.057219",
+    "sovereignty_ratio": 2.08,
+    "hard_money_usd": 0.0,
+    "total_portfolio_usd": 100000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:12:41.649928",
+    "sovereignty_ratio": 1.27,
+    "hard_money_usd": 47500.0,
+    "total_portfolio_usd": 61000.0,
+    "algo_price": 0.35,
+    "participation_status": true
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:12:41.679739",
+    "sovereignty_ratio": 0.05,
+    "hard_money_usd": 2250.0,
+    "total_portfolio_usd": 2250.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:12:41.702492",
+    "sovereignty_ratio": 1.19,
+    "hard_money_usd": 57000.0,
+    "total_portfolio_usd": 57000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:12:41.720611",
+    "sovereignty_ratio": 3.65,
+    "hard_money_usd": 175000.0,
+    "total_portfolio_usd": 175000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:12:41.737398",
+    "sovereignty_ratio": 9.77,
+    "hard_money_usd": 469000.0,
+    "total_portfolio_usd": 469000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:12:41.754779",
+    "sovereignty_ratio": 29.18,
+    "hard_money_usd": 1400500.0,
+    "total_portfolio_usd": 1400500.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:12:41.774634",
+    "sovereignty_ratio": 2.08,
+    "hard_money_usd": 0.0,
+    "total_portfolio_usd": 100000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:19:59.852040",
+    "sovereignty_ratio": 1.27,
+    "hard_money_usd": 47500.0,
+    "total_portfolio_usd": 61000.0,
+    "algo_price": 0.35,
+    "participation_status": true
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:19:59.883339",
+    "sovereignty_ratio": 0.05,
+    "hard_money_usd": 2250.0,
+    "total_portfolio_usd": 2250.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:19:59.907351",
+    "sovereignty_ratio": 1.19,
+    "hard_money_usd": 57000.0,
+    "total_portfolio_usd": 57000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:19:59.930270",
+    "sovereignty_ratio": 3.65,
+    "hard_money_usd": 175000.0,
+    "total_portfolio_usd": 175000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:19:59.953536",
+    "sovereignty_ratio": 9.77,
+    "hard_money_usd": 469000.0,
+    "total_portfolio_usd": 469000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:19:59.972070",
+    "sovereignty_ratio": 29.18,
+    "hard_money_usd": 1400500.0,
+    "total_portfolio_usd": 1400500.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:19:59.991932",
+    "sovereignty_ratio": 2.08,
+    "hard_money_usd": 0.0,
+    "total_portfolio_usd": 100000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:23:14.212201",
+    "sovereignty_ratio": 1.27,
+    "hard_money_usd": 47500.0,
+    "total_portfolio_usd": 61000.0,
+    "algo_price": 0.35,
+    "participation_status": true
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:23:14.245568",
+    "sovereignty_ratio": 0.05,
+    "hard_money_usd": 2250.0,
+    "total_portfolio_usd": 2250.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:23:14.268779",
+    "sovereignty_ratio": 1.19,
+    "hard_money_usd": 57000.0,
+    "total_portfolio_usd": 57000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:23:14.289048",
+    "sovereignty_ratio": 3.65,
+    "hard_money_usd": 175000.0,
+    "total_portfolio_usd": 175000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:23:14.308900",
+    "sovereignty_ratio": 9.77,
+    "hard_money_usd": 469000.0,
+    "total_portfolio_usd": 469000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:23:14.326393",
+    "sovereignty_ratio": 29.18,
+    "hard_money_usd": 1400500.0,
+    "total_portfolio_usd": 1400500.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  },
+  {
+    "address": "I26BHULCOKKBNFF3KEXVH3KWMBK3VWJFKQXYOKFLW4UAET4U4MESL3BIP4",
+    "timestamp": "2026-03-23T03:23:14.354735",
+    "sovereignty_ratio": 2.08,
+    "hard_money_usd": 0.0,
+    "total_portfolio_usd": 100000.0,
+    "algo_price": 0.35,
+    "participation_status": false
+  }
+]

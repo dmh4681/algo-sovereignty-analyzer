@@ -73,17 +73,17 @@ class TestInvalidAddresses:
 # ---------------------------------------------------------------------------
 
 class TestAPIErrors:
-    def test_timeout_raises(self, analyzer):
-        """Timeout is re-raised by get_account_assets."""
+    def test_timeout_returns_none(self, analyzer):
+        """Timeout is handled gracefully; get_account_assets returns None."""
         with patch("core.analyzer.requests.get", side_effect=requests.exceptions.Timeout("timed out")):
-            with pytest.raises(requests.exceptions.Timeout):
-                analyzer.get_account_assets("V" * 58)
+            result = analyzer.get_account_assets("V" * 58)
+            assert result is None
 
-    def test_connection_error_raises(self, analyzer):
-        """ConnectionError is re-raised by get_account_assets."""
+    def test_connection_error_returns_none(self, analyzer):
+        """ConnectionError is handled gracefully; get_account_assets returns None."""
         with patch("core.analyzer.requests.get", side_effect=requests.exceptions.ConnectionError("refused")):
-            with pytest.raises(requests.exceptions.ConnectionError):
-                analyzer.get_account_assets("V" * 58)
+            result = analyzer.get_account_assets("V" * 58)
+            assert result is None
 
     def test_http_429_returns_none(self, analyzer):
         """Rate limited (429) returns None."""

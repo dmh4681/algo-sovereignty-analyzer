@@ -31,6 +31,7 @@ import time
 from typing import Optional
 from .cache import get_cache, CacheCategory, CacheConfig
 from .retry import retry_with_backoff, with_retry
+from .circuit_breaker import get_circuit_breaker, CircuitOpenError
 
 # Configure module logger
 logger = logging.getLogger("core.pricing")
@@ -119,7 +120,9 @@ def _fetch_price_with_cache(
 
 
 def _fetch_price(coin_id: str) -> Optional[float]:
-    """Helper to fetch price from CoinGecko with retry logic"""
+    """Helper to fetch price from CoinGecko with retry logic and circuit breaker."""
+    cb = get_circuit_breaker("coingecko")
+
     def _do_fetch():
         url = f"https://api.coingecko.com/api/v3/simple/price?ids={coin_id}&vs_currencies=usd"
         response = requests.get(url, timeout=5)
@@ -127,13 +130,19 @@ def _fetch_price(coin_id: str) -> Optional[float]:
         data = response.json()
         return data[coin_id]['usd']
 
-    try:
+    def _fetch_with_retry():
         return retry_with_backoff(
             _do_fetch,
             max_retries=3,
             base_delay=1.0,
             operation_name=f"CoinGecko.{coin_id}",
         )
+
+    try:
+        return cb.call(_fetch_with_retry)
+    except CircuitOpenError as e:
+        logger.warning("CoinGecko circuit open, skipping fetch for %s: %s", coin_id, e)
+        return None
     except Exception as e:
         logger.warning(f"Failed to fetch {coin_id} price from CoinGecko: {e}")
         return None
@@ -183,20 +192,27 @@ def get_ethereum_price() -> Optional[float]:
 
 
 def _fetch_coinbase_btc_price() -> Optional[float]:
-    """Fetch BTC price from Coinbase API (internal, no caching) with retry."""
+    """Fetch BTC price from Coinbase API (internal, no caching) with retry and circuit breaker."""
+    cb = get_circuit_breaker("coinbase")
+
     def _do_fetch():
         response = requests.get(COINBASE_BTC_URL, timeout=10)
         response.raise_for_status()
         data = response.json()
         return float(data['data']['amount'])
 
-    try:
+    def _fetch_with_retry():
         return retry_with_backoff(
             _do_fetch,
             max_retries=3,
             base_delay=1.0,
             operation_name="Coinbase.BTC",
         )
+
+    try:
+        return cb.call(_fetch_with_retry)
+    except CircuitOpenError as e:
+        logger.warning("Coinbase circuit open, skipping BTC fetch: %s", e)
     except requests.exceptions.Timeout:
         logger.warning("Timeout fetching Bitcoin price from Coinbase (after retries)")
     except requests.exceptions.RequestException as e:
@@ -240,7 +256,9 @@ def get_bitcoin_spot_price() -> Optional[float]:
 
 
 def _fetch_vestige_price_raw(asset_id: int) -> Optional[float]:
-    """Fetch price from Vestige API (internal, no caching) with retry."""
+    """Fetch price from Vestige API (internal, no caching) with retry and circuit breaker."""
+    cb = get_circuit_breaker("vestige")
+
     def _do_fetch():
         url = f"https://api.vestigelabs.org/assets/price?asset_ids={asset_id}&denominating_asset_id=31566704"
         response = requests.get(url, timeout=5)
@@ -252,13 +270,18 @@ def _fetch_vestige_price_raw(asset_id: int) -> Optional[float]:
                 return price
         return None
 
-    try:
+    def _fetch_with_retry():
         return retry_with_backoff(
             _do_fetch,
             max_retries=3,
             base_delay=1.0,
             operation_name=f"Vestige.asset_{asset_id}",
         )
+
+    try:
+        return cb.call(_fetch_with_retry)
+    except CircuitOpenError as e:
+        logger.warning("Vestige circuit open, skipping fetch for asset %d: %s", asset_id, e)
     except requests.exceptions.Timeout:
         logger.warning(f"Timeout fetching Vestige price for asset {asset_id} (after retries)")
     except requests.exceptions.RequestException as e:
@@ -391,13 +414,21 @@ def _fetch_yahoo_finance_price(symbol: str) -> Optional[float]:
                 return float(price)
         return None
 
-    try:
+    cb = get_circuit_breaker("yahoo_finance")
+
+    def _fetch_with_retry():
         return retry_with_backoff(
             _do_fetch,
             max_retries=3,
             base_delay=1.0,
             operation_name=f"YahooFinance.{symbol}",
         )
+
+    try:
+        return cb.call(_fetch_with_retry)
+    except CircuitOpenError as e:
+        logger.warning("Yahoo Finance circuit open, skipping fetch for %s: %s", symbol, e)
+        return None
     except Exception as e:
         logger.warning(f"Failed to fetch {symbol} price from Yahoo Finance (after retries): {e}")
         return None
@@ -508,13 +539,20 @@ def _fetch_meld_price_from_vestige(asset_id: int) -> Optional[float]:
             return None
         return price_in_algo * algo_price
 
-    try:
+    cb = get_circuit_breaker("vestige")
+
+    def _fetch_free_with_retry():
         return retry_with_backoff(
             _do_free_fetch,
             max_retries=3,
             base_delay=1.0,
             operation_name=f"VestigeFree.asset_{asset_id}",
         )
+
+    try:
+        return cb.call(_fetch_free_with_retry)
+    except CircuitOpenError as e:
+        logger.warning("Vestige circuit open, skipping free API for ASA %d: %s", asset_id, e)
     except requests.exceptions.Timeout:
         logger.warning(f"Timeout fetching Meld price from Vestige free API for ASA {asset_id} (after retries)")
     except requests.exceptions.RequestException as e:

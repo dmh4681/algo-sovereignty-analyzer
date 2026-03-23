@@ -156,10 +156,10 @@ class AlgorandSovereigntyAnalyzer:
             )
         except requests.exceptions.Timeout as e:
             logger.error(f"Algorand API timeout for address {address[:8]}... (after retries): {e}")
-            raise
+            return None
         except requests.exceptions.ConnectionError as e:
             logger.error(f"Algorand API connection error (after retries): {e}")
-            raise
+            return None
         except requests.exceptions.HTTPError as e:
             if e.response is not None and e.response.status_code == 404:
                 logger.warning(f"Wallet not found: {address[:8]}...")
@@ -262,14 +262,7 @@ class AlgorandSovereigntyAnalyzer:
         print(f"\n🔍 Analyzing wallet: {address[:8]}...{address[-6:]}\n")
 
         # Get account data
-        try:
-            account_data = self.get_account_assets(address)
-        except requests.exceptions.Timeout:
-            logger.error(f"Wallet analysis timed out for {address[:8]}...")
-            raise
-        except requests.exceptions.ConnectionError:
-            logger.error(f"Connection failed during wallet analysis for {address[:8]}...")
-            raise
+        account_data = self.get_account_assets(address)
 
         if not account_data:
             logger.warning(f"No account data found for {address[:8]}...")

@@ -101,7 +101,7 @@ class TestRateLimiting:
         )
         mock_get.return_value = mock_resp
         assert _fetch_price("bitcoin") is None
-        assert mock_get.call_count == 3
+        assert mock_get.call_count == 4  # 1 initial + 3 retries (DEFAULT_MAX_RETRIES=3)
 
     @patch("core.pricing.requests.get")
     def test_vestige_429_returns_none(self, mock_get):
