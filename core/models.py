@@ -59,6 +59,7 @@ class Asset(BaseModel):
     amount: float
     usd_value: float = 0.0
     category: Optional[AssetCategory] = None
+    asset_id: Optional[int] = None
 
 class SovereigntyData(BaseModel):
     monthly_fixed_expenses: float

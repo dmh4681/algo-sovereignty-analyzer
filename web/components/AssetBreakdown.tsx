@@ -3,9 +3,10 @@
 import { useState } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatUSD, formatNumber } from '@/lib/utils'
-import { Asset, Categories, CATEGORY_CONFIGS, getHardMoneyType, HARD_MONEY_COLORS } from '@/lib/types'
+import { Asset, Categories, CATEGORY_CONFIGS, getHardMoneyType, HARD_MONEY_COLORS, LPDecompositionResult } from '@/lib/types'
 import { CoinStack, GoldBars } from '@/components/illustrations'
-import { ChevronDown, ChevronUp } from 'lucide-react'
+import { ChevronDown, ChevronUp, Loader2 } from 'lucide-react'
+import { decomposeLPToken } from '@/lib/api'
 
 /**
  * Props for the {@link AssetBreakdown} component.
@@ -359,17 +360,33 @@ function filterDisplayAssets(assets: Asset[], categoryKey: string): Asset[] {
  * @param props.config - Category display configuration (title, colors, emoji)
  * @param props.assets - Array of assets in this category
  */
+type LPLoadState = LPDecompositionResult | 'loading' | 'error'
+
 function CategoryCard({ config, assets }: CategoryCardProps) {
   // State for expanded LP tokens
   const [expandedLPs, setExpandedLPs] = useState<Set<string>>(new Set())
+  // Lazy-loaded decomposition data keyed by assetKey
+  const [lpData, setLPData] = useState<Record<string, LPLoadState>>({})
 
-  const toggleLP = (assetKey: string) => {
+  const toggleLP = (assetKey: string, asset: Asset) => {
     setExpandedLPs(prev => {
       const next = new Set(prev)
       if (next.has(assetKey)) {
         next.delete(assetKey)
       } else {
         next.add(assetKey)
+        // Trigger lazy load when expanding, if we have asset_id and haven't loaded yet
+        if (asset.asset_id != null && !(assetKey in lpData)) {
+          setLPData(d => ({ ...d, [assetKey]: 'loading' }))
+          decomposeLPToken({
+            asset_id: asset.asset_id!,
+            ticker: asset.ticker,
+            name: asset.name,
+            amount: asset.amount,
+          })
+            .then(result => setLPData(d => ({ ...d, [assetKey]: result })))
+            .catch(() => setLPData(d => ({ ...d, [assetKey]: 'error' })))
+        }
       }
       return next
     })
@@ -428,14 +445,14 @@ function CategoryCard({ config, assets }: CategoryCardProps) {
                 <div key={assetKey} className="space-y-1">
                   <div
                     className={`flex justify-between items-center text-sm py-1 border-b border-slate-700/50 last:border-0 ${isHardMoney ? 'rounded px-1 ' + (getHardMoneyType(asset.ticker) ? HARD_MONEY_COLORS[getHardMoneyType(asset.ticker)!].bg : '') : ''} ${isLP ? 'cursor-pointer hover:bg-slate-700/30 rounded transition-colors' : ''}`}
-                    onClick={isLP ? () => toggleLP(assetKey) : undefined}
+                    onClick={isLP ? () => toggleLP(assetKey, asset) : undefined}
                     role={isLP ? 'button' : undefined}
                     aria-expanded={isLP ? isExpanded : undefined}
                     tabIndex={isLP ? 0 : undefined}
                     onKeyDown={isLP ? (e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault()
-                        toggleLP(assetKey)
+                        toggleLP(assetKey, asset)
                       }
                     } : undefined}
                   >
@@ -461,22 +478,68 @@ function CategoryCard({ config, assets }: CategoryCardProps) {
                       )}
                     </div>
                   </div>
-                  {/* LP Expanded details */}
+                  {/* LP Expanded details - lazy loaded */}
                   {isLP && isExpanded && (
                     <div className="ml-4 pl-3 border-l-2 border-purple-500/30 py-2 text-xs space-y-1 bg-slate-800/30 rounded-r">
                       <div className="text-slate-400 font-medium">Liquidity Pool Token</div>
-                      {lpComponents.length > 0 ? (
-                        <div className="text-slate-300">
-                          Pool: <span className="text-purple-300">{lpComponents.join(' / ')}</span>
+                      {lpData[assetKey] === 'loading' ? (
+                        <div className="flex items-center gap-1.5 text-slate-400">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          <span>Loading pool details…</span>
                         </div>
+                      ) : lpData[assetKey] === 'error' ? (
+                        <>
+                          {lpComponents.length > 0 ? (
+                            <div className="text-slate-300">
+                              Pool: <span className="text-purple-300">{lpComponents.join(' / ')}</span>
+                            </div>
+                          ) : (
+                            <div className="text-slate-500 italic">{asset.name}</div>
+                          )}
+                          <div className="text-slate-500 italic">Exact amounts unavailable</div>
+                        </>
+                      ) : lpData[assetKey] ? (
+                        (() => {
+                          const d = lpData[assetKey] as LPDecompositionResult
+                          return (
+                            <>
+                              <div className="text-slate-300">
+                                Pool: <span className="text-purple-300">{d.asset1_ticker} / {d.asset2_ticker}</span>
+                              </div>
+                              <div className="flex justify-between text-slate-300">
+                                <span>{d.asset1_ticker}</span>
+                                <span className="tabular-nums">
+                                  {formatNumber(d.asset1_amount)}
+                                  {d.asset1_usd > 0 && <span className="text-slate-500 ml-1">({formatUSD(d.asset1_usd)})</span>}
+                                </span>
+                              </div>
+                              <div className="flex justify-between text-slate-300">
+                                <span>{d.asset2_ticker}</span>
+                                <span className="tabular-nums">
+                                  {formatNumber(d.asset2_amount)}
+                                  {d.asset2_usd > 0 && <span className="text-slate-500 ml-1">({formatUSD(d.asset2_usd)})</span>}
+                                </span>
+                              </div>
+                              {d.total_usd > 0 && (
+                                <div className="text-slate-400 border-t border-slate-700/50 pt-1 mt-1">
+                                  Total: <span className="text-slate-200">{formatUSD(d.total_usd)}</span>
+                                </div>
+                              )}
+                            </>
+                          )
+                        })()
                       ) : (
-                        <div className="text-slate-500 italic">
-                          {asset.name}
-                        </div>
+                        <>
+                          {lpComponents.length > 0 ? (
+                            <div className="text-slate-300">
+                              Pool: <span className="text-purple-300">{lpComponents.join(' / ')}</span>
+                            </div>
+                          ) : (
+                            <div className="text-slate-500 italic">{asset.name}</div>
+                          )}
+                          <div className="text-slate-500">Your share of liquidity in this pool</div>
+                        </>
                       )}
-                      <div className="text-slate-500">
-                        Your share of liquidity in this pool
-                      </div>
                     </div>
                   )}
                 </div>

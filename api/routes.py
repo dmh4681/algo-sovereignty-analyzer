@@ -125,6 +125,8 @@ from .schemas import (
     MeldArbitrageResponse,
     BTCHistoryResponse,
     AdvisorRequest,
+    LPDecomposeRequest,
+    LPDecomposeResponse,
 )
 from .agent import SovereigntyCoach, AdviceRequest
 from typing import Dict, Any, Tuple, Optional, List
@@ -626,6 +628,63 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
             error_code="ANALYSIS_FAILED",
             address=request.address
         )
+
+
+@router.post(
+    "/lp-decompose",
+    response_model=LPDecomposeResponse,
+    summary="Lazily decompose an LP token into its underlying assets",
+    tags=["Wallet Analysis"],
+)
+async def decompose_lp_token(request: LPDecomposeRequest):
+    """
+    Decompose a single LP token into its two underlying assets on demand.
+
+    This endpoint enables lazy loading of LP token details in the frontend.
+    Rather than decomposing all LP tokens during the initial wallet analysis,
+    the UI can call this endpoint only when the user expands a specific LP token
+    to view its composition.
+
+    Args:
+        request: LPDecomposeRequest with asset_id, ticker, name, and amount
+
+    Returns:
+        LPDecomposeResponse with component tickers, amounts, and USD values
+
+    Raises:
+        HTTPException 422: If the LP token cannot be parsed or priced
+    """
+    from core.lp_parser import LPParser
+    from core.pricing import get_asset_price
+
+    parser = LPParser()
+    breakdown = parser.estimate_lp_value(
+        request.ticker,
+        request.name,
+        request.amount,
+        request.asset_id,
+        get_asset_price,
+    )
+
+    if breakdown is None:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Could not decompose LP token '{request.ticker}' (id={request.asset_id}). "
+                   "Pool state unavailable or token format not supported.",
+        )
+
+    return LPDecomposeResponse(
+        lp_ticker=breakdown.lp_ticker,
+        lp_amount=breakdown.lp_amount,
+        asset1_ticker=breakdown.asset1_ticker,
+        asset1_amount=breakdown.asset1_amount,
+        asset1_usd=breakdown.asset1_usd,
+        asset2_ticker=breakdown.asset2_ticker,
+        asset2_amount=breakdown.asset2_amount,
+        asset2_usd=breakdown.asset2_usd,
+        total_usd=breakdown.total_usd,
+    )
+
 
 @router.get(
     "/classifications",
