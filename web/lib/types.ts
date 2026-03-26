@@ -3,6 +3,7 @@ export interface Asset {
   name: string
   amount: number
   usd_value: number
+  asset_id?: number
 }
 
 // Hard money sub-types for color coding
@@ -77,6 +78,25 @@ export interface AnalysisResponse {
 export interface AnalyzeRequest {
   address: string
   monthly_fixed_expenses?: number
+}
+
+export interface LPDecomposeRequest {
+  asset_id: number
+  ticker: string
+  name: string
+  amount: number
+}
+
+export interface LPDecompositionResult {
+  lp_ticker: string
+  lp_amount: number
+  asset1_ticker: string
+  asset1_amount: number
+  asset1_usd: number
+  asset2_ticker: string
+  asset2_amount: number
+  asset2_usd: number
+  total_usd: number
 }
 
 export type CategoryType = 'hard_money' | 'algo' | 'dollars' | 'shitcoin'

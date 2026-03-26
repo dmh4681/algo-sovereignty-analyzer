@@ -385,7 +385,8 @@ class AlgorandSovereigntyAnalyzer:
                 'name': name,
                 'ticker': ticker,
                 'amount': actual_amount,
-                'usd_value': usd_value
+                'usd_value': usd_value,
+                'asset_id': asset_id,
             })
 
             processed += 1

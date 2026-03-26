@@ -17,6 +17,8 @@ import {
   PaginatedAssetsResponse,
   QuickSovereigntyResponse,
   CategoryType,
+  LPDecomposeRequest,
+  LPDecompositionResult,
 } from './types'
 
 // Use direct backend URL to avoid Next.js proxy timeout issues
@@ -65,6 +67,24 @@ export async function analyzeWallet(
     }
     throw error
   }
+}
+
+export async function decomposeLPToken(
+  request: LPDecomposeRequest
+): Promise<LPDecompositionResult> {
+  const response = await fetch(`${API_BASE}/lp-decompose`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+  })
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}))
+    const message = errorData.detail || 'LP token decomposition failed'
+    throw new ApiError(message, response.status)
+  }
+
+  return response.json()
 }
 
 export async function getClassifications(): Promise<Record<string, { name: string; ticker: string; category: string }>> {
