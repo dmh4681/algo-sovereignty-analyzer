@@ -3057,6 +3057,35 @@ async def update_inflation_from_fred():
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/inflation/fred-circuit-status")
+async def get_fred_circuit_status():
+    """
+    Return the current state of the FRED API circuit breaker.
+
+    Useful for health dashboards and diagnosing why FRED updates may be
+    returning no data.  The ``state`` field will be one of:
+    - ``"closed"``    — Normal; requests are reaching FRED.
+    - ``"open"``      — Too many failures; requests are fast-failing until
+                        ``retry_in`` seconds have elapsed.
+    - ``"half_open"`` — A probe request is in progress to test recovery.
+    """
+    from core.inflation_data import _fred_circuit_breaker
+    return _fred_circuit_breaker.status()
+
+
+@router.post("/inflation/fred-circuit-reset")
+async def reset_fred_circuit():
+    """
+    Manually close (reset) the FRED API circuit breaker.
+
+    Use this after resolving a FRED API outage or misconfiguration so that
+    normal updates resume immediately without waiting for the recovery timeout.
+    """
+    from core.inflation_data import _fred_circuit_breaker
+    _fred_circuit_breaker.reset()
+    return {"message": "FRED API circuit breaker reset to CLOSED.", "status": _fred_circuit_breaker.status()}
+
+
 # -----------------------------------------------------------------------------
 # Central Bank Gold Tracker Endpoints
 # -----------------------------------------------------------------------------

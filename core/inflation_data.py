@@ -27,6 +27,9 @@ try:
 except ImportError:
     HAS_REQUESTS = False
 
+from core.circuit_breaker import CircuitBreaker, CircuitOpenError
+from core.retry import retry_with_backoff, is_retryable_error
+
 
 # Database path - uses DATA_DIR env var for Railway/production
 def _get_data_dir() -> str:
@@ -48,17 +51,70 @@ FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/observations'
 FRED_CPI_SERIES = 'CPIAUCSL'  # Consumer Price Index for All Urban Consumers
 FRED_M2_SERIES = 'M2SL'  # M2 Money Stock (Billions of Dollars)
 
+# Circuit breaker for the FRED API.
+# Opens after 5 consecutive failures; probes again after 60 s.
+_fred_circuit_breaker = CircuitBreaker(
+    name="fred-api",
+    failure_threshold=5,
+    success_threshold=2,
+    recovery_timeout=60.0,
+    # 401/403 (bad API key) are permanent client errors — don't penalise the
+    # circuit for them; surface them immediately instead.
+    excluded_exceptions=(ValueError, KeyError, TypeError),
+)
+
+
+def _do_fred_request(series_id: str, start_date: str) -> List[Tuple[str, float]]:
+    """
+    Single (non-retrying) HTTP call to the FRED API.
+
+    Raises on any network or HTTP error so that the circuit breaker and retry
+    wrapper can decide what to do next.
+    """
+    response = requests.get(
+        FRED_BASE_URL,
+        params={
+            'series_id': series_id,
+            'api_key': FRED_API_KEY,
+            'file_type': 'json',
+            'observation_start': start_date,
+            'frequency': 'm',  # Monthly
+        },
+        timeout=10,
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    results: List[Tuple[str, float]] = []
+    for obs in data.get('observations', []):
+        if obs.get('value') == '.':
+            continue  # FRED uses '.' for missing values
+        try:
+            date_str = obs['date'][:7]  # YYYY-MM-DD -> YYYY-MM
+            value = float(obs['value'])
+            results.append((date_str, value))
+        except (KeyError, ValueError):
+            continue
+
+    logger.info("Fetched %d observations from FRED series %s", len(results), series_id)
+    return results
+
 
 def _fetch_from_fred(series_id: str, start_date: str = '1970-01-01') -> Optional[List[Tuple[str, float]]]:
     """
-    Fetch time series data from the FRED API.
+    Fetch time series data from the FRED API with circuit breaker + retry.
+
+    The circuit breaker short-circuits calls when the FRED API has been
+    persistently unavailable, preventing thread pile-up and log spam.
+    Retries (up to 3×) with exponential back-off handle transient errors.
 
     Args:
         series_id: FRED series ID (e.g. 'CPIAUCSL', 'M2SL')
         start_date: Start date in YYYY-MM-DD format
 
     Returns:
-        List of (YYYY-MM, value) tuples, or None on failure.
+        List of (YYYY-MM, value) tuples, or None if the API is unreachable /
+        the circuit is open.
     """
     if not HAS_REQUESTS:
         logger.warning("requests library not available, cannot fetch from FRED")
@@ -68,47 +124,33 @@ def _fetch_from_fred(series_id: str, start_date: str = '1970-01-01') -> Optional
         logger.debug("FRED_API_KEY not set, skipping FRED fetch")
         return None
 
-    max_retries = 3
-    base_delay = 1
-
-    for attempt in range(max_retries):
-        try:
-            response = requests.get(
-                FRED_BASE_URL,
-                params={
-                    'series_id': series_id,
-                    'api_key': FRED_API_KEY,
-                    'file_type': 'json',
-                    'observation_start': start_date,
-                    'frequency': 'm',  # Monthly
-                },
-                timeout=10,
+    try:
+        return _fred_circuit_breaker.call(
+            lambda: retry_with_backoff(
+                func=lambda: _do_fred_request(series_id, start_date),
+                max_retries=3,
+                base_delay=1.0,
+                max_delay=30.0,
+                jitter=True,
+                operation_name=f"fred-api:{series_id}",
             )
-            response.raise_for_status()
-            data = response.json()
-
-            results = []
-            for obs in data.get('observations', []):
-                if obs.get('value') == '.':
-                    continue  # FRED uses '.' for missing values
-                try:
-                    date_str = obs['date'][:7]  # YYYY-MM-DD -> YYYY-MM
-                    value = float(obs['value'])
-                    results.append((date_str, value))
-                except (KeyError, ValueError):
-                    continue
-
-            logger.info(f"Fetched {len(results)} observations from FRED series {series_id}")
-            return results
-
-        except Exception as e:
-            if attempt == max_retries - 1:
-                logger.warning(f"Failed to fetch FRED series {series_id} after {max_retries} attempts: {e}")
-                return None
-            delay = base_delay * (2 ** attempt)
-            time.sleep(delay)
-
-    return None
+        )
+    except CircuitOpenError as e:
+        logger.warning(
+            "FRED API circuit is OPEN — skipping fetch for series %s. "
+            "Retry in %.0fs.",
+            series_id,
+            e.retry_after,
+        )
+        return None
+    except Exception as e:
+        logger.warning(
+            "Failed to fetch FRED series %s: %s: %s",
+            series_id,
+            type(e).__name__,
+            e,
+        )
+        return None
 
 
 # Historical seed data - Monthly CPI values (1970-2025)
