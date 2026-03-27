@@ -104,6 +104,7 @@ from core.pricing import (
     get_bitcoin_spot_price,
     get_gobtc_price,
     get_wbtc_price,
+    build_data_source_status,
     GRAMS_PER_TROY_OZ,
     GOBTC_ASA,
     WBTC_ASA
@@ -533,7 +534,8 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
                 hard_money_algo=cached['hard_money_algo'],
                 categories=categories,
                 sovereignty_data=sovereignty_data,
-                participation_info=cached.get('participation_info')
+                participation_info=cached.get('participation_info'),
+                data_source_status=build_data_source_status()
             )
 
     analyzer = AlgorandSovereigntyAnalyzer(use_local_node=use_local_node)
@@ -586,7 +588,8 @@ async def analyze_wallet(request: AnalyzeRequest, use_local_node: bool = Query(F
             hard_money_algo=analyzer.last_hard_money_algo,
             categories=categories,
             sovereignty_data=sovereignty_data,
-            participation_info=analyzer.last_participation_info
+            participation_info=analyzer.last_participation_info,
+            data_source_status=build_data_source_status()
         )
         print(f"✅ Response ready, sending...")
         return response

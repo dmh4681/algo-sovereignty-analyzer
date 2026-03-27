@@ -116,3 +116,51 @@ class ProgressiveAnalysisResponse(BaseModel):
     total_assets_by_category: Dict[str, int]
     has_paginated_categories: bool
     participation_info: Optional[Dict[str, Any]] = None
+
+
+class DataSourceStatus(BaseModel):
+    """
+    Tracks the provenance and reliability of data used in an analysis response.
+
+    This model makes explicit which prices came from live APIs, the in-memory
+    cache, or hardcoded fallbacks—and which data modules contain fabricated or
+    manually-estimated values that have not been verified against real sources.
+
+    Price source values:
+        - "live_api"  : Fetched fresh from an external API during this request
+        - "cache"     : Served from in-memory cache (previously fetched from API)
+        - "hardcoded" : All live sources failed; a conservative constant was used
+        - "unknown"   : Price fetch has not been attempted yet for this asset
+    """
+    algo_price_source: str = Field(
+        "unknown",
+        description="Source of ALGO price: live_api | cache | hardcoded | unknown"
+    )
+    btc_price_source: str = Field(
+        "unknown",
+        description="Source of BTC spot price: live_api | cache | hardcoded | unknown"
+    )
+    gold_price_source: str = Field(
+        "unknown",
+        description="Source of gold price (Yahoo Finance GC=F): live_api | cache | hardcoded | unknown"
+    )
+    silver_price_source: str = Field(
+        "unknown",
+        description="Source of silver price (Yahoo Finance SI=F): live_api | cache | hardcoded | unknown"
+    )
+    blockchain_source: str = Field(
+        "algonode_live",
+        description="Source of on-chain wallet data (always AlgoNode public API)"
+    )
+    fabricated_data_warnings: List[str] = Field(
+        default_factory=list,
+        description=(
+            "Modules that contain fabricated, estimated, or unverified data. "
+            "Values here are NOT sourced from real APIs and should not be used "
+            "for financial decisions."
+        )
+    )
+    fetched_at: str = Field(
+        ...,
+        description="ISO 8601 UTC timestamp when price data was fetched for this response"
+    )

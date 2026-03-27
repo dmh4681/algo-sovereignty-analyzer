@@ -3,7 +3,7 @@ import algosdk.encoding
 from pydantic import BaseModel, Field, field_validator
 from typing import List, Dict, Any, Optional
 from datetime import datetime
-from core.models import AssetCategory, SovereigntyData, AssetPage, PaginatedAssets
+from core.models import AssetCategory, SovereigntyData, AssetPage, PaginatedAssets, DataSourceStatus
 from core.history import SovereigntySnapshot
 
 
@@ -239,6 +239,14 @@ class AnalysisResponse(BaseModel):
     has_critical_alerts: Optional[bool] = Field(
         None,
         description="True if any critical alerts were generated"
+    )
+    data_source_status: Optional[DataSourceStatus] = Field(
+        None,
+        description=(
+            "Provenance metadata for all data used in this analysis. "
+            "Indicates whether prices were live, cached, or hardcoded, "
+            "and lists any data modules that contain fabricated or estimated values."
+        )
     )
 
     class Config:
