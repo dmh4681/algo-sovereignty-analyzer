@@ -17,9 +17,9 @@ Authentication:
     For production, add API key authentication via the X-API-Key header.
 
 Rate Limiting:
-    - /analyze: 30 requests/minute per IP
-    - /agent/advice: 10 requests/minute per IP
-    - All others: 100 requests/minute per IP
+    - /analyze, /agent/advice, /advisor: 10 requests/minute per IP
+    - /analyze (wallet): 20 requests/minute per wallet address
+    - All others: 60 requests/minute per IP
 
 Caching:
     - Wallet analysis: 15 minutes per address

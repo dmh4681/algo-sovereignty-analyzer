@@ -157,11 +157,11 @@ your portfolio, providing a measure of true financial freedom.
 
 ## Rate Limits
 
-| Endpoint | Limit |
-|----------|-------|
-| `/analyze` | 30/minute |
-| `/agent/advice` | 10/minute |
-| All others | 100/minute |
+| Scope | Endpoint | Limit |
+|-------|----------|-------|
+| Per IP | `/analyze`, `/agent/advice`, `/advisor` | 10/minute |
+| Per IP | All others | 60/minute |
+| Per wallet | `/analyze` (and related analysis endpoints) | 20/minute |
 
 ## Authentication
 

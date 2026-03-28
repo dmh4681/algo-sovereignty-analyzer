@@ -58,7 +58,7 @@ def _bypass_analysis_cache_and_rate_limit():
          patch("api.routes.cache_analysis"), \
          patch(
              "api.middleware.rate_limit.SlidingWindowRateLimitMiddleware._check",
-             return_value=(True, 999, 0),
+             return_value=(True, "", 999, 20, 0),
          ):
         yield
 

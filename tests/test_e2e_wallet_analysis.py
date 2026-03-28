@@ -451,20 +451,20 @@ class TestE2EAPIFailures:
     """Test handling of various API failure scenarios."""
 
     def test_algod_connection_timeout(self, analyzer_with_mocked_lp):
-        """Test handling of Algorand node connection timeout."""
+        """Timeout propagates after exhausting retries so the API layer can return 504."""
         with patch('core.analyzer.requests.get') as mock_get:
             mock_get.side_effect = requests.exceptions.Timeout("Connection timed out")
 
-            result = analyzer_with_mocked_lp.analyze_wallet(VALID_ADDRESS)
-            assert result is None
+            with pytest.raises(requests.exceptions.Timeout):
+                analyzer_with_mocked_lp.analyze_wallet(VALID_ADDRESS)
 
     def test_algod_connection_error(self, analyzer_with_mocked_lp):
-        """Test handling of Algorand node connection error."""
+        """ConnectionError propagates after exhausting retries so the API layer can return 503."""
         with patch('core.analyzer.requests.get') as mock_get:
             mock_get.side_effect = requests.exceptions.ConnectionError("Failed to connect")
 
-            result = analyzer_with_mocked_lp.analyze_wallet(VALID_ADDRESS)
-            assert result is None
+            with pytest.raises(requests.exceptions.ConnectionError):
+                analyzer_with_mocked_lp.analyze_wallet(VALID_ADDRESS)
 
     def test_algod_server_error(self, analyzer_with_mocked_lp):
         """Test handling of 500 server error from Algorand node."""

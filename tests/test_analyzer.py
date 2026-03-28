@@ -161,14 +161,13 @@ class TestAccountData:
         assert result is None
 
     def test_get_account_assets_timeout(self, analyzer):
-        """Should handle timeout gracefully."""
+        """Should re-raise Timeout after exhausting retries (callers handle it)."""
         import requests
 
         with patch('core.analyzer.requests.get') as mock_get:
             mock_get.side_effect = requests.exceptions.Timeout("Timeout")
-            result = analyzer.get_account_assets("TEST_ADDRESS")
-
-        assert result is None
+            with pytest.raises(requests.exceptions.Timeout):
+                analyzer.get_account_assets("TEST_ADDRESS")
 
 
 class TestAssetDetails:
