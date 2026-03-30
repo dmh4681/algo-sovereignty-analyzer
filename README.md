@@ -21,6 +21,7 @@ A tool that analyzes ANY Algorand wallet and outputs a "sovereignty score" based
 - **AI Sovereignty Coaching** - Claude-powered personalized advice based on your portfolio composition
 - **Progressive Loading** - Quick sovereignty score displayed immediately, with full asset details loading progressively for large wallets
 - **Precious Metals Arbitrage** - Compares on-chain Meld Gold/Silver prices to spot prices for arbitrage detection
+- **Bitcoin Arbitrage** - Tracks BTC price across exchanges with historical arbitrage opportunity data
 - **Network Sovereignty Audit** - Analyzes Algorand relay node infrastructure centralization (Tier 1 Sovereign vs Tier 3 Hyperscale)
 - **Gold/Silver Ratio Tracker** - Monitors the gold-to-silver ratio with historical context and rotation signals
 - **Inflation-Adjusted Charts** - CPI-adjusted gold and silver price history with M2 money supply comparisons
@@ -29,6 +30,10 @@ A tool that analyzes ANY Algorand wallet and outputs a "sovereignty score" based
 - **Physical Premium Tracker** - Compares dealer premiums on physical gold and silver products
 - **Sovereignty History** - Tracks your sovereignty ratio over time with historical snapshots
 - **News Curation** - AI-analyzed hard money news with sovereignty relevance scoring
+- **Wallet Monitor** - Automated alerts when sovereignty ratio changes significantly
+- **DeFi Sovereignty Cost** - Measures the hidden cost (in hard money terms) of DeFi participation
+- **Sovereignty Advisor** - Multi-wallet portfolio advisor with rebalancing recommendations
+- **User Corrections** - Community-driven asset classification improvement system
 
 ---
 
@@ -72,26 +77,42 @@ Visit http://localhost:3000 to analyze any Algorand wallet.
 ```
 ┌─────────────────────────────────────────────────────────┐
 │         FRONTEND (Next.js 16 + React 19 + TypeScript)  │
-│  - Enter any Algorand address                           │
-│  - View sovereignty breakdown                           │
-│  - AI-powered coaching via Claude                       │
-│  - Wallet connection (Pera, Defly)                      │
+│  - Wallet analysis dashboard (Pera, Defly, address)    │
+│  - Market data pages (gold, silver, BTC, inflation)    │
+│  - Network audit, arbitrage, earnings calendar         │
+│  - AI coaching, advisor, news curation                 │
 └─────────────────────────────────────────────────────────┘
                     ↓ HTTP/JSON
 ┌─────────────────────────────────────────────────────────┐
 │          API LAYER (FastAPI + Uvicorn)                 │
-│  - POST /analyze {address, expenses}                    │
-│  - POST /agent/advice (AI coaching)                     │
-│  - GET /classifications                                 │
-│  - History snapshots                                    │
+│  routes.py     - Core analysis, market data, history   │
+│  alerts_routes.py - Wallet monitoring & alerts         │
+│  agent.py      - Claude AI coaching integration        │
+│  security.py   - Rate limiting, input validation       │
+│  middleware/   - Request/response middleware            │
+│  services/     - Business logic services               │
+│  news/         - News curation service                 │
 └─────────────────────────────────────────────────────────┘
                     ↓ Python SDK
 ┌─────────────────────────────────────────────────────────┐
 │      CORE ENGINE (Pure Python Analysis)                │
-│  - AlgorandSovereigntyAnalyzer                         │
-│  - AssetClassifier (regex patterns)                     │
-│  - LPParser (Tinyman/Pact decomposition)               │
-│  - Multi-source pricing (Vestige, CoinGecko)           │
+│  analyzer.py        - AlgorandSovereigntyAnalyzer      │
+│  classifier.py      - Asset classification             │
+│  lp_parser.py       - Tinyman/Pact LP decomposition    │
+│  pricing.py         - Multi-source price fetching      │
+│  history.py         - Sovereignty snapshot tracking    │
+│  corrections.py     - User classification corrections  │
+│  network.py         - Algorand network statistics      │
+│  miner_metrics.py   - Gold miner earnings tracking     │
+│  silver_metrics.py  - Silver miner earnings tracking   │
+│  central_bank_gold.py - Central bank purchase data     │
+│  premium_tracker.py - Physical metal dealer premiums   │
+│  inflation_data.py  - CPI/M2 inflation data            │
+│  btc_history.py     - Bitcoin arbitrage history        │
+│  wallet_monitor.py  - Automated wallet monitoring      │
+│  advisor.py         - Multi-wallet portfolio advisor   │
+│  defi_sovereignty_cost.py - DeFi cost analysis        │
+│  retry.py / cache.py / persistence.py - Infrastructure │
 └─────────────────────────────────────────────────────────┘
                     ↓ API Calls
 ┌─────────────────────────────────────────────────────────┐
@@ -100,6 +121,8 @@ Visit http://localhost:3000 to analyze any Algorand wallet.
 │  - Vestige Labs (ASA pricing)                           │
 │  - CoinGecko (fallback pricing)                         │
 │  - Tinyman SDK (LP pool state)                          │
+│  - FRED / BLS (inflation data)                          │
+│  - Meld Gold API (on-chain metal prices)                │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -301,10 +324,50 @@ NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=your-production-project-id
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/analyze` | Main wallet analysis |
+| GET | `/analyze/quick/{address}` | Fast sovereignty score only |
+| GET | `/assets/{address}/{category}` | Paginated asset details |
 | POST | `/agent/advice` | AI coaching (Claude) |
 | GET | `/classifications` | Asset classification lookup |
 | POST | `/history/save` | Save wallet snapshot |
 | GET | `/history/{address}` | Get historical data |
+
+### Market Data Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/gold-silver-ratio` | Gold/silver ratio with rotation signals |
+| GET | `/arbitrage/meld` | Meld Gold/Silver on-chain arbitrage |
+| GET | `/arbitrage/btc-history` | Bitcoin arbitrage history |
+| GET | `/gold/miners` | Gold miner earnings data |
+| GET | `/silver/miners` | Silver miner earnings data |
+| GET | `/central-banks` | Central bank gold purchase data |
+| GET | `/central-banks/dedollarization` | De-dollarization trend data |
+| GET | `/earnings/calendar` | Miner earnings calendar |
+| GET | `/premiums/summary` | Physical metal dealer premiums |
+
+### Network & DeFi Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/network/stats` | Algorand network sovereignty audit |
+| GET | `/network/wallet/{address}` | Wallet participation status |
+| POST | `/defi/sovereignty-cost` | DeFi participation cost analysis |
+| POST | `/advisor` | Multi-wallet sovereignty advisor |
+| GET | `/advisor/{wallet_address}` | Saved advisor recommendations |
+
+### Monitoring & Corrections
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/monitor/wallets` | List monitored wallets |
+| POST | `/monitor/wallets` | Add wallet to monitor |
+| DELETE | `/monitor/wallets/{address}` | Remove monitored wallet |
+| POST | `/monitor/wallets/{address}/check` | Trigger manual check |
+| POST | `/corrections` | Submit classification correction |
+| GET | `/corrections` | List corrections (filter by status) |
+| GET | `/corrections/stats` | Correction system statistics |
+| DELETE | `/corrections/{asset_id}` | Delete a correction |
+| GET | `/corrections/export/csv` | Export approved corrections |
 
 ### Analyze Wallet
 
@@ -391,34 +454,79 @@ Total: $2,500 correctly categorized
 algo-sovereignty-analyzer/
 ├── api/                      # FastAPI Backend
 │   ├── main.py              # App initialization, CORS
-│   ├── routes.py            # API endpoints
-│   ├── schemas.py           # Pydantic models
-│   └── agent.py             # Claude AI integration
+│   ├── routes.py            # All API endpoints (~4600 lines)
+│   ├── alerts_routes.py     # Wallet monitoring/alert endpoints
+│   ├── schemas.py           # Pydantic request/response models
+│   ├── agent.py             # Claude AI coaching integration
+│   ├── security.py          # Rate limiting, input validation
+│   ├── errors.py            # Error handling
+│   ├── middleware/          # Request/response middleware
+│   ├── services/            # Business logic services
+│   └── news/                # News curation service
 │
 ├── core/                     # Core Analysis Engine
 │   ├── analyzer.py          # Main analysis logic
 │   ├── classifier.py        # Asset classification
-│   ├── pricing.py           # Price fetching
-│   ├── lp_parser.py         # LP decomposition
-│   ├── history.py           # Snapshot tracking
-│   └── models.py            # Data models
+│   ├── pricing.py           # Multi-source price fetching
+│   ├── lp_parser.py         # LP token decomposition
+│   ├── history.py           # Sovereignty snapshot tracking
+│   ├── models.py            # Pydantic data models
+│   ├── corrections.py       # User classification corrections
+│   ├── network.py           # Algorand network statistics
+│   ├── miner_metrics.py     # Gold miner earnings tracking
+│   ├── silver_metrics.py    # Silver miner earnings tracking
+│   ├── central_bank_gold.py # Central bank purchase data
+│   ├── premium_tracker.py   # Physical metal dealer premiums
+│   ├── inflation_data.py    # CPI/M2 inflation data
+│   ├── btc_history.py       # Bitcoin arbitrage history
+│   ├── wallet_monitor.py    # Automated wallet monitoring
+│   ├── advisor.py           # Multi-wallet portfolio advisor
+│   ├── defi_sovereignty_cost.py  # DeFi participation cost
+│   ├── rebalancer.py        # Portfolio rebalancing logic
+│   ├── alerts.py            # Alert generation logic
+│   ├── jobs.py              # Background job scheduler
+│   ├── cache.py             # In-memory caching
+│   ├── persistence.py       # Data persistence helpers
+│   ├── retry.py             # Retry logic for external APIs
+│   ├── sec_edgar.py         # SEC EDGAR earnings data
+│   ├── chains/              # Multi-chain support (future)
+│   └── secrets.py           # Environment/secret management
 │
 ├── web/                      # Next.js Frontend
 │   ├── app/                 # App Router pages
+│   │   ├── page.tsx         # Landing page
+│   │   ├── analyze/         # Wallet analysis dashboard
+│   │   ├── arbitrage/       # Meld/BTC arbitrage views
+│   │   ├── central-bank-gold/ # Central bank tracker
+│   │   ├── earnings-calendar/ # Miner earnings calendar
+│   │   ├── gold-tracker/    # Gold price charts
+│   │   ├── inflation-charts/ # CPI/M2 inflation charts
+│   │   ├── network/         # Network sovereignty audit
+│   │   ├── news/            # Hard money news
+│   │   ├── premium-tracker/ # Physical metal premiums
+│   │   ├── research/        # Research & analysis
+│   │   ├── silver-tracker/  # Silver price charts
+│   │   ├── training/        # Educational content
+│   │   ├── philosophy/      # Sovereignty Manifesto
+│   │   └── whitepaper/      # Whitepaper page
 │   ├── components/          # React components
-│   └── lib/                 # Utilities
+│   └── lib/                 # Utilities and types
 │
 ├── scripts/cli.py           # CLI tool
-├── tests/                   # Pytest tests
+├── tests/                   # Pytest test files
 ├── data/
-│   ├── asset_classification.csv
-│   └── history/             # Per-address snapshots
+│   ├── asset_classification.csv  # Manual classification overrides
+│   └── history/             # Per-address JSON snapshots
 │
 ├── docs/                    # Documentation
-│   ├── api/                 # API docs
-│   ├── analyzer.md          # Core analyzer docs
-│   ├── lp-parser.md         # LP parsing docs
-│   └── agent.md             # Claude integration docs
+│   ├── API-REFERENCE.md     # Complete API docs
+│   ├── SETUP-GUIDE.md       # Development & deployment
+│   ├── CLASSIFICATION-SYSTEM.md  # Classification philosophy
+│   ├── USER-GUIDE.md        # End-user guide
+│   ├── SOVEREIGNTY-SCORING.md    # Scoring methodology
+│   ├── PRECIOUS-METALS.md   # Precious metals features
+│   ├── METHODOLOGY.md       # Analysis methodology
+│   └── api/README.md        # API quick reference
 │
 ├── requirements.txt
 └── docker-compose.yml
@@ -683,11 +791,11 @@ pip install tinyman-py-sdk
 
 3. **Progressive loading**: For large wallets, use:
    - `GET /analyze/quick/{address}` for fast initial render
-   - `GET /assets/{address}/{category}` to load details progressively
+   - `GET /assets/{address}/{category}` to load category details progressively
 
 4. **LP parsing overhead**: Tinyman SDK calls add ~2-3 seconds per LP token. Large LP portfolios will be slower.
 
-5. **Batch analysis**: Analyze multiple wallets in parallel (up to rate limit).
+5. **Retry logic**: External API calls use exponential backoff via `core/retry.py`. Transient failures are handled automatically.
 
 ### Debug Mode
 
@@ -742,10 +850,15 @@ uvicorn api.main:app --reload --log-level debug
 
 Detailed documentation available in `docs/`:
 
-- **[Sovereignty Scoring Philosophy](docs/SOVEREIGNTY-SCORING.md)** - Deep dive into the scoring methodology, philosophical framework, and tier definitions
-- **[API Documentation](docs/api/README.md)** - Complete endpoint reference
-- **[Analyzer](docs/analyzer.md)** - Core analysis engine
-- **[LP Parser](docs/lp-parser.md)** - LP token decomposition
+- **[API Reference](docs/API-REFERENCE.md)** - Complete endpoint reference with request/response schemas
+- **[Setup Guide](docs/SETUP-GUIDE.md)** - Development setup, deployment, and troubleshooting
+- **[Classification System](docs/CLASSIFICATION-SYSTEM.md)** - Hard money philosophy and classification hierarchy
+- **[User Guide](docs/USER-GUIDE.md)** - End-user guide explaining sovereignty concepts
+- **[Sovereignty Scoring](docs/SOVEREIGNTY-SCORING.md)** - Scoring methodology and tier definitions
+- **[Precious Metals](docs/PRECIOUS-METALS.md)** - Gold/silver arbitrage, premiums, and miner tracking
+- **[Methodology](docs/METHODOLOGY.md)** - Analysis methodology and data sources
+- **[Analyzer](docs/analyzer.md)** - Core analysis engine internals
+- **[LP Parser](docs/lp-parser.md)** - LP token decomposition algorithm
 - **[Claude Agent](docs/agent.md)** - AI coaching integration
 
 ---
@@ -764,4 +877,4 @@ Proprietary - © 2025 Sovereign Path LLC
 
 ---
 
-*Last Updated: 2026-02-19*
+*Last Updated: 2026-03-29*
