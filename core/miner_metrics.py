@@ -3,6 +3,27 @@ Gold Miner Metrics Tracking
 
 Stores quarterly reports for gold mining companies including AISC, production,
 financial metrics, and jurisdictional risk data for sector analysis.
+
+DATA SOURCE STATUS: FABRICATED (Seeded)
+========================================
+The data in this module (SEED_DATA) is **fabricated seed data** — it is based on
+publicly available quarterly reports but the exact figures have been approximated
+and are NOT pulled from a live API or verified database. Do not use these values
+for investment decisions.
+
+- Coverage: 2023 Q1 through 2025 Q3 (approx.)
+- Companies: NEM, GOLD, AEM, GFI, AGI, KGC, AU, EGO, BTG, and others
+- Fields: AISC ($/oz), production (Moz), revenue ($B), FCF ($B), dividend yield (%),
+  market cap ($B), jurisdictional risk tiers (Tier1/2/3 %)
+- Origin: Approximated from public annual/quarterly reports (Newmont, Barrick, etc.)
+- Accuracy: Representative trends, not audited financials
+
+Migration Path:
+  To replace with real data, integrate with a financial data provider (e.g.,
+  Alpha Vantage, Morningstar, or direct SEC EDGAR filings via the earnings
+  calendar pattern used in core/earnings_calendar.py).
+
+Reseed API: POST /api/v1/gold/miners/reseed
 """
 
 import sqlite3

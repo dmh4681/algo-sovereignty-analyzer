@@ -3,10 +3,26 @@ Central Bank Gold Tracker Module
 
 Tracks global central bank gold holdings, purchases/sales, and de-dollarization metrics.
 
-Data Sources:
-- World Gold Council (WGC) monthly reports
-- IMF International Financial Statistics
-- Individual central bank bulletins
+DATA SOURCE STATUS: SEMI-REAL (Seeded from public reports, not live API)
+=========================================================================
+The holdings data in this module (HOLDINGS_SEED_DATA) is seeded from publicly
+available sources but is NOT fetched from a live API. Historical figures through
+~2023 are broadly accurate; 2024-2025 entries are approximated estimates based
+on trend extrapolation and news reports.
+
+- Primary Sources (offline): World Gold Council (WGC) monthly reports,
+  IMF International Financial Statistics, individual central bank bulletins
+- Coverage: 2020-2025 (monthly snapshots for ~20+ countries)
+- Fields: Country, tonnes held, % of total reserves
+- Accuracy: Historical data is broadly correct; recent quarters are estimated
+- Live API: NOT integrated — data does not auto-update
+
+Migration Path:
+  Integrate with the World Gold Council API or IMF Data API to pull live
+  central bank reserve data. The WGC publishes monthly updates at:
+  https://www.gold.org/goldhub/data/gold-reserves-by-country
+
+Reseed API: None (no reseed endpoint; data is loaded at startup)
 """
 
 import sqlite3

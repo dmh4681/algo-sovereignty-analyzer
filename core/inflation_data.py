@@ -4,9 +4,29 @@ Inflation-Adjusted Price Data Module
 Provides historical CPI, M2 money supply, and gold/silver price data
 for inflation-adjusted charting and purchasing power analysis.
 
-Data Sources:
-- FRED API (Federal Reserve Economic Data) for CPI and M2
-- Historical gold/silver prices seeded from LBMA/Kitco data
+DATA SOURCE STATUS: HYBRID (Real API with seeded fallback)
+==========================================================
+This module uses a two-tier approach:
+
+1. REAL DATA (preferred):
+   - CPI-U: Fetched from FRED API (series CPIAUCSL) when available
+   - M2 Money Supply: Fetched from FRED API (series M2SL) when available
+   - Requires: FRED API key or public endpoint access
+   - Auto-refresh: Attempted at startup; falls back to seed data on failure
+
+2. FABRICATED SEED DATA (fallback):
+   - Historical CPI values from 1970 through ~2025 (monthly)
+   - Historical gold/silver price series approximated from LBMA/Kitco data
+   - Used when FRED API is unreachable or returns errors
+   - Origin: Manually compiled from public LBMA/FRED/BLS datasets
+   - Accuracy: Generally correct for pre-2023; post-2023 values are estimates
+
+Migration Path:
+  For fully live data, configure a FRED API key (free at https://fred.stlouisfed.org)
+  and set FRED_API_KEY in the environment. The module will then bypass seed data
+  and always use live FRED series.
+
+Reseed API: None (seed data loaded at DB init; no reseed endpoint)
 """
 
 import sqlite3

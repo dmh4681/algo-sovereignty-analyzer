@@ -805,3 +805,23 @@ class JobStatusResponse(BaseModel):
     created_at: str
     started_at: Optional[str] = None
     completed_at: Optional[str] = None
+
+
+class DataSourceInfo(BaseModel):
+    """Metadata about a single data source used in the analyzer."""
+    name: str
+    module: str
+    status: str  # "fabricated", "real", "hybrid"
+    description: str
+    coverage: str
+    origin: str
+    live_api: bool
+    reseed_endpoint: Optional[str] = None
+    migration_notes: str
+
+
+class DataSourcesResponse(BaseModel):
+    """Inventory of all data sources used by the analyzer."""
+    sources: List[DataSourceInfo]
+    summary: Dict[str, int]  # counts by status
+    timestamp: str

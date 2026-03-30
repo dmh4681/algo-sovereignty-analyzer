@@ -125,6 +125,8 @@ from .schemas import (
     MeldArbitrageResponse,
     BTCHistoryResponse,
     AdvisorRequest,
+    DataSourceInfo,
+    DataSourcesResponse,
 )
 from .agent import SovereigntyCoach, AdviceRequest
 from typing import Dict, Any, Tuple, Optional, List
@@ -4669,3 +4671,166 @@ async def get_job_status(job_id: str = Path(..., description="Job ID from async 
         )
 
     return JobStatusResponse(**job.to_dict())
+
+
+# -----------------------------------------------------------------------------
+# Data Source Inventory Endpoint
+# -----------------------------------------------------------------------------
+
+@router.get(
+    "/data-sources",
+    response_model=DataSourcesResponse,
+    summary="List all data sources",
+    description=(
+        "Returns an inventory of every data source used by the analyzer, "
+        "including whether each source is fabricated seed data, a live real API, "
+        "or a hybrid of both. Useful for auditing data quality and planning "
+        "migrations to live data providers."
+    ),
+    tags=["Metadata"],
+)
+async def get_data_sources():
+    """
+    Return metadata about all data sources used by the Algorand Sovereignty Analyzer.
+
+    Each entry describes:
+    - status: "fabricated" (seeded approximations), "real" (live API), or "hybrid"
+    - live_api: whether the source actively calls an external API
+    - reseed_endpoint: the API path to reset seed data, if applicable
+    - migration_notes: how to upgrade to a live data source
+    """
+    sources = [
+        DataSourceInfo(
+            name="Gold Miner Metrics",
+            module="core/miner_metrics.py",
+            status="fabricated",
+            description=(
+                "Quarterly financial metrics for major gold mining companies "
+                "(AISC, production, revenue, FCF, dividend yield, market cap, "
+                "jurisdictional risk tiers)."
+            ),
+            coverage="2023 Q1 – 2025 Q3 (approx.), 9 companies",
+            origin="Approximated from public quarterly reports (Newmont, Barrick, AEM, etc.)",
+            live_api=False,
+            reseed_endpoint="/api/v1/gold/miners/reseed",
+            migration_notes=(
+                "Integrate with Alpha Vantage, Morningstar, or SEC EDGAR earnings "
+                "filings (see core/earnings_calendar.py for the EDGAR pattern)."
+            ),
+        ),
+        DataSourceInfo(
+            name="Silver Miner Metrics",
+            module="core/silver_metrics.py",
+            status="fabricated",
+            description=(
+                "Quarterly financial metrics for major silver mining companies "
+                "(AISC $/oz silver, production, revenue, FCF, dividend yield, "
+                "market cap, jurisdictional risk tiers)."
+            ),
+            coverage="2023 Q1 – 2025 Q3 (approx.), 10 companies",
+            origin="Approximated from public quarterly reports (PAAS, HL, AG, etc.)",
+            live_api=False,
+            reseed_endpoint="/api/v1/silver/miners/reseed",
+            migration_notes=(
+                "Integrate with Alpha Vantage, Morningstar, or SEC EDGAR earnings "
+                "filings (see core/earnings_calendar.py for the EDGAR pattern)."
+            ),
+        ),
+        DataSourceInfo(
+            name="Central Bank Gold Holdings",
+            module="core/central_bank_gold.py",
+            status="fabricated",
+            description=(
+                "Monthly central bank gold reserve holdings by country — "
+                "tonnes held and percentage of total reserves."
+            ),
+            coverage="2020–2025 (monthly), 20+ countries",
+            origin=(
+                "Seeded from World Gold Council (WGC) and IMF IFS reports. "
+                "Historical data through 2023 is broadly accurate; 2024–2025 values "
+                "are trend-extrapolated estimates."
+            ),
+            live_api=False,
+            reseed_endpoint=None,
+            migration_notes=(
+                "Integrate with the World Gold Council API or IMF Data API "
+                "to pull live monthly reserve updates."
+            ),
+        ),
+        DataSourceInfo(
+            name="Inflation & CPI Data",
+            module="core/inflation_data.py",
+            status="hybrid",
+            description=(
+                "Historical CPI-U index, M2 money supply, and gold/silver price "
+                "series for inflation-adjusted charting and purchasing power analysis."
+            ),
+            coverage="1970–2025 (monthly)",
+            origin=(
+                "CPI and M2: FRED API (CPIAUCSL, M2SL) — live when reachable. "
+                "Gold/silver prices: seeded from LBMA/Kitco data; not live-updated."
+            ),
+            live_api=True,
+            reseed_endpoint=None,
+            migration_notes=(
+                "Set FRED_API_KEY environment variable for fully live CPI/M2 data. "
+                "Gold/silver price history requires a separate LBMA or Kitco API integration."
+            ),
+        ),
+        DataSourceInfo(
+            name="Algorand Wallet & Asset Data",
+            module="core/analyzer.py + core/pricing.py",
+            status="real",
+            description=(
+                "Live Algorand blockchain data — wallet balances, ASA holdings, "
+                "LP token positions. ASA prices fetched from Vestige Labs (primary) "
+                "and CoinGecko (fallback)."
+            ),
+            coverage="Real-time (current block)",
+            origin="AlgoNode public API (mainnet-api.algonode.cloud), Vestige Labs, CoinGecko",
+            live_api=True,
+            reseed_endpoint=None,
+            migration_notes="No migration needed — already using live APIs.",
+        ),
+        DataSourceInfo(
+            name="Mining Company Earnings Calendar",
+            module="core/earnings_calendar.py",
+            status="real",
+            description=(
+                "Upcoming and historical earnings events for gold/silver miners, "
+                "sourced from SEC EDGAR filings."
+            ),
+            coverage="Rolling 12 months (live)",
+            origin="SEC EDGAR REST API (data.sec.gov)",
+            live_api=True,
+            reseed_endpoint=None,
+            migration_notes=(
+                "Already migrated from fabricated data to live SEC EDGAR API "
+                "(commit c8aa449). No further migration needed."
+            ),
+        ),
+        DataSourceInfo(
+            name="Bitcoin & Precious Metal Spot Prices",
+            module="core/pricing.py",
+            status="real",
+            description=(
+                "Live spot prices for Bitcoin, gold (oz/gram), silver, goBTC, and WBTC. "
+                "Used for sovereignty ratio calculations and arbitrage analysis."
+            ),
+            coverage="Real-time",
+            origin="CoinGecko, Vestige Labs, Meld Gold API",
+            live_api=True,
+            reseed_endpoint=None,
+            migration_notes="No migration needed — already using live APIs.",
+        ),
+    ]
+
+    status_counts: Dict[str, int] = {"fabricated": 0, "real": 0, "hybrid": 0}
+    for source in sources:
+        status_counts[source.status] = status_counts.get(source.status, 0) + 1
+
+    return DataSourcesResponse(
+        sources=sources,
+        summary=status_counts,
+        timestamp=datetime.utcnow().isoformat() + "Z",
+    )
