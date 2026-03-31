@@ -91,7 +91,8 @@ logger = logging.getLogger("api.routes")
 from core.btc_history import get_btc_history_manager, save_current_prices
 from core.miner_metrics import get_miner_metrics_db, MinerMetric
 from core.silver_metrics import get_silver_metrics_db, SilverMinerMetric
-from core.inflation_data import get_inflation_db
+from core.inflation_data import get_inflation_db, fred_circuit_breaker
+from core.circuit_breaker import CircuitOpenError
 from core.central_bank_gold import get_cb_gold_db
 from core.earnings_calendar import get_earnings_db, EarningsEvent
 from core.premium_tracker import get_premium_db
@@ -3052,9 +3053,45 @@ async def update_inflation_from_fred():
             'results': results,
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }
+    except CircuitOpenError as e:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "FRED circuit breaker is OPEN",
+                "retry_after_seconds": e.retry_after,
+                "message": str(e),
+            },
+        )
     except Exception as e:
         logger.exception(f"Error updating from FRED: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/inflation/fred-circuit-breaker")
+async def get_fred_circuit_breaker_status():
+    """
+    Return the current status of the FRED API circuit breaker.
+
+    Useful for monitoring whether the FRED API is reachable and how many
+    consecutive failures have been recorded.
+    """
+    return fred_circuit_breaker.status()
+
+
+@router.post("/inflation/fred-circuit-breaker/reset")
+async def reset_fred_circuit_breaker():
+    """
+    Manually reset the FRED API circuit breaker to CLOSED state.
+
+    Use this after confirming the FRED API is reachable again, or to force
+    a retry before the automatic recovery timeout elapses.
+    """
+    fred_circuit_breaker.reset()
+    return {
+        "success": True,
+        "message": "FRED circuit breaker reset to CLOSED",
+        "status": fred_circuit_breaker.status(),
+    }
 
 
 # -----------------------------------------------------------------------------

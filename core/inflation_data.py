@@ -27,6 +27,8 @@ try:
 except ImportError:
     HAS_REQUESTS = False
 
+from core.circuit_breaker import CircuitBreaker, CircuitOpenError
+
 
 # Database path - uses DATA_DIR env var for Railway/production
 def _get_data_dir() -> str:
@@ -48,17 +50,66 @@ FRED_BASE_URL = 'https://api.stlouisfed.org/fred/series/observations'
 FRED_CPI_SERIES = 'CPIAUCSL'  # Consumer Price Index for All Urban Consumers
 FRED_M2_SERIES = 'M2SL'  # M2 Money Stock (Billions of Dollars)
 
+# Circuit breaker for FRED API — shared across all series fetches.
+# Opens after 3 consecutive failures; allows a probe after 120 seconds.
+fred_circuit_breaker = CircuitBreaker(
+    name="FRED",
+    failure_threshold=3,
+    recovery_timeout=120.0,
+    success_threshold=1,
+)
+
+
+def _do_fred_request(series_id: str, start_date: str) -> List[Tuple[str, float]]:
+    """
+    Single FRED API request with no retry logic.  Intended to be called
+    inside retry_with_backoff / circuit breaker wrappers.
+
+    Raises:
+        requests.exceptions.RequestException: on network or HTTP error.
+    """
+    response = requests.get(
+        FRED_BASE_URL,
+        params={
+            'series_id': series_id,
+            'api_key': FRED_API_KEY,
+            'file_type': 'json',
+            'observation_start': start_date,
+            'frequency': 'm',  # Monthly
+        },
+        timeout=10,
+    )
+    response.raise_for_status()
+    data = response.json()
+
+    results = []
+    for obs in data.get('observations', []):
+        if obs.get('value') == '.':
+            continue  # FRED uses '.' for missing values
+        try:
+            date_str = obs['date'][:7]  # YYYY-MM-DD -> YYYY-MM
+            value = float(obs['value'])
+            results.append((date_str, value))
+        except (KeyError, ValueError):
+            continue
+
+    return results
+
 
 def _fetch_from_fred(series_id: str, start_date: str = '1970-01-01') -> Optional[List[Tuple[str, float]]]:
     """
-    Fetch time series data from the FRED API.
+    Fetch time series data from the FRED API with circuit-breaker protection.
+
+    The circuit breaker is shared across all series; if FRED is consistently
+    unavailable the circuit opens and subsequent calls fail immediately
+    (fast-fail) until the recovery timeout elapses.
 
     Args:
         series_id: FRED series ID (e.g. 'CPIAUCSL', 'M2SL')
         start_date: Start date in YYYY-MM-DD format
 
     Returns:
-        List of (YYYY-MM, value) tuples, or None on failure.
+        List of (YYYY-MM, value) tuples, or None on failure / open circuit.
     """
     if not HAS_REQUESTS:
         logger.warning("requests library not available, cannot fetch from FRED")
@@ -73,33 +124,18 @@ def _fetch_from_fred(series_id: str, start_date: str = '1970-01-01') -> Optional
 
     for attempt in range(max_retries):
         try:
-            response = requests.get(
-                FRED_BASE_URL,
-                params={
-                    'series_id': series_id,
-                    'api_key': FRED_API_KEY,
-                    'file_type': 'json',
-                    'observation_start': start_date,
-                    'frequency': 'm',  # Monthly
-                },
-                timeout=10,
+            results = fred_circuit_breaker.call(
+                lambda: _do_fred_request(series_id, start_date)
             )
-            response.raise_for_status()
-            data = response.json()
-
-            results = []
-            for obs in data.get('observations', []):
-                if obs.get('value') == '.':
-                    continue  # FRED uses '.' for missing values
-                try:
-                    date_str = obs['date'][:7]  # YYYY-MM-DD -> YYYY-MM
-                    value = float(obs['value'])
-                    results.append((date_str, value))
-                except (KeyError, ValueError):
-                    continue
-
             logger.info(f"Fetched {len(results)} observations from FRED series {series_id}")
             return results
+
+        except CircuitOpenError as e:
+            logger.warning(
+                f"FRED circuit is OPEN — skipping series {series_id}. "
+                f"Retry after {e.retry_after:.0f}s."
+            )
+            return None
 
         except Exception as e:
             if attempt == max_retries - 1:
