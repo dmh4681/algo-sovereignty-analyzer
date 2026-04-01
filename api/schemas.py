@@ -188,6 +188,31 @@ class WalletParticipationResponse(BaseModel):
 
 
 # -----------------------------------------------------------------------------
+# LP Token Decomposition Schemas
+# -----------------------------------------------------------------------------
+
+class LPDecomposeRequest(BaseModel):
+    """Request to lazily decompose a single LP token into its underlying assets."""
+    asset_id: int = Field(..., description="ASA ID of the LP token")
+    ticker: str = Field(..., description="Ticker/unit-name of the LP token (e.g. 'TMPOOL2')")
+    name: str = Field(..., description="Full name of the LP token (e.g. 'TinymanPool2.0 ALGO-USDC')")
+    amount: float = Field(..., gt=0, description="User's LP token balance")
+
+
+class LPDecomposeResponse(BaseModel):
+    """Result of decomposing an LP token into its two underlying assets."""
+    lp_ticker: str = Field(..., description="Ticker of the LP token")
+    lp_amount: float = Field(..., description="User's LP token balance")
+    asset1_ticker: str = Field(..., description="Ticker of the first underlying asset")
+    asset1_amount: float = Field(..., description="User's share of the first asset")
+    asset1_usd: float = Field(..., description="USD value of user's first asset share")
+    asset2_ticker: str = Field(..., description="Ticker of the second underlying asset")
+    asset2_amount: float = Field(..., description="User's share of the second asset")
+    asset2_usd: float = Field(..., description="USD value of user's second asset share")
+    total_usd: float = Field(..., description="Total USD value of the LP position")
+
+
+# -----------------------------------------------------------------------------
 # Wallet Analysis Schemas
 # -----------------------------------------------------------------------------
 
