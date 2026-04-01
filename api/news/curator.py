@@ -5,16 +5,17 @@ Analyzes precious metals news through sovereignty lens using Claude AI
 
 from anthropic import Anthropic
 from typing import Dict, List
-import os
 import asyncio
 from datetime import datetime
+
+from core.secrets import get_secret
 
 
 class MetalsCurator:
     """Analyzes precious metals news through sovereignty lens using Claude"""
-    
+
     def __init__(self):
-        api_key = os.getenv('ANTHROPIC_API_KEY')
+        api_key = get_secret('ANTHROPIC_API_KEY')
         if not api_key:
             raise ValueError("ANTHROPIC_API_KEY not found in environment")
         self.client = Anthropic(api_key=api_key)
