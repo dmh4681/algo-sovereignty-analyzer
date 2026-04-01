@@ -28,12 +28,30 @@ Cache Invalidation:
 import logging
 import requests
 import time
-from typing import Optional
+from datetime import datetime, timezone
+from typing import Optional, Dict
 from .cache import get_cache, CacheCategory, CacheConfig
 from .retry import retry_with_backoff, with_retry
 
 # Configure module logger
 logger = logging.getLogger("core.pricing")
+
+# ---------------------------------------------------------------------------
+# Price source tracking
+# Tracks where the last fetched value for each key asset came from.
+# Values: "live_api" | "cache" | "hardcoded"
+# ---------------------------------------------------------------------------
+_price_sources: Dict[str, str] = {}
+
+
+def _record_price_source(ticker: str, source: str) -> None:
+    """Record the source used for a price fetch (module-level, not thread-safe for writes)."""
+    _price_sources[ticker] = source
+
+
+def get_price_source_snapshot() -> Dict[str, str]:
+    """Return a copy of the current price source tracking state."""
+    return dict(_price_sources)
 
 # Meld ASA IDs
 MELD_GOLD_ASA = 246516580
@@ -155,10 +173,16 @@ def get_algo_price() -> Optional[float]:
     Returns:
         ALGO price in USD, or hardcoded fallback if API fails
     """
+    cache = get_cache()
+    if cache.get_price('ALGO') is not None:
+        _record_price_source('ALGO', 'cache')
     price = _fetch_coingecko_price_cached('algorand', 'ALGO')
     if price is None:
         logger.warning("CoinGecko ALGO price failed, using hardcoded fallback")
+        _record_price_source('ALGO', 'hardcoded')
         return get_hardcoded_price('ALGO')
+    if _price_sources.get('ALGO') != 'cache':
+        _record_price_source('ALGO', 'live_api')
     return price
 
 
@@ -221,6 +245,7 @@ def get_bitcoin_spot_price() -> Optional[float]:
     # Check cache first
     cached_price = cache.get_price('BTC_SPOT')
     if cached_price is not None:
+        _record_price_source('BTC', 'cache')
         return cached_price
 
     # Try Coinbase
@@ -228,14 +253,17 @@ def get_bitcoin_spot_price() -> Optional[float]:
 
     if price is not None:
         cache.set_price('BTC_SPOT', price, ttl=PRICE_CACHE_TTL)
+        _record_price_source('BTC', 'live_api')
         return price
 
     # Fallback to CoinGecko
     cg_price = get_bitcoin_price()
     if cg_price:
+        _record_price_source('BTC', 'live_api')
         return cg_price
 
     # Last resort: hardcoded fallback
+    _record_price_source('BTC', 'hardcoded')
     return get_hardcoded_price('BTC')
 
 
@@ -420,12 +448,18 @@ def get_gold_price_per_oz() -> Optional[float]:
     Returns:
         Gold price per troy ounce in USD, or fallback on failure
     """
+    cache = get_cache()
+    if cache.get_price('GOLD_OZ') is not None:
+        _record_price_source('GOLD', 'cache')
     price = _fetch_yahoo_price_cached('GC=F', 'GOLD_OZ')
     if price:
+        if _price_sources.get('GOLD') != 'cache':
+            _record_price_source('GOLD', 'live_api')
         return price
 
     # Fallback to hardcoded price if API fails
     logger.warning("Yahoo Finance gold price failed, using hardcoded fallback")
+    _record_price_source('GOLD', 'hardcoded')
     return 4500.0  # Conservative fallback
 
 
@@ -437,12 +471,18 @@ def get_silver_price_per_oz() -> Optional[float]:
     Returns:
         Silver price per troy ounce in USD, or fallback on failure
     """
+    cache = get_cache()
+    if cache.get_price('SILVER_OZ') is not None:
+        _record_price_source('SILVER', 'cache')
     price = _fetch_yahoo_price_cached('SI=F', 'SILVER_OZ')
     if price:
+        if _price_sources.get('SILVER') != 'cache':
+            _record_price_source('SILVER', 'live_api')
         return price
 
     # Fallback to hardcoded price if API fails
     logger.warning("Yahoo Finance silver price failed, using hardcoded fallback")
+    _record_price_source('SILVER', 'hardcoded')
     return 70.0  # Conservative fallback
 
 
@@ -661,6 +701,47 @@ def invalidate_all_prices() -> int:
     """
     cache = get_cache()
     return cache.invalidate_prices()
+
+
+def build_data_source_status() -> "DataSourceStatus":
+    """
+    Build a DataSourceStatus snapshot reflecting where each key price was sourced.
+
+    Should be called AFTER the prices have been fetched for the current request
+    so that _price_sources is populated. Returns a DataSourceStatus model
+    describing the provenance of each data point and listing all known modules
+    that contain fabricated or manually-estimated data.
+
+    Returns:
+        DataSourceStatus instance ready to embed in an AnalysisResponse
+    """
+    from .models import DataSourceStatus
+
+    sources = get_price_source_snapshot()
+
+    # Known modules with fabricated / manually-estimated data that have NOT been
+    # verified against live external APIs.  These warnings are always included so
+    # API consumers are never surprised by synthetic data.
+    fabricated_warnings = [
+        "core/earnings_calendar.py: all miner fundamental data (EPS, revenue, "
+        "production, AISC, stock prices) is fabricated test data — not from SEC EDGAR",
+        "core/central_bank_gold.py: central bank gold holdings are manually estimated "
+        "and were last verified against World Gold Council data in 2024-09",
+        "core/premium_tracker.py: physical dealer premiums are estimated constants — "
+        "no live scraping of dealer websites is performed",
+        "core/inflation_data.py: CPI-U and M2 money supply figures were manually "
+        "transcribed from FRED and have not been validated via automated API fetch",
+    ]
+
+    return DataSourceStatus(
+        algo_price_source=sources.get('ALGO', 'unknown'),
+        btc_price_source=sources.get('BTC', 'unknown'),
+        gold_price_source=sources.get('GOLD', 'unknown'),
+        silver_price_source=sources.get('SILVER', 'unknown'),
+        blockchain_source="algonode_live",
+        fabricated_data_warnings=fabricated_warnings,
+        fetched_at=datetime.now(timezone.utc).isoformat(),
+    )
 
 
 def get_price_cache_stats() -> dict:
