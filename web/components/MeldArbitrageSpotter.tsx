@@ -8,6 +8,7 @@ import { RefreshCw, TrendingUp, TrendingDown, Minus, AlertTriangle, ExternalLink
 import { getMeldArbitrage } from '@/lib/api'
 import type { MeldArbitrageResponse, ArbitrageMetalData, ArbitrageMetalError, ArbitrageBitcoinData, BitcoinTokenData, GSRData, RotationSignal } from '@/lib/types'
 import { BitcoinArbitrageCard } from './BitcoinArbitrageCard'
+import { ErrorBoundary } from './ErrorBoundary'
 import { ArrowRightLeft, Scale } from 'lucide-react'
 
 // ============================================================================
@@ -607,14 +608,16 @@ export function MeldArbitrageSpotter({
             </div>
 
             {/* Bitcoin 3-Way Comparison */}
-            {data?.bitcoin && isBitcoinData(data.bitcoin) ? (
-              <BitcoinArbitrageCard data={data.bitcoin} />
-            ) : (
-              <BitcoinCard
-                data={data?.bitcoin || null}
-                loading={loading && !data}
-              />
-            )}
+            <ErrorBoundary>
+              {data?.bitcoin && isBitcoinData(data.bitcoin) ? (
+                <BitcoinArbitrageCard data={data.bitcoin} />
+              ) : (
+                <BitcoinCard
+                  data={data?.bitcoin || null}
+                  loading={loading && !data}
+                />
+              )}
+            </ErrorBoundary>
 
             {/* Legend / Help */}
             <div className="mt-6 pt-4 border-t border-slate-700">

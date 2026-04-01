@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { MeldArbitrageSpotter } from '@/components/MeldArbitrageSpotter'
 import { BitcoinHistoryChart } from '@/components/BitcoinHistoryChart'
+import { ErrorBoundary } from '@/components/ErrorBoundary'
 
 export default function ArbitragePage() {
   return (
@@ -41,7 +42,9 @@ export default function ArbitragePage() {
 
       {/* Main Widget */}
       <section>
-        <MeldArbitrageSpotter autoRefresh={true} refreshInterval={30000} />
+        <ErrorBoundary>
+          <MeldArbitrageSpotter autoRefresh={true} refreshInterval={30000} />
+        </ErrorBoundary>
       </section>
 
       {/* How It Works */}
@@ -293,7 +296,9 @@ export default function ArbitragePage() {
       </Card>
 
       {/* Historical Premium Chart */}
-      <BitcoinHistoryChart />
+      <ErrorBoundary>
+        <BitcoinHistoryChart />
+      </ErrorBoundary>
 
       {/* Disclaimer */}
       <Card className="border-amber-500/30 bg-amber-500/5">
