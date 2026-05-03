@@ -1,0 +1,242 @@
+openapi: 3.1.0
+info:
+  title: Agent Wallet + Subscription Billing Webhook Events
+  version: 0.1.0
+  description: Typed webhook event contracts for payment and subscription lifecycle updates.
+servers:
+  - url: https://api.example.com
+
+paths:
+  /v1/webhooks/endpoints:
+    post:
+      summary: Register webhook endpoint
+      operationId: createWebhookEndpoint
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWebhookEndpointRequest'
+      responses:
+        '201':
+          description: Webhook endpoint created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEndpoint'
+
+  /v1/webhooks/events/{eventId}:
+    get:
+      summary: Retrieve webhook event payload by ID
+      operationId: getWebhookEvent
+      parameters:
+        - $ref: '#/components/parameters/EventId'
+      responses:
+        '200':
+          description: Event payload
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookEventEnvelope'
+
+components:
+  parameters:
+    EventId:
+      name: eventId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  schemas:
+    CreateWebhookEndpointRequest:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
+          format: uri
+        eventFilter:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventType'
+
+    WebhookEndpoint:
+      type: object
+      required: [id, url, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        status:
+          type: string
+          enum: [active, disabled]
+        eventFilter:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventType'
+
+    EventType:
+      type: string
+      enum:
+        - payment.created
+        - payment.policy_approved
+        - payment.submitted
+        - payment.confirmed
+        - payment.failed
+        - invoice.created
+        - invoice.paid
+        - invoice.uncollectible
+        - subscription.created
+        - subscription.renewed
+        - subscription.past_due
+        - subscription.canceled
+        - entitlement.activated
+        - entitlement.revoked
+
+    WebhookEventEnvelope:
+      type: object
+      required: [id, type, createdAt, data]
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          $ref: '#/components/schemas/EventType'
+        createdAt:
+          type: string
+          format: date-time
+        tenantId:
+          type: string
+          format: uuid
+        traceId:
+          type: string
+        data:
+          oneOf:
+            - $ref: '#/components/schemas/PaymentCreatedData'
+            - $ref: '#/components/schemas/PaymentSubmittedData'
+            - $ref: '#/components/schemas/PaymentConfirmedData'
+            - $ref: '#/components/schemas/PaymentFailedData'
+            - $ref: '#/components/schemas/InvoiceCreatedData'
+            - $ref: '#/components/schemas/InvoicePaidData'
+            - $ref: '#/components/schemas/SubscriptionPastDueData'
+            - $ref: '#/components/schemas/SubscriptionCanceledData'
+
+    PaymentCreatedData:
+      type: object
+      required: [paymentId, agentId, assetId, amount, toAddress]
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+        agentId:
+          type: string
+          format: uuid
+        assetId:
+          type: integer
+        amount:
+          type: string
+        toAddress:
+          type: string
+
+    PaymentSubmittedData:
+      type: object
+      required: [paymentId, txId, roundSubmitted]
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+        txId:
+          type: string
+        roundSubmitted:
+          type: integer
+
+    PaymentConfirmedData:
+      type: object
+      required: [paymentId, txId, confirmedRound]
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+        txId:
+          type: string
+        confirmedRound:
+          type: integer
+
+    PaymentFailedData:
+      type: object
+      required: [paymentId, failureCode]
+      properties:
+        paymentId:
+          type: string
+          format: uuid
+        failureCode:
+          type: string
+        message:
+          type: string
+
+    InvoiceCreatedData:
+      type: object
+      required: [invoiceId, customerId, amountDue, assetId, dueAt]
+      properties:
+        invoiceId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        amountDue:
+          type: string
+        assetId:
+          type: integer
+        dueAt:
+          type: string
+          format: date-time
+
+    InvoicePaidData:
+      type: object
+      required: [invoiceId, paymentId, paidAt]
+      properties:
+        invoiceId:
+          type: string
+          format: uuid
+        paymentId:
+          type: string
+          format: uuid
+        paidAt:
+          type: string
+          format: date-time
+
+    SubscriptionPastDueData:
+      type: object
+      required: [subscriptionId, customerId, retryCount, nextRetryAt]
+      properties:
+        subscriptionId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        retryCount:
+          type: integer
+        nextRetryAt:
+          type: string
+          format: date-time
+
+    SubscriptionCanceledData:
+      type: object
+      required: [subscriptionId, customerId, canceledAt]
+      properties:
+        subscriptionId:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        canceledAt:
+          type: string
+          format: date-time
