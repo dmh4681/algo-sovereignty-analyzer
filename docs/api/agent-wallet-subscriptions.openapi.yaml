@@ -1,0 +1,421 @@
+openapi: 3.1.0
+info:
+  title: Agent Wallet + Subscription Billing API
+  version: 0.1.0
+  description: |
+    Reference API skeleton for Algorand-based agent wallets, payments,
+    and subscription billing.
+servers:
+  - url: https://api.example.com
+security:
+  - ApiKeyAuth: []
+paths:
+  /v1/agents:
+    post:
+      summary: Create an agent
+      operationId: createAgent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAgentRequest'
+      responses:
+        '201':
+          description: Agent created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Agent'
+
+  /v1/agents/{agentId}/wallets:
+    post:
+      summary: Create a wallet for an agent
+      operationId: createWallet
+      parameters:
+        - $ref: '#/components/parameters/AgentId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWalletRequest'
+      responses:
+        '201':
+          description: Wallet created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Wallet'
+
+  /v1/payments:
+    post:
+      summary: Create a payment request
+      operationId: createPayment
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePaymentRequest'
+      responses:
+        '202':
+          description: Payment accepted for processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /v1/payments/{paymentId}:
+    get:
+      summary: Get payment status
+      operationId: getPayment
+      parameters:
+        - $ref: '#/components/parameters/PaymentId'
+      responses:
+        '200':
+          description: Payment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Payment'
+
+  /v1/plans:
+    post:
+      summary: Create a billing plan
+      operationId: createPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePlanRequest'
+      responses:
+        '201':
+          description: Plan created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Plan'
+
+  /v1/customers:
+    post:
+      summary: Create a billing customer
+      operationId: createCustomer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCustomerRequest'
+      responses:
+        '201':
+          description: Customer created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Customer'
+
+  /v1/subscriptions:
+    post:
+      summary: Create a subscription
+      operationId: createSubscription
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSubscriptionRequest'
+      responses:
+        '201':
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /v1/subscriptions/{subscriptionId}/cancel:
+    post:
+      summary: Cancel a subscription
+      operationId: cancelSubscription
+      parameters:
+        - $ref: '#/components/parameters/SubscriptionId'
+        - $ref: '#/components/parameters/IdempotencyKey'
+      responses:
+        '200':
+          description: Subscription canceled
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+
+  /v1/invoices/{invoiceId}:
+    get:
+      summary: Get invoice details
+      operationId: getInvoice
+      parameters:
+        - $ref: '#/components/parameters/InvoiceId'
+      responses:
+        '200':
+          description: Invoice details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invoice'
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+
+  parameters:
+    AgentId:
+      name: agentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PaymentId:
+      name: paymentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    SubscriptionId:
+      name: subscriptionId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    InvoiceId:
+      name: invoiceId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema:
+        type: string
+        minLength: 8
+        maxLength: 128
+
+  schemas:
+    CreateAgentRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+
+    Agent:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateWalletRequest:
+      type: object
+      properties:
+        network:
+          type: string
+          enum: [algorand-mainnet, algorand-testnet]
+
+    Wallet:
+      type: object
+      required: [id, agentId, address, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        agentId:
+          type: string
+          format: uuid
+        address:
+          type: string
+        status:
+          type: string
+          enum: [active, suspended]
+
+    CreatePaymentRequest:
+      type: object
+      required: [agentId, assetId, amount, toAddress]
+      properties:
+        agentId:
+          type: string
+          format: uuid
+        assetId:
+          type: integer
+          description: 0 for ALGO, otherwise ASA ID
+        amount:
+          type: string
+          description: Integer in base units
+        toAddress:
+          type: string
+        metadata:
+          type: object
+          additionalProperties: true
+
+    Payment:
+      type: object
+      required: [id, status, amount, assetId]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [created, policy_pending, signed, submitted, confirmed, failed]
+        agentId:
+          type: string
+          format: uuid
+        assetId:
+          type: integer
+        amount:
+          type: string
+        toAddress:
+          type: string
+        txId:
+          type: string
+          nullable: true
+        failureCode:
+          type: string
+          nullable: true
+
+    CreatePlanRequest:
+      type: object
+      required: [name, amount, assetId, interval]
+      properties:
+        name:
+          type: string
+        amount:
+          type: string
+        assetId:
+          type: integer
+        interval:
+          type: string
+          enum: [month, year]
+        trialDays:
+          type: integer
+          minimum: 0
+
+    Plan:
+      type: object
+      required: [id, name, amount, assetId, interval]
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        amount:
+          type: string
+        assetId:
+          type: integer
+        interval:
+          type: string
+          enum: [month, year]
+
+    CreateCustomerRequest:
+      type: object
+      required: [externalRef]
+      properties:
+        externalRef:
+          type: string
+        email:
+          type: string
+          format: email
+
+    Customer:
+      type: object
+      required: [id, externalRef]
+      properties:
+        id:
+          type: string
+          format: uuid
+        externalRef:
+          type: string
+        email:
+          type: string
+          format: email
+
+    CreateSubscriptionRequest:
+      type: object
+      required: [customerId, planId]
+      properties:
+        customerId:
+          type: string
+          format: uuid
+        planId:
+          type: string
+          format: uuid
+        startAt:
+          type: string
+          format: date-time
+
+    Subscription:
+      type: object
+      required: [id, customerId, planId, status, nextBillingAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        planId:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [trialing, active, past_due, canceled]
+        nextBillingAt:
+          type: string
+          format: date-time
+
+    Invoice:
+      type: object
+      required: [id, customerId, subscriptionId, amount, status]
+      properties:
+        id:
+          type: string
+          format: uuid
+        customerId:
+          type: string
+          format: uuid
+        subscriptionId:
+          type: string
+          format: uuid
+        amount:
+          type: string
+        assetId:
+          type: integer
+        status:
+          type: string
+          enum: [open, paid, void, uncollectible]
+        paymentId:
+          type: string
+          format: uuid
+          nullable: true
